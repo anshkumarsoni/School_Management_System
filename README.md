@@ -1,79 +1,76 @@
 # 🎓 School Management System (CLI)
 
-<<<<<<< HEAD
-A modular, terminal-based **School Management System** built with **Python 3** and **MySQL**. It provides administrative tools to manage students, teachers, library inventory, daily attendance, fee transactions, and academic examinations with automated report card generation and CSV/Excel exports.
-=======
-A modular, terminal-based **School Management System** built with **Python 3** and **MySQL**. It provides administrative tools to manage students, teachers, library inventory, daily attendance, fee transactions, and academic examinations with automated report card generation.
->>>>>>> b5ccd1cfa6c36dbc9cdefffb4372cf9c145668a3
+[![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg?logo=python&logoColor=white)](https://www.python.org/)
+[![Database](https://img.shields.io/badge/Database-MySQL-orange.svg?logo=mysql&logoColor=white)](https://www.mysql.com/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)]()
+
+A modular, terminal-based **School Management System** built with **Python 3** and **MySQL**. It features complete administrative tools to manage students, faculty, library inventory, daily classroom attendance, student fee ledgers, academic examinations with automated report cards, and one-click data exports to Microsoft Excel (CSV).
+
+---
+
+## 📋 Table of Contents
+- [Key Modules & Features](#-key-modules--features)
+- [Project Architecture](#-project-architecture)
+- [Prerequisites & Dependencies](#-prerequisites--dependencies)
+- [Installation & Quickstart](#-installation--quickstart)
+- [Database Schema](#-database-schema)
+- [Troubleshooting](#-troubleshooting)
+- [License](#-license)
 
 ---
 
 ## 🚀 Key Modules & Features
 
-### 1. 👨‍🎓 Student Management
-* **Add Student**: Register new students with roll number, class, age, gender, address, phone, and email validation.
-* **View Details**: Tabulated view of all registered student records.
-* **Search Student**: Query by Roll Number or partial Name matching.
-* **Update Details**: Modify specific fields or update all details at once.
+### 1. 👨‍🎓 Student Management (`Student_Manegement_System.py`)
+* **Add Student**: Register students with roll number, class, age, gender, contact details, and input validation.
+* **View Directory**: Display all student records in a clean tabular grid.
+* **Search Records**: Lookup by Roll Number or partial Name search.
+* **Update Details**: Update single attributes or complete student profiles.
 * **Delete Record**: Remove student records with confirmation prompts.
 
-### 2. 👩‍🏫 Teacher Management
-* **Add Teacher**: Record Teacher ID, subject specialization, age, contact details, and qualifications.
-* **View Teachers**: Grid view of all faculty members.
-* **Search Teacher**: Search by Teacher ID or Name.
-* **Update Details**: Edit teacher subjects, contacts, and personal information.
-* **Delete Teacher**: Remove faculty records safely.
+### 2. 👩‍🏫 Teacher Management (`Teacher_Management_System.py`)
+* **Add Teacher**: Record Teacher ID, subject specialization, contact info, and age validation (18–120).
+* **Faculty Directory**: Formatted table of all active teachers.
+* **Search Teacher**: Lookup by Teacher ID or Name.
+* **Update Details**: Modify teacher subject allocations and personal details.
+* **Delete Teacher**: Safely remove faculty records.
 
-### 3. 📚 Library Management
-* **Book Inventory**: Register books with Book ID, Title, Author, Genre, and Total Copies.
-* **View All Books**: Track both total and currently available copies.
-* **Search Books**: Search by Book ID, Title, or Author.
-* **Update Inventory**: Modify book details or adjust total/available stock.
-* **Delete Record**: Remove decommissioned books.
+### 3. 📚 Library Management (`Library_Management_System.py`)
+* **Book Cataloging**: Register books with Book ID, Title, Author, Genre, and Total Copies.
+* **Stock Tracking**: Monitors both Total Copies and Available Copies in real-time.
+* **Search Catalog**: Search inventory by Book ID, Title, or Author.
+* **Update Inventory**: Modify book details or replenish copy counts.
+* **Delete Book**: Remove damaged or decommissioned book entries.
 
-### 4. 📅 Attendance Management
-* **Single Student Attendance**: Mark daily status (`Present`, `Absent`, `Leave`) with date auto-fill.
-* **Class Batch Mode**: Rapidly mark attendance for an entire classroom in one pass.
-* **Attendance % Calculator**: Calculates student working day attendance percentage.
+### 4. 📅 Attendance Management (`Attendance_Management_System.py`)
+* **Single Student Attendance**: Mark daily status (`Present`, `Absent`, `Leave`) with auto-date filling.
+* **Class Batch Mode**: Quickly roll through an entire classroom in one pass (`P/A/L`).
+* **Attendance % Calculator**: Calculates student working day percentage.
 * **Defaulter Warning**: Automatically flags warnings for students falling below **75% attendance**.
-* **Rectify Records**: Correct mistakenly marked attendance entries.
+* **Rectify Records**: Correct mistakenly marked attendance records.
 
-### 5. 💳 Fee & Finance Management
-* **Fee Collection & Receipts**: Record student payments (Cash, UPI, Card, Net Banking) and generate formatted receipt cards.
+### 5. 💳 Fee & Finance Management (`Fee_Management_System.py`)
+* **Collect Fee & Print Receipt**: Record payments (Cash, UPI, Card, Net Banking) and generate formatted receipt cards.
 * **Student Statement**: Track total annual fee, total paid so far, and remaining balance due.
-* **Fee Defaulters**: Instantly filter and list all students with pending fee dues.
+* **Fee Defaulters List**: Instantly lists all students who have pending fee balances.
 * **Class Fee Structure**: Configure custom annual fee standards per grade/class.
 * **Transaction Log**: Complete historical record of all school fee transactions.
 
-### 6. 📊 Examination & Marks Management
-* **Marks Entry**: Record subject-wise marks across exams (Unit Tests, Mid-Term, Final Exams) with upper-bound score validation.
+### 6. 📊 Examination & Marks Management (`Exam_Management_System.py`)
+* **Marks Entry**: Record subject-wise marks across exams (Unit Tests, Mid-Term, Final Exams) with score validation.
 * **Academic Report Cards**: Generate formatted student report cards with subject percentages, overall GPA, letter grades (`A+` to `F`), and pass/fail status.
 * **Class Merit List**: Rank students in a class sorted by overall performance and percentage (Rank 1, 2, 3...).
 * **Update / Rectify**: Update subject marks in case of re-evaluation.
 
-<<<<<<< HEAD
-### 7. 📄 Data Export to CSV / Excel
-* **Export Students**: Export entire student directory or filter by specific class to `.csv`.
+### 7. 📄 Data Export to CSV / Excel (`Export_Management_System.py`)
+* **Export Students**: Export full student roster or filter by specific class to `.csv`.
 * **Export Faculty**: Export teacher roster and contact info.
-* **Export Library Inventory**: Save book stock reports.
+* **Export Library Inventory**: Save book stock reports to `.csv`.
 * **Export Fee Defaulters**: Generate list of unpaid dues directly openable in Microsoft Excel.
 * **Export Attendance**: Export daily school attendance sheets.
 * **Export Merit List**: Save class exam rankings and percentages to `.csv`.
 * **Full School Backup**: One-click export of all school tables into the `exports/` folder with timestamps.
-
-=======
->>>>>>> b5ccd1cfa6c36dbc9cdefffb4372cf9c145668a3
----
-
-## 🛠️ Tech Stack & Requirements
-
-* **Language**: Python 3.8+
-* **Database**: MySQL Server 8.0+
-* **Python Libraries**:
-  * `mysql-connector-python` — MySQL database driver
-  * `tabulate` — ASCII table formatting
-  * `pyfiglet` — Terminal banners
-  * `python-dotenv` — Environment configuration
 
 ---
 
@@ -89,67 +86,10 @@ School Management System/
 ├── Attendance_Management_System.py  # Daily attendance tracking and defaulter logic
 ├── Fee_Management_System.py         # Financial ledger, receipts, and fee structures
 ├── Exam_Management_System.py        # Examination records, report cards, and merit lists
-<<<<<<< HEAD
 ├── Export_Management_System.py      # Automated report generation and CSV/Excel exports
 ├── utils.py                         # Shared utilities, DB connection, and regex validators
 ├── exports/                         # Output folder for generated CSV files
-=======
-├── utils.py                         # Shared utilities, DB connection, and regex validators
->>>>>>> b5ccd1cfa6c36dbc9cdefffb4372cf9c145668a3
 ├── .env                             # Database connection credentials (local configuration)
+├── .gitignore                       # Git ignore rules for passwords and cache
+├── requirements.txt                 # Python dependencies list
 └── README.md                        # Documentation
-```
-
----
-
-## ⚙️ Installation & Setup
-
-### 1. Clone or Download
-Ensure all project files are saved together in your project folder:
-```bash
-cd "C:\Users\lenovo\Desktop\python\School Management System"
-```
-
-### 2. Install Required Python Packages
-Run the following command in your terminal:
-```bash
-pip install mysql-connector-python tabulate pyfiglet python-dotenv
-```
-
-### 3. Configure Database Credentials
-Create a `.env` file in the project folder with your MySQL login credentials:
-```env
-DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=your_mysql_password
-DB_NAME=Student
-```
-*(If no password is set, leave `DB_PASSWORD=` blank).*
-
-### 4. Run the Application
-Start the main management portal:
-```bash
-python Main.py
-```
-
-The database (`Student`) and all corresponding tables will be created automatically on your first run.
-
----
-
-<<<<<<< HEAD
-=======
-## 🗄️ Database Tables Schema
-
-* `Students_Details`: `(ID, ROLL_NUMBER, NAME, CLASS, AGE, ADDRESS, PHONE, EMAIL, GENDER)`
-* `Teachers_Details`: `(ID, TEACHER_ID, NAME, SUBJECT, AGE, ADDRESS, PHONE, EMAIL, GENDER)`
-* `Books_Details`: `(ID, BOOK_ID, TITLE, AUTHOR, GENRE, TOTAL_COPIES, AVAILABLE_COPIES)`
-* `Attendance_Details`: `(ID, ROLL_NUMBER, ATTENDANCE_DATE, STATUS, REMARKS)`
-* `Fee_Structure`: `(CLASS, ANNUAL_FEE)`
-* `Fee_Transactions`: `(RECEIPT_NO, ROLL_NUMBER, AMOUNT_PAID, PAYMENT_DATE, PAYMENT_MODE, REMARKS)`
-* `Marks_Details`: `(ID, ROLL_NUMBER, EXAM_TYPE, SUBJECT, MARKS_OBTAINED, MAX_MARKS)`
-
----
-
->>>>>>> b5ccd1cfa6c36dbc9cdefffb4372cf9c145668a3
-## 📄 License
-This project is open-source and intended for academic and administrative demonstration.

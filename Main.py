@@ -9,6 +9,7 @@ from Library_Management_System import create_library_tables, library_menu
 from Attendance_Management_System import create_attendance_tables, attendance_menu
 from FeeFinance_Management_System import create_fee_tables, fee_menu
 from ExamMarks_Management_System import create_exam_tables, exam_menu
+from Export_Management_System import export_menu
 
 # ============================== DATABASE INITIALIZATION ==================
 def init_database():
@@ -49,6 +50,7 @@ def main():
         print("4. Attendance Management System".center(100))
         print("5. Fee & Finance Management".center(100))
         print("6. Examination & Marks Management".center(100))
+        print("7. Export Reports to CSV / Excel".center(100))
         print("0. Exit".center(100))
         print("=" * 100)
         
@@ -65,6 +67,8 @@ def main():
             fee_menu()
         elif choice == '6':
             exam_menu()
+        elif choice == '7':
+            export_menu()
         elif choice == '0':
             clear_screen()
             screen_down = pyfiglet.figlet_format("HAVE A GREAT DAY !!!!", font='doom')

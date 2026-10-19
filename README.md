@@ -1,6 +1,10 @@
 # 🎓 School Management System (CLI)
 
+<<<<<<< HEAD
 A modular, terminal-based **School Management System** built with **Python 3** and **MySQL**. It provides administrative tools to manage students, teachers, library inventory, daily attendance, fee transactions, and academic examinations with automated report card generation and CSV/Excel exports.
+=======
+A modular, terminal-based **School Management System** built with **Python 3** and **MySQL**. It provides administrative tools to manage students, teachers, library inventory, daily attendance, fee transactions, and academic examinations with automated report card generation.
+>>>>>>> b5ccd1cfa6c36dbc9cdefffb4372cf9c145668a3
 
 ---
 
@@ -47,6 +51,7 @@ A modular, terminal-based **School Management System** built with **Python 3** a
 * **Class Merit List**: Rank students in a class sorted by overall performance and percentage (Rank 1, 2, 3...).
 * **Update / Rectify**: Update subject marks in case of re-evaluation.
 
+<<<<<<< HEAD
 ### 7. 📄 Data Export to CSV / Excel
 * **Export Students**: Export entire student directory or filter by specific class to `.csv`.
 * **Export Faculty**: Export teacher roster and contact info.
@@ -56,6 +61,8 @@ A modular, terminal-based **School Management System** built with **Python 3** a
 * **Export Merit List**: Save class exam rankings and percentages to `.csv`.
 * **Full School Backup**: One-click export of all school tables into the `exports/` folder with timestamps.
 
+=======
+>>>>>>> b5ccd1cfa6c36dbc9cdefffb4372cf9c145668a3
 ---
 
 ## 🛠️ Tech Stack & Requirements
@@ -82,9 +89,13 @@ School Management System/
 ├── Attendance_Management_System.py  # Daily attendance tracking and defaulter logic
 ├── Fee_Management_System.py         # Financial ledger, receipts, and fee structures
 ├── Exam_Management_System.py        # Examination records, report cards, and merit lists
+<<<<<<< HEAD
 ├── Export_Management_System.py      # Automated report generation and CSV/Excel exports
 ├── utils.py                         # Shared utilities, DB connection, and regex validators
 ├── exports/                         # Output folder for generated CSV files
+=======
+├── utils.py                         # Shared utilities, DB connection, and regex validators
+>>>>>>> b5ccd1cfa6c36dbc9cdefffb4372cf9c145668a3
 ├── .env                             # Database connection credentials (local configuration)
 └── README.md                        # Documentation
 ```
@@ -125,5 +136,20 @@ The database (`Student`) and all corresponding tables will be created automatica
 
 ---
 
+<<<<<<< HEAD
+=======
+## 🗄️ Database Tables Schema
+
+* `Students_Details`: `(ID, ROLL_NUMBER, NAME, CLASS, AGE, ADDRESS, PHONE, EMAIL, GENDER)`
+* `Teachers_Details`: `(ID, TEACHER_ID, NAME, SUBJECT, AGE, ADDRESS, PHONE, EMAIL, GENDER)`
+* `Books_Details`: `(ID, BOOK_ID, TITLE, AUTHOR, GENRE, TOTAL_COPIES, AVAILABLE_COPIES)`
+* `Attendance_Details`: `(ID, ROLL_NUMBER, ATTENDANCE_DATE, STATUS, REMARKS)`
+* `Fee_Structure`: `(CLASS, ANNUAL_FEE)`
+* `Fee_Transactions`: `(RECEIPT_NO, ROLL_NUMBER, AMOUNT_PAID, PAYMENT_DATE, PAYMENT_MODE, REMARKS)`
+* `Marks_Details`: `(ID, ROLL_NUMBER, EXAM_TYPE, SUBJECT, MARKS_OBTAINED, MAX_MARKS)`
+
+---
+
+>>>>>>> b5ccd1cfa6c36dbc9cdefffb4372cf9c145668a3
 ## 📄 License
 This project is open-source and intended for academic and administrative demonstration.

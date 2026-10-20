@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{{ title or 'Dashboard' }} | EduPulse School Management</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+    <div class="app-layout" id="appLayout">
+        <!-- Sidebar Navigation -->
+        <aside class="app-sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="brand-logo">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                </div>
+                <div class="brand-info">
+                    <span class="brand-title">Edu<span>Pulse</span></span>
+                    <span class="brand-tag">v2.4 Pro</span>
+                </div>
+                <button class="sidebar-close-btn" id="sidebarClose" aria-label="Close Sidebar">&times;</button>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-group-label">OVERVIEW</div>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="{{ url_for('dashboard') }}" class="nav-link {% if active_page == 'dashboard' %}active{% endif %}">
+                            <i class="fa-solid fa-chart-pie"></i>
+                            <span class="link-text">Dashboard</span>
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="nav-group-label">ACADEMIC MODULES</div>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="{{ url_for('students_view') }}" class="nav-link {% if active_page == 'students' %}active{% endif %}">
+                            <i class="fa-solid fa-user-graduate"></i>
+                            <span class="link-text">Students</span>
+                            <span class="nav-badge">Live</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ url_for('teachers_view') }}" class="nav-link {% if active_page == 'teachers' %}active{% endif %}">
+                            <i class="fa-solid fa-chalkboard-user"></i>
+                            <span class="link-text">Faculty / Teachers</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ url_for('library_view') }}" class="nav-link {% if active_page == 'library' %}active{% endif %}">
+                            <i class="fa-solid fa-book-open-reader"></i>
+                            <span class="link-text">Library Books</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ url_for('attendance_view') }}" class="nav-link {% if active_page == 'attendance' %}active{% endif %}">
+                            <i class="fa-solid fa-calendar-check"></i>
+                            <span class="link-text">Attendance</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ url_for('fees_view') }}" class="nav-link {% if active_page == 'fees' %}active{% endif %}">
+                            <i class="fa-solid fa-wallet"></i>
+                            <span class="link-text">Fees & Finance</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ url_for('exams_view') }}" class="nav-link {% if active_page == 'exams' %}active{% endif %}">
+                            <i class="fa-solid fa-award"></i>
+                            <span class="link-text">Examinations</span>
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="nav-group-label">SYSTEM</div>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="#" class="nav-link module-link" data-name="Export">
+                            <i class="fa-solid fa-file-arrow-down"></i>
+                            <span class="link-text">Export / Reports</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="system-status-card">
+                    <div class="status-indicator">
+                        <span class="pulse-dot"></span>
+                        <span class="status-text">Database Connected</span>
+                    </div>
+                    <div class="status-details">
+                        <i class="fa-solid fa-database"></i> MySQL • <span class="db-name">Student</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <div class="app-main">
+            <!-- Topbar Header -->
+            <header class="app-topbar">
+                <div class="topbar-left">
+                    <button class="sidebar-toggle-btn" id="menuToggle" aria-label="Toggle Sidebar Menu">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <div class="page-title-box">
+                        <h1 class="page-title">{{ title or 'Dashboard' }}</h1>
+                        <p class="page-subtitle">Real-time institutional management & student metrics</p>
+                    </div>
+                </div>
+
+                <div class="topbar-right">
+                    <!-- Quick Add Student Modal Trigger -->
+                    <button type="button" class="topbar-add-btn" data-modal-target="#addStudentModal">
+                        <i class="fa-solid fa-plus"></i> <span class="btn-text">Add Student</span>
+                    </button>
+
+                    <!-- Search Input -->
+                    <div class="search-box">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" placeholder="Search records, students, books..." aria-label="Search">
+                        <span class="search-shortcut">Ctrl K</span>
+                    </div>
+
+                    <!-- Theme Switcher -->
+                    <div class="theme-switch-wrapper" title="Switch Theme (Dark / Light)">
+                        <label class="theme-switch" for="themeToggle">
+                            <input type="checkbox" id="themeToggle">
+                            <span class="slider round">
+                                <i class="fa-solid fa-sun icon-sun"></i>
+                                <i class="fa-solid fa-moon icon-moon"></i>
+                            </span>
+                        </label>
+                    </div>
+
+                    <button class="icon-action-btn" id="notifBtn" title="Notifications">
+                        <i class="fa-regular fa-bell"></i>
+                        <span class="notification-badge"></span>
+                    </button>
+
+                    <div class="user-profile-widget">
+                        <div class="avatar-circle">
+                            <span>AD</span>
+                            <span class="online-status"></span>
+                        </div>
+                        <div class="user-details">
+                            <span class="user-name">Administrator</span>
+                            <span class="user-role">Super Admin</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Content -->
+            <main class="content-viewport">
+                <!-- Flash Notification Messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        <div class="flash-messages-container">
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }}">
+                                    <div class="alert-content">
+                                        <i class="fa-solid fa-circle-info"></i>
+                                        <span>{{ message }}</span>
+                                    </div>
+                                    <button type="button" class="alert-close-btn" onclick="this.closest('.alert').remove()">&times;</button>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% endwith %}
+
+                {% block content %}{% endblock %}
+            </main>
+
+            <footer class="app-footer">
+                <p>&copy; 2026 <strong>EduPulse School Management System</strong> • High-Performance Academic Intelligence</p>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Reusable Add Student Modal -->
+    <div class="modal-overlay" id="addStudentModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <div class="modal-title-box">
+                    <div class="modal-icon badge-blue"><i class="fa-solid fa-user-plus"></i></div>
+                    <div>
+                        <h3 class="modal-title">Enroll New Student</h3>
+                        <p class="modal-subtitle">Save student record directly to MySQL database</p>
+                    </div>
+                </div>
+                <button type="button" class="modal-close-btn" data-modal-close>&times;</button>
+            </div>
+            
+            <form action="{{ url_for('add_student') }}" method="POST" class="modal-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Roll Number <span class="required">*</span></label>
+                        <input type="text" name="roll_number" required placeholder="e.g. 102">
+                    </div>
+                    <div class="form-group">
+                        <label>Full Name <span class="required">*</span></label>
+                        <input type="text" name="name" required placeholder="e.g. Rahul Sharma">
+                    </div>
+                    <div class="form-group">
+                        <label>Class / Standard</label>
+                        <input type="text" name="class_name" placeholder="e.g. 10th A, 12th B">
+                    </div>
+                    <div class="form-group">
+                        <label>Age</label>
+                        <input type="number" name="age" min="3" max="100" placeholder="e.g. 17">
+                    </div>
+                    <div class="form-group">
+                        <label>Gender</label>
+                        <select name="gender">
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Phone Number</label>
+                        <input type="tel" name="phone" placeholder="e.g. 9876543210">
+                    </div>
+                    <div class="form-group full-width">
+                        <label>Email Address</label>
+                        <input type="email" name="email" placeholder="e.g. rahul@example.com">
+                    </div>
+                    <div class="form-group full-width">
+                        <label>Residential Address</label>
+                        <textarea name="address" rows="2" placeholder="e.g. 42 Park Avenue, Civil Lines"></textarea>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" data-modal-close>Cancel</button>
+                    <button type="submit" class="btn-submit"><i class="fa-solid fa-check"></i> Register Student</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Master Interactive Controls Script -->
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const menuToggle = document.getElementById('menuToggle');
+            const sidebarClose = document.getElementById('sidebarClose');
+            const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+            const sidebar = document.getElementById('sidebar');
+            const appLayout = document.getElementById('appLayout');
+
+            function isMobile() { return window.innerWidth <= 768; }
+
+            function openMobileSidebar() {
+                if (sidebar) sidebar.classList.add('open');
+                if (sidebarBackdrop) sidebarBackdrop.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeMobileSidebar() {
+                if (sidebar) sidebar.classList.remove('open');
+                if (sidebarBackdrop) sidebarBackdrop.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+
+            if (menuToggle) {
+                const handleToggle = (e) => {
+                    e.preventDefault();
+                    if (isMobile()) {
+                        sidebar.classList.contains('open') ? closeMobileSidebar() : openMobileSidebar();
+                    } else {
+                        appLayout.classList.toggle('sidebar-collapsed');
+                    }
+                };
+                menuToggle.addEventListener('click', handleToggle);
+                menuToggle.addEventListener('touchend', handleToggle);
+            }
+
+            if (sidebarClose) sidebarClose.addEventListener('click', closeMobileSidebar);
+            if (sidebarBackdrop) sidebarBackdrop.addEventListener('click', closeMobileSidebar);
+
+            // Modal Controls
+            const openModalBtns = document.querySelectorAll('[data-modal-target]');
+            const closeModalBtns = document.querySelectorAll('[data-modal-close]');
+            const addStudentModal = document.getElementById('addStudentModal');
+
+            openModalBtns.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const targetSelector = btn.getAttribute('data-modal-target');
+                    const targetModal = document.querySelector(targetSelector);
+                    if (targetModal) targetModal.classList.add('active');
+                });
+            });
+
+            closeModalBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const modal = btn.closest('.modal-overlay');
+                    if (modal) modal.classList.remove('active');
+                });
+            });
+
+            if (addStudentModal) {
+                addStudentModal.addEventListener('click', (e) => {
+                    if (e.target === addStudentModal) addStudentModal.classList.remove('active');
+                });
+            }
+
+            // Theme Switcher
+            const themeToggle = document.getElementById('themeToggle');
+            if (localStorage.getItem('edupulse_theme') === 'light') {
+                document.body.classList.add('light-theme');
+                if (themeToggle) themeToggle.checked = true;
+            }
+            if (themeToggle) {
+                themeToggle.addEventListener('change', (e) => {
+                    if (e.target.checked) {
+                        document.body.classList.add('light-theme');
+                        localStorage.setItem('edupulse_theme', 'light');
+                    } else {
+                        document.body.classList.remove('light-theme');
+                        localStorage.setItem('edupulse_theme', 'dark');
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

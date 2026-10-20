@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard-container">
+
+    <!-- Top Action & Filter Toolbar -->
+    <div class="page-toolbar">
+        <div class="toolbar-left">
+            <form action="{{ url_for('students_view') }}" method="GET" class="filter-form">
+                <div class="filter-search-box">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" name="search" value="{{ search or '' }}" placeholder="Search by name, roll no, or phone...">
+                </div>
+                
+                <div class="filter-select-box">
+                    <select name="class" onchange="this.form.submit()">
+                        <option value="">All Standards / Classes</option>
+                        {% for c in available_classes %}
+                            <option value="{{ c }}" {% if selected_class == c %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <button type="submit" class="btn-filter"><i class="fa-solid fa-filter"></i> Apply</button>
+                {% if search or selected_class %}
+                    <a href="{{ url_for('students_view') }}" class="btn-clear"><i class="fa-solid fa-rotate-left"></i> Reset</a>
+                {% endif %}
+            </form>
+        </div>
+
+        <div class="toolbar-right">
+            <!-- Button to open the Add Student Modal -->
+            <button type="button" class="action-pill primary-pill" data-modal-target="#addStudentModal">
+                <i class="fa-solid fa-user-plus"></i> Enroll Student
+            </button>
+        </div>
+    </div>
+
+    <!-- Students Data Table Card -->
+    <div class="data-table-card">
+        <div class="card-header">
+            <div class="header-left">
+                <div class="card-badge-icon badge-blue">
+                    <i class="fa-solid fa-user-graduate"></i>
+                </div>
+                <div>
+                    <h4 class="card-heading">All Registered Students</h4>
+                    <p class="card-subheading">Showing {{ students|length }} enrolled student record(s)</p>
+                </div>
+            </div>
+            <span class="chart-tag"><i class="fa-solid fa-database"></i> Live MySQL Records</span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>Roll No</th>
+                        <th>Student Name</th>
+                        <th>Class</th>
+                        <th>Age</th>
+                        <th>Gender</th>
+                        <th>Phone</th>
+                        <th>Email</th>
+                        <th>Address</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if students and students|length > 0 %}
+                        {% for s in students %}
+                        <tr>
+                            <td><span class="roll-badge">#{{ s.ROLL_NUMBER }}</span></td>
+                            <td>
+                                <div class="student-name-cell">
+                                    <div class="mini-avatar">{{ s.NAME[0] | upper }}</div>
+                                    <span class="student-name">{{ s.NAME }}</span>
+                                </div>
+                            </td>
+                            <td><span class="class-pill">{{ s.CLASS or 'N/A' }}</span></td>
+                            <td class="text-dim">{{ s.AGE or 'N/A' }}</td>
+                            <td>
+                                {% if s.GENDER|lower == 'male' %}
+                                    <span class="gender-pill gender-male"><i class="fa-solid fa-mars"></i> Male</span>
+                                {% elif s.GENDER|lower == 'female' %}
+                                    <span class="gender-pill gender-female"><i class="fa-solid fa-venus"></i> Female</span>
+                                {% else %}
+                                    <span class="gender-pill">{{ s.GENDER or 'Other' }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-dim">{{ s.PHONE or 'N/A' }}</td>
+                            <td class="text-dim">{{ s.EMAIL or 'N/A' }}</td>
+                            <td class="text-dim" style="max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ s.ADDRESS }}">{{ s.ADDRESS or 'N/A' }}</td>
+                            <td>
+                                <form action="{{ url_for('delete_student', id=s.ID) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete student {{ s.NAME }} (#{{ s.ROLL_NUMBER }})?');">
+                                    <button type="submit" class="btn-table-delete" title="Delete Student">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="9" class="empty-table-cell">
+                                <i class="fa-solid fa-user-xmark"></i>
+                                <p>No matching student records found.</p>
+                                <button type="button" class="action-pill primary-pill" data-modal-target="#addStudentModal" style="margin-top: 12px;">
+                                    <i class="fa-solid fa-user-plus"></i> Enroll First Student
+                                </button>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

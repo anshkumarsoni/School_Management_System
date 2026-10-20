@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard-container">
+
+    <div class="page-toolbar">
+        <div class="toolbar-left">
+            <h3 style="font-size: 18px; font-weight: 700; color: var(--text-primary);">Examination Marks & Performance</h3>
+            <p style="font-size: 13px; color: var(--text-secondary);">Student test evaluations & academic subject scoring</p>
+        </div>
+    </div>
+
+    <!-- Marks Table -->
+    <div class="data-table-card">
+        <div class="card-header">
+            <div class="header-left">
+                <div class="card-badge-icon badge-pink">
+                    <i class="fa-solid fa-award"></i>
+                </div>
+                <div>
+                    <h4 class="card-heading">Exam Records</h4>
+                    <p class="card-subheading">Showing {{ marks|length }} recorded mark evaluations</p>
+                </div>
+            </div>
+            <span class="chart-tag"><i class="fa-solid fa-file-signature"></i> Academic Records</span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>Roll No</th>
+                        <th>Student Name</th>
+                        <th>Class</th>
+                        <th>Exam Type</th>
+                        <th>Subject</th>
+                        <th>Marks Obtained</th>
+                        <th>Maximum Marks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if marks and marks|length > 0 %}
+                        {% for m in marks %}
+                        <tr>
+                            <td><span class="roll-badge">#{{ m.ROLL_NUMBER }}</span></td>
+                            <td class="student-name">{{ m.NAME or 'Unknown' }}</td>
+                            <td><span class="class-pill">{{ m.CLASS or 'N/A' }}</span></td>
+                            <td><span class="class-pill">{{ m.EXAM_TYPE }}</span></td>
+                            <td class="text-dim">{{ m.SUBJECT }}</td>
+                            <td style="font-weight: 700; color: var(--accent-cyan);">{{ m.MARKS_OBTAINED }}</td>
+                            <td class="text-dim">{{ m.MAX_MARKS }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="7" class="empty-table-cell">
+                                <i class="fa-solid fa-award"></i>
+                                <p>No examination marks entered yet.</p>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

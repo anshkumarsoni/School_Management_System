@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard-container">
+
+    <div class="page-toolbar">
+        <div class="toolbar-left">
+            <h3 style="font-size: 18px; font-weight: 700; color: var(--text-primary);">Faculty & Teaching Staff</h3>
+            <p style="font-size: 13px; color: var(--text-secondary);">Manage school teachers and assigned subjects</p>
+        </div>
+        <div class="toolbar-right">
+            <button type="button" class="action-pill primary-pill" onclick="document.getElementById('addTeacherModal').classList.add('active')">
+                <i class="fa-solid fa-chalkboard-user"></i> Add Teacher
+            </button>
+        </div>
+    </div>
+
+    <!-- Teachers Table -->
+    <div class="data-table-card">
+        <div class="card-header">
+            <div class="header-left">
+                <div class="card-badge-icon badge-purple">
+                    <i class="fa-solid fa-chalkboard-user"></i>
+                </div>
+                <div>
+                    <h4 class="card-heading">Faculty Members</h4>
+                    <p class="card-subheading">Total recorded staff: {{ teachers|length }}</p>
+                </div>
+            </div>
+            <span class="chart-tag"><i class="fa-solid fa-graduation-cap"></i> Staff Directory</span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>Teacher ID</th>
+                        <th>Name</th>
+                        <th>Subject</th>
+                        <th>Phone</th>
+                        <th>Email</th>
+                        <th>Gender</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if teachers and teachers|length > 0 %}
+                        {% for t in teachers %}
+                        <tr>
+                            <td><span class="roll-badge">#{{ t.TEACHER_ID }}</span></td>
+                            <td class="student-name">{{ t.NAME }}</td>
+                            <td><span class="class-pill">{{ t.SUBJECT }}</span></td>
+                            <td class="text-dim">{{ t.PHONE or 'N/A' }}</td>
+                            <td class="text-dim">{{ t.EMAIL or 'N/A' }}</td>
+                            <td class="text-dim">{{ t.GENDER or 'N/A' }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="empty-table-cell">
+                                <i class="fa-solid fa-chalkboard-user"></i>
+                                <p>No faculty members recorded yet.</p>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Add Teacher Modal -->
+    <div class="modal-overlay" id="addTeacherModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <div class="modal-title-box">
+                    <div class="modal-icon badge-purple"><i class="fa-solid fa-chalkboard-user"></i></div>
+                    <div>
+                        <h3 class="modal-title">Register Teacher</h3>
+                        <p class="modal-subtitle">Add faculty member details</p>
+                    </div>
+                </div>
+                <button type="button" class="modal-close-btn" onclick="document.getElementById('addTeacherModal').classList.remove('active')">&times;</button>
+            </div>
+            <form action="{{ url_for('add_teacher') }}" method="POST" class="modal-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Teacher ID <span class="required">*</span></label>
+                        <input type="text" name="teacher_id" required placeholder="e.g. T-101">
+                    </div>
+                    <div class="form-group">
+                        <label>Full Name <span class="required">*</span></label>
+                        <input type="text" name="name" required placeholder="e.g. Dr. Ramesh Gupta">
+                    </div>
+                    <div class="form-group">
+                        <label>Subject Specialization</label>
+                        <input type="text" name="subject" placeholder="e.g. Mathematics, Physics">
+                    </div>
+                    <div class="form-group">
+                        <label>Phone Number</label>
+                        <input type="tel" name="phone" placeholder="e.g. 9812345678">
+                    </div>
+                    <div class="form-group full-width">
+                        <label>Email Address</label>
+                        <input type="email" name="email" placeholder="e.g. ramesh@school.com">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="document.getElementById('addTeacherModal').classList.remove('active')">Cancel</button>
+                    <button type="submit" class="btn-submit"><i class="fa-solid fa-check"></i> Save Faculty</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

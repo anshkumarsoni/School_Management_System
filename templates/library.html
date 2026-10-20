@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard-container">
+
+    <div class="page-toolbar">
+        <div class="toolbar-left">
+            <h3 style="font-size: 18px; font-weight: 700; color: var(--text-primary);">Library Management & Catalog</h3>
+            <p style="font-size: 13px; color: var(--text-secondary);">Manage book inventory, circulation, and available copies</p>
+        </div>
+        <div class="toolbar-right">
+            <button type="button" class="action-pill primary-pill" onclick="document.getElementById('addBookModal').classList.add('active')">
+                <i class="fa-solid fa-book-medical"></i> Add Book
+            </button>
+        </div>
+    </div>
+
+    <!-- Books Catalog Table -->
+    <div class="data-table-card">
+        <div class="card-header">
+            <div class="header-left">
+                <div class="card-badge-icon badge-amber">
+                    <i class="fa-solid fa-book"></i>
+                </div>
+                <div>
+                    <h4 class="card-heading">Catalog Titles</h4>
+                    <p class="card-subheading">Total recorded titles: {{ books|length }}</p>
+                </div>
+            </div>
+            <span class="chart-tag"><i class="fa-solid fa-barcode"></i> ISBN / Catalog</span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>Book ID</th>
+                        <th>Book Title</th>
+                        <th>Author</th>
+                        <th>Genre / Category</th>
+                        <th>Total Copies</th>
+                        <th>Available</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if books and books|length > 0 %}
+                        {% for b in books %}
+                        <tr>
+                            <td><span class="roll-badge">#{{ b.BOOK_ID }}</span></td>
+                            <td class="student-name">{{ b.TITLE }}</td>
+                            <td class="text-dim">{{ b.AUTHOR or 'Unknown' }}</td>
+                            <td><span class="class-pill">{{ b.GENRE or 'General' }}</span></td>
+                            <td>{{ b.TOTAL_COPIES }}</td>
+                            <td><span class="status-badge status-active"><span class="badge-dot"></span> {{ b.AVAILABLE_COPIES }} Available</span></td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="empty-table-cell">
+                                <i class="fa-solid fa-book-open"></i>
+                                <p>No books logged in the library catalog yet.</p>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Add Book Modal -->
+    <div class="modal-overlay" id="addBookModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <div class="modal-title-box">
+                    <div class="modal-icon badge-amber"><i class="fa-solid fa-book-medical"></i></div>
+                    <div>
+                        <h3 class="modal-title">Add Book to Catalog</h3>
+                        <p class="modal-subtitle">Log new publication copies</p>
+                    </div>
+                </div>
+                <button type="button" class="modal-close-btn" onclick="document.getElementById('addBookModal').classList.remove('active')">&times;</button>
+            </div>
+            <form action="{{ url_for('add_book') }}" method="POST" class="modal-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Book ID / Accession No. <span class="required">*</span></label>
+                        <input type="text" name="book_id" required placeholder="e.g. BK-201">
+                    </div>
+                    <div class="form-group">
+                        <label>Book Title <span class="required">*</span></label>
+                        <input type="text" name="title" required placeholder="e.g. Concepts of Physics">
+                    </div>
+                    <div class="form-group">
+                        <label>Author</label>
+                        <input type="text" name="author" placeholder="e.g. H.C. Verma">
+                    </div>
+                    <div class="form-group">
+                        <label>Genre / Subject</label>
+                        <input type="text" name="genre" placeholder="e.g. Science, Fiction">
+                    </div>
+                    <div class="form-group full-width">
+                        <label>Total Number of Copies</label>
+                        <input type="number" name="copies" min="1" value="1" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="document.getElementById('addBookModal').classList.remove('active')">Cancel</button>
+                    <button type="submit" class="btn-submit"><i class="fa-solid fa-check"></i> Add to Catalog</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

@@ -1,8 +1,10 @@
 # --------------------------------- IMPORT COMMANDS ---------------------------------
 
 import mysql.connector as ms
+import matplotlib.pyplot as plt
 from mysql.connector import Error
 from tabulate import tabulate
+from utils import get_connection
 
 from utils import (
     get_connection,
@@ -184,7 +186,6 @@ def generate_report_card():
         grade, remark = calculate_grade(percentage)
         result_status = "PASSED" if percentage >= 40 else "FAILED"
 
-        # Formatted report card table
         subject_table = []
         for sub, obt, max_m in rows:
             sub_pct = (float(obt) / float(max_m)) * 100
@@ -226,7 +227,6 @@ def view_class_merit_list():
         class_name = input("Enter Class (e.g. 10, 12-A) : : ").strip()
         exam_type = select_exam_type()
 
-        # Group by student roll number and sum marks
         cur.execute("""
             SELECT s.ROLL_NUMBER, s.NAME, 
                    SUM(m.MARKS_OBTAINED) as TOTAL_OBTAINED, 
@@ -254,7 +254,6 @@ def view_class_merit_list():
                 "grade": grade
             })
 
-        # Sort by percentage descending for rank
         merit_data.sort(key=lambda x: x["pct"], reverse=True)
 
         final_table = []
@@ -358,6 +357,79 @@ def delete_marks_record():
 
     except Error as e:
         print("Error:", e)
+    finally:
+        if con:
+            cur.close()
+            con.close()
+
+# ------------------------- Graphical Representation -------------------------
+
+def plot_student_subject_marks():
+    con = None
+    cur = None
+    try:
+        con = get_connection()
+        if not con:
+            print("Database connection falied.")
+            return
+        cur = con.cursor()
+        roll = input("Eneter Student roll numberr : : ").strip()
+        cur.execute("SELECT NAME,CLASS FROM Students_Details WHERE ROLL_NUMBER = %s",(roll,))
+        student = cur.fetchone()
+        if not student:
+            print("Student not found !")
+            return
+        name, student_class = student
+
+        exam_type = input("Enter Exam Name (e.g. Final Exam, Mid-Term Exam)[Default=Final Exam] : : ").strip()
+        if not exam_type:
+            exam_type = "Final Exam"
+
+        cur.execute("""SELECT SUBJECT, MARKS_OBTAINED, MAX_MARKS FROM Marks_Details WHERE ROLL_NUMBER = %s AND EXAM_TYPE = %s ORDER BY SUBJECT""", (roll, exam_type)) 
+        rows = cur.fetchall()
+        if not rows:
+            print(f"No marks records found for {name ({roll})} in '{exam_type}'.")
+            return
+        subjects = [r[0] for r in rows]
+        marks_obtained = [float(r[1]) for r in rows]
+        max_marks = [float(r[2]) for r in rows]
+
+        colours = []
+        for marks, max_m in zip(marks_obtained, max_marks):
+            percentage = (marks/max_m) * 100 if max_m > 0 else 0
+            if percentage >= 75:
+                print("#2ecc71")
+            elif percentage >= 40:
+                print("#f39c12")
+            else:
+                colours.append("#e74c3c")
+
+        plt.figure(figsize=(9,6))
+        bars = plt.bar(subjects, marks_obtained, colour=colours, width=0.5, edgecolor = 'black', linewidth = 1.2)
+        plt.axhline(y=40, color = "red", linestyle = "--", linewidth = 1.5, lable = "Passing Marks (40%)")
+        for bar, marks, max_m in zip(bars, marks_obtained, max_marks):
+            height = bar.get_height()
+            plt.text(
+                bar.get_x() + bar.get_width()/2.0,
+                height + 1.5,
+                f"{marks:.1f}/{max_m:.0f}",
+                ha = "center",
+                va = "bottom",
+                fontweight = "bold",
+                fontsize = 10
+            )
+
+            plt.tittle(f"Academic Performance: {name}(Roll:{roll})\nClass:{student_class} | Exam: {exam_type},fontsize = 13", frontweight = "bold", pad = 15)
+            plt.xlable("Subjects", fontsize = 11,fontweigth = "bold")
+            plt.ylable("Marks Obtained", fontsize = 11, fontweigth = "bold")
+            plt.ylim(0, max(max_marks) + 15 if max_marks else 115)
+            plt.grid(axis="y", linestyle=":", alpha=0.6)
+            plt.legend(loc="upper right")
+            plt.tight_layout()
+            print("\nOpening bar chart window... (Close the chart window to return)")
+            plt.show()
+    except Exception as e:
+        print("Chart Generation Error:", e)
     finally:
         if con:
             cur.close()

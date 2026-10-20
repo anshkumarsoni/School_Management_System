@@ -1,0 +1,300 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard-container">
+
+    <!-- 1. Welcome Banner -->
+    <div class="welcome-banner">
+        <div class="banner-content">
+            <div class="welcome-chip">
+                <i class="fa-solid fa-sparkles"></i> Academic Session 2025 – 2026
+            </div>
+            <h2 class="banner-title">Welcome to the Administration Portal</h2>
+            <p class="banner-desc">
+                Here is your live institutional overview across enrollments, academic faculty, fee transactions, and library catalog.
+            </p>
+        </div>
+        <div class="quick-actions-bar">
+            <button type="button" class="action-pill primary-pill" data-modal-target="#addStudentModal">
+                <i class="fa-solid fa-user-plus"></i> New Student
+            </button>
+            <a href="{{ url_for('fees_view') }}" class="action-pill secondary-pill">
+                <i class="fa-solid fa-receipt"></i> Record Fee
+            </a>
+            <a href="{{ url_for('library_view') }}" class="action-pill secondary-pill">
+                <i class="fa-solid fa-book-medical"></i> Add Book
+            </a>
+        </div>
+    </div>
+
+    <!-- 2. Four KPI Stat Cards -->
+    <div class="kpi-grid">
+        <a href="{{ url_for('students_view') }}" class="kpi-card card-cyan" style="text-decoration: none;">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper"><i class="fa-solid fa-user-graduate"></i></div>
+                <span class="kpi-pill"><i class="fa-solid fa-arrow-trend-up"></i> Active</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Total Students</span>
+                <h3 class="kpi-value">{{ "{:,}".format(total_students or 0) }}</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext"><i class="fa-regular fa-id-badge"></i> Enrolled in classes</span>
+            </div>
+        </a>
+
+        <a href="{{ url_for('teachers_view') }}" class="kpi-card card-purple" style="text-decoration: none;">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper"><i class="fa-solid fa-chalkboard-user"></i></div>
+                <span class="kpi-pill"><i class="fa-solid fa-check"></i> Faculty</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Total Teachers</span>
+                <h3 class="kpi-value">{{ "{:,}".format(total_teachers or 0) }}</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext"><i class="fa-solid fa-chalkboard"></i> Active staff members</span>
+            </div>
+        </a>
+
+        <a href="{{ url_for('library_view') }}" class="kpi-card card-amber" style="text-decoration: none;">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper"><i class="fa-solid fa-book-bookmark"></i></div>
+                <span class="kpi-pill"><i class="fa-solid fa-book"></i> Catalog</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Library Books</span>
+                <h3 class="kpi-value">{{ "{:,}".format(total_books or 0) }}</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext"><i class="fa-solid fa-layer-group"></i> Total copies in stock</span>
+            </div>
+        </a>
+
+        <a href="{{ url_for('fees_view') }}" class="kpi-card card-emerald" style="text-decoration: none;">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper"><i class="fa-solid fa-indian-rupee-sign"></i></div>
+                <span class="kpi-pill pill-emerald"><i class="fa-solid fa-shield-check"></i> Revenue</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Fee Collection</span>
+                <h3 class="kpi-value">₹{{ "{:,.2f}".format(total_fees or 0) }}</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext"><i class="fa-regular fa-credit-card"></i> Total received payments</span>
+            </div>
+        </a>
+    </div>
+
+    <!-- 3. Visual Charts -->
+    <div class="charts-section-grid">
+        <div class="analytics-card">
+            <div class="card-header">
+                <div class="header-left">
+                    <div class="card-badge-icon badge-blue"><i class="fa-solid fa-chart-column"></i></div>
+                    <div>
+                        <h4 class="card-heading">Enrollment by Class</h4>
+                        <p class="card-subheading">Distribution of registered students across active standards</p>
+                    </div>
+                </div>
+                <span class="chart-tag"><i class="fa-solid fa-circle-dot"></i> Live Distribution</span>
+            </div>
+            <div class="chart-canvas-wrapper">
+                <canvas id="classChart"></canvas>
+                <div class="chart-empty-state" id="classChartEmpty" style="display: none;">
+                    <i class="fa-solid fa-folder-open"></i>
+                    <p>No class enrollment data found to plot.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="analytics-card">
+            <div class="card-header">
+                <div class="header-left">
+                    <div class="card-badge-icon badge-pink"><i class="fa-solid fa-chart-pie"></i></div>
+                    <div>
+                        <h4 class="card-heading">Student Demographics</h4>
+                        <p class="card-subheading">Male vs Female student distribution ratio</p>
+                    </div>
+                </div>
+                <span class="chart-tag"><i class="fa-solid fa-venus-mars"></i> Gender Ratio</span>
+            </div>
+            <div class="chart-canvas-wrapper doughnut-wrapper">
+                <canvas id="genderChart"></canvas>
+                <div class="chart-empty-state" id="genderChartEmpty" style="display: none;">
+                    <i class="fa-solid fa-users-slash"></i>
+                    <p>No student gender records found to display.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Recent Student Registrations Table -->
+    <div class="data-table-card">
+        <div class="card-header">
+            <div class="header-left">
+                <div class="card-badge-icon badge-purple"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                <div>
+                    <h4 class="card-heading">Recent Student Enrolments</h4>
+                    <p class="card-subheading">Latest verified student records logged into the MySQL database</p>
+                </div>
+            </div>
+            <a href="{{ url_for('students_view') }}" class="view-all-link">View All Records <i class="fa-solid fa-arrow-right"></i></a>
+        </div>
+
+        <div class="table-responsive">
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>Roll No.</th>
+                        <th>Student Name</th>
+                        <th>Class</th>
+                        <th>Phone</th>
+                        <th>Gender</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if recent_students and recent_students|length > 0 %}
+                        {% for s in recent_students %}
+                        <tr>
+                            <td><span class="roll-badge">#{{ s.ROLL_NUMBER }}</span></td>
+                            <td>
+                                <div class="student-name-cell">
+                                    <div class="mini-avatar">{{ s.NAME[0] | upper }}</div>
+                                    <span class="student-name">{{ s.NAME }}</span>
+                                </div>
+                            </td>
+                            <td><span class="class-pill">{{ s.CLASS }}</span></td>
+                            <td class="text-dim"><i class="fa-solid fa-phone text-xs"></i> {{ s.PHONE or 'N/A' }}</td>
+                            <td>
+                                {% if s.GENDER|lower == 'male' %}
+                                    <span class="gender-pill gender-male"><i class="fa-solid fa-mars"></i> Male</span>
+                                {% elif s.GENDER|lower == 'female' %}
+                                    <span class="gender-pill gender-female"><i class="fa-solid fa-venus"></i> Female</span>
+                                {% else %}
+                                    <span class="gender-pill">{{ s.GENDER or 'Other' }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="status-badge status-active">
+                                    <span class="badge-dot"></span> Active
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="empty-table-cell">
+                                <i class="fa-solid fa-inbox"></i>
+                                <p>No students enrolled yet. Click "New Student" above to add the first record!</p>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Safe Data Passing Block: 100% Linter-Safe JSON -->
+<script type="application/json" id="dashboard-chart-data">
+{
+    "classLabels": {{ class_labels | tojson }},
+    "classCounts": {{ class_counts | tojson }},
+    "genderLabels": {{ gender_labels | tojson }},
+    "genderCounts": {{ gender_counts | tojson }}
+}
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const rawDataElem = document.getElementById("dashboard-chart-data");
+    let chartData = { classLabels: [], classCounts: [], genderLabels: [], genderCounts: [] };
+    
+    if (rawDataElem) {
+        try { chartData = JSON.parse(rawDataElem.textContent || "{}"); } catch (e) {}
+    }
+
+    const classLabels = chartData.classLabels || [];
+    const classCounts = chartData.classCounts || [];
+    const genderLabels = chartData.genderLabels || [];
+    const genderCounts = chartData.genderCounts || [];
+
+    if (typeof Chart !== "undefined") {
+        Chart.defaults.color = "#94a3b8";
+        Chart.defaults.font.family = "'Plus Jakarta Sans', sans-serif";
+
+        // Bar Chart
+        const classCanvas = document.getElementById("classChart");
+        const classEmptyState = document.getElementById("classChartEmpty");
+
+        if (classLabels.length === 0) {
+            if (classCanvas) classCanvas.style.display = "none";
+            if (classEmptyState) classEmptyState.style.display = "flex";
+        } else if (classCanvas) {
+            const classCtx = classCanvas.getContext("2d");
+            const barGradient = classCtx.createLinearGradient(0, 0, 0, 300);
+            barGradient.addColorStop(0, "rgba(59, 130, 246, 0.95)");
+            barGradient.addColorStop(1, "rgba(14, 165, 233, 0.45)");
+
+            new Chart(classCtx, {
+                type: "bar",
+                data: {
+                    labels: classLabels,
+                    datasets: [{
+                        label: "Enrolled Students",
+                        data: classCounts,
+                        backgroundColor: barGradient,
+                        borderColor: "#3b82f6",
+                        borderWidth: 1.5,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                    }
+                }
+            });
+        }
+
+        // Doughnut Chart
+        const genderCanvas = document.getElementById("genderChart");
+        const genderEmptyState = document.getElementById("genderChartEmpty");
+
+        if (genderLabels.length === 0) {
+            if (genderCanvas) genderCanvas.style.display = "none";
+            if (genderEmptyState) genderEmptyState.style.display = "flex";
+        } else if (genderCanvas) {
+            const colorPalette = { "male": "#3b82f6", "female": "#ec4899", "other": "#a855f7" };
+            const backgroundColors = genderLabels.map(l => colorPalette[String(l).toLowerCase().trim()] || "#10b981");
+
+            new Chart(genderCanvas.getContext("2d"), {
+                type: "doughnut",
+                data: {
+                    labels: genderLabels,
+                    datasets: [{
+                        data: genderCounts,
+                        backgroundColor: backgroundColors,
+                        borderColor: "#111827",
+                        borderWidth: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: "70%",
+                    plugins: { legend: { position: "bottom" } }
+                }
+            });
+        }
+    }
+});
+</script>
+{% endblock %}

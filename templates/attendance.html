@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard-container">
+
+    <div class="page-toolbar">
+        <div class="toolbar-left">
+            <h3 style="font-size: 18px; font-weight: 700; color: var(--text-primary);">Attendance Records</h3>
+            <p style="font-size: 13px; color: var(--text-secondary);">Student daily roll calls & physical presence logs</p>
+        </div>
+    </div>
+
+    <!-- Attendance Table -->
+    <div class="data-table-card">
+        <div class="card-header">
+            <div class="header-left">
+                <div class="card-badge-icon badge-blue">
+                    <i class="fa-solid fa-calendar-check"></i>
+                </div>
+                <div>
+                    <h4 class="card-heading">Recent Attendance Logs</h4>
+                    <p class="card-subheading">Showing latest {{ records|length }} session entries</p>
+                </div>
+            </div>
+            <span class="chart-tag"><i class="fa-solid fa-clock"></i> Daily Registry</span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Roll No</th>
+                        <th>Student Name</th>
+                        <th>Class</th>
+                        <th>Status</th>
+                        <th>Remarks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if records and records|length > 0 %}
+                        {% for r in records %}
+                        <tr>
+                            <td>{{ r.ATTENDANCE_DATE }}</td>
+                            <td><span class="roll-badge">#{{ r.ROLL_NUMBER }}</span></td>
+                            <td class="student-name">{{ r.NAME or 'Unknown' }}</td>
+                            <td><span class="class-pill">{{ r.CLASS or 'N/A' }}</span></td>
+                            <td>
+                                {% if r.STATUS|lower == 'present' %}
+                                    <span class="status-badge status-active"><span class="badge-dot"></span> Present</span>
+                                {% else %}
+                                    <span class="status-badge" style="color: var(--accent-pink);"><span class="badge-dot" style="background-color: var(--accent-pink);"></span> Absent</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-dim">{{ r.REMARKS or 'Regular Session' }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="empty-table-cell">
+                                <i class="fa-solid fa-calendar-xmark"></i>
+                                <p>No attendance logs recorded yet.</p>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

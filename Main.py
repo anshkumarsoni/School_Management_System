@@ -2,6 +2,7 @@
 import time
 import pyfiglet
 
+from Analytics_Management_System import plot_school_demographics
 from utils import clear_screen, center_text, create_database, pause_and_clear
 from Student_Manegement_System import create_student_table, student_menu
 from Teacher_Management_System import create_teacher_tables, teacher_menu
@@ -10,6 +11,7 @@ from Attendance_Management_System import create_attendance_tables, attendance_me
 from FeeFinance_Management_System import create_fee_tables, fee_menu
 from ExamMarks_Management_System import create_exam_tables, exam_menu
 from Export_Management_System import export_menu
+from Import_Management_System import import_menu
 
 # ============================== DATABASE INITIALIZATION ==================
 def init_database():
@@ -51,6 +53,8 @@ def main():
         print("5. Fee & Finance Management".center(100))
         print("6. Examination & Marks Management".center(100))
         print("7. Export Reports to CSV / Excel".center(100))
+        print("8. Import Bulk Data from CSV / Excel".center(100))
+        print("9. School Demographics & Analytics (Charts)".center(100))
         print("0. Exit".center(100))
         print("=" * 100)
         
@@ -69,6 +73,10 @@ def main():
             exam_menu()
         elif choice == '7':
             export_menu()
+        elif choice == '8':
+            import_menu()
+        elif choice == '9':                                              # <-- ADD THIS BLOCK
+            plot_school_demographics()
         elif choice == '0':
             clear_screen()
             screen_down = pyfiglet.figlet_format("HAVE A GREAT DAY !!!!", font='doom')

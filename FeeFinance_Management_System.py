@@ -1,9 +1,11 @@
 # --------------------------------- IMPORT COMMANDS ---------------------------------
 
 import datetime
+import matplotlib.pyplot as plt
 import mysql.connector as ms
 from mysql.connector import Error
 from tabulate import tabulate
+from utils import get_connection
 
 from utils import (
     get_connection,
@@ -377,6 +379,102 @@ def manage_class_fee_structure():
             cur.close()
             con.close()
 
+# --------------------------- Graphical Representation ------------------------
+
+def plot_fee_financial_analytics():
+    con = None
+    cur = None
+    try:
+        con = get_connection
+        if not con:
+            print("Databases connection failed.")
+            return
+        cur = con.cursor()
+        cur.execute("""
+                    SELECT s.CLASS, COUNT(s.ROLL_NUMBER) FROM Students_Details s GROUP BY s.CLASS
+                    """)
+        class_counts = cur.fetchall()
+        if not class_counts:
+            print("No students endrolled yet! Cannot generate financial charts.")
+            return
+        total_expected_fee = 0.0
+        for s_class, count in class_counts:
+            cur.execute("SELECT ANNUAL_FEE FROM Fee_Structure WHERE CLASS = %s", (s_class,))
+            row = cur.fetchone()
+            class_fee = float(row[0]) if row else 45000.0
+            total_expected_fee += (class_fee * count)
+
+        cur.execute("SELECT IFNULL(SUM(AMOUNT_PAID), 0) FROM Fee_Transactions")
+        total_collected = float(cur.fetchone()[0])
+        total_pendind = max(0.0, total_expected_fee - total_collected)
+
+        cur.execute("""
+                    SELECT PAYMENT_MODE, IFNULL(SUM(AMOUNT_PAID), 0) FROM Fee_Transactions GROUP BY PAYMENT_MODE
+                    """)
+        mode_rows = cur.fetchall()
+
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize = (14, 6))
+        fig.suptitle("School Fee & Finance Analytics Dashboard", fontsize = 15, fontweight = "bold")
+        lables_status = ["Collected Fee", "Pending Dues"]
+        values_status = [total_collected, total_pendind]
+        colors_status = ["#2ecc71","#e74c3c"]
+
+        if total_collected == 0 and total_pendind == 0:
+            values_status = [1]
+            lables_status = ["No Fee Data"]
+            colors_status = ["#95a5a6"]
+
+        wedges, texts, autotexts = ax1.pie(
+            values_status,
+            labels = lables_status,
+            colors=colors_status,
+            autopct="%1.1f%%",
+            startangle=140,
+            pctdistance=0.75,
+            wedgeprops=dict(width=0.45, edgecolor="white", linewidth=2)
+        )
+        for autotext in autotexts:
+            autotext.set_color("white")
+            autotext.set_fontweight("bold")
+
+        collection_pct = (total_collected / total_expected_fee * 100) if total_expected_fee > 0 else 0
+        ax1.text(0, 0, f"Recovery\n{collection_pct:.1f}%", ha="center", va="center", fontsize=12, fontweight="bold")
+        ax1.set_title(f"Fee Recovery Status\n(Target: ₹{total_expected_fee:,.0f})", fontsize=11, fontweight="bold")
+
+        if mode_rows:
+            modes = [r[0] for r in mode_rows]
+            mode_amounts = [float(r[1]) for r in mode_rows]
+            bar_colors = ["#3498db", "#9b59b6", "#f1c40f", "#e67e22", "#1abc9c"]
+            bars = ax2.bar(modes, mode_amounts, color=bar_colors[:len(modes)], edgecolor="black", width=0.5)
+
+            for bar in bars:
+                height = bar.get_height()
+                ax2.text(
+                    bar.get_x() + bar.get_width() / 2.0,
+                    height + (max(mode_amounts) * 0.02),
+                    f"₹{height:,.0f}",
+                    ha="center",
+                    va="bottom",
+                    fontweight="bold",
+                    fontsize=9
+                )
+            ax2.set_ylabel("Total Collected (₹)", fontweight="bold")
+            ax2.set_title("Collections by Payment Mode", fontsize=11, fontweight="bold")
+            ax2.grid(axis="y", linestyle=":", alpha=0.6)
+            ax2.set_ylim(0, max(mode_amounts) * 1.18 if mode_amounts else 1000)
+        else:
+            ax2.text(0.5, 0.5, "No transactions recorded yet", ha="center", va="center", fontsize=11, color="gray")
+            ax2.set_title("Collections by Payment Mode", fontsize=11, fontweight="bold")
+        plt.tight_layout()
+        print("\nOpening Financial Dashboard Chart... (Close the chart window to return)")
+        plt.show()
+    except Exception as e:
+        print("Financial Chart Error:", e)
+    finally:
+        if con:
+            cur.close()
+            con.close()
+        
 # --------------------------------- MAIN MENU ---------------------------------
 
 def fee_menu():

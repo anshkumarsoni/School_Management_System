@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard-container">
+
+    <div class="page-toolbar">
+        <div class="toolbar-left">
+            <h3 style="font-size: 18px; font-weight: 700; color: var(--text-primary);">Fees & Financial Ledger</h3>
+            <p style="font-size: 13px; color: var(--text-secondary);">Total Recorded Collections: <strong style="color: var(--accent-emerald);">₹{{ "{:,.2f}".format(total_rev or 0) }}</strong></p>
+        </div>
+        <div class="toolbar-right">
+            <button type="button" class="action-pill primary-pill" onclick="document.getElementById('addFeeModal').classList.add('active')">
+                <i class="fa-solid fa-receipt"></i> Record Payment
+            </button>
+        </div>
+    </div>
+
+    <!-- Transactions Table -->
+    <div class="data-table-card">
+        <div class="card-header">
+            <div class="header-left">
+                <div class="card-badge-icon badge-emerald">
+                    <i class="fa-solid fa-wallet"></i>
+                </div>
+                <div>
+                    <h4 class="card-heading">Recent Fee Transactions</h4>
+                    <p class="card-subheading">Showing latest {{ transactions|length }} verified payment receipts</p>
+                </div>
+            </div>
+            <span class="chart-tag"><i class="fa-solid fa-shield-halved"></i> Financial Ledger</span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>Receipt No</th>
+                        <th>Roll No</th>
+                        <th>Student Name</th>
+                        <th>Amount Paid</th>
+                        <th>Date</th>
+                        <th>Mode</th>
+                        <th>Remarks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if transactions and transactions|length > 0 %}
+                        {% for t in transactions %}
+                        <tr>
+                            <td><span class="roll-badge">#{{ t.RECEIPT_NO }}</span></td>
+                            <td><span class="roll-badge">#{{ t.ROLL_NUMBER }}</span></td>
+                            <td class="student-name">{{ t.NAME or 'Unknown' }}</td>
+                            <td style="font-weight: 700; color: var(--accent-emerald);">₹{{ "{:,.2f}".format(t.AMOUNT_PAID) }}</td>
+                            <td class="text-dim">{{ t.PAYMENT_DATE }}</td>
+                            <td><span class="class-pill">{{ t.PAYMENT_MODE }}</span></td>
+                            <td class="text-dim">{{ t.REMARKS or 'Tuition Fee' }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="7" class="empty-table-cell">
+                                <i class="fa-solid fa-receipt"></i>
+                                <p>No fee transactions logged yet.</p>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Record Fee Modal -->
+    <div class="modal-overlay" id="addFeeModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <div class="modal-title-box">
+                    <div class="modal-icon badge-emerald"><i class="fa-solid fa-receipt"></i></div>
+                    <div>
+                        <h3 class="modal-title">Record Fee Payment</h3>
+                        <p class="modal-subtitle">Log verified student fee receipt</p>
+                    </div>
+                </div>
+                <button type="button" class="modal-close-btn" onclick="document.getElementById('addFeeModal').classList.remove('active')">&times;</button>
+            </div>
+            <form action="{{ url_for('add_fee') }}" method="POST" class="modal-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Receipt No. <span class="required">*</span></label>
+                        <input type="text" name="receipt_no" required placeholder="e.g. REC-5001">
+                    </div>
+                    <div class="form-group">
+                        <label>Student Roll Number <span class="required">*</span></label>
+                        <input type="text" name="roll_number" required placeholder="e.g. 1">
+                    </div>
+                    <div class="form-group">
+                        <label>Amount (₹) <span class="required">*</span></label>
+                        <input type="number" step="0.01" name="amount" required placeholder="e.g. 5000">
+                    </div>
+                    <div class="form-group">
+                        <label>Payment Mode</label>
+                        <select name="mode">
+                            <option value="Cash">Cash</option>
+                            <option value="UPI / Online">UPI / Online</option>
+                            <option value="Cheque">Cheque</option>
+                            <option value="Net Banking">Net Banking</option>
+                        </select>
+                    </div>
+                    <div class="form-group full-width">
+                        <label>Remarks / Notes</label>
+                        <input type="text" name="remarks" placeholder="e.g. Term 1 Tuition Fee">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="document.getElementById('addFeeModal').classList.remove('active')">Cancel</button>
+                    <button type="submit" class="btn-submit"><i class="fa-solid fa-check"></i> Save Transaction</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

@@ -1,7 +1,9 @@
 # --------------------------------- IMPORT COMMANDS ---------------------------------
 
 import datetime
+import matplotlib.pyplot as plt
 import mysql.connector as ms
+from utils import get_connection
 from mysql.connector import Error
 from tabulate import tabulate
 
@@ -303,6 +305,103 @@ def update_attendance_record():
         print("Attendance updated successfully!")
     except Error as e:
         print("Error:", e)
+    finally:
+        if con:
+            cur.close()
+            con.close()
+
+# ----------------------------- Graphical Representation ----------------------------
+
+def plot_student_attendance():
+    con = None
+    cur = None
+    try:
+        con = get_connection()
+        if not con:
+            print("Database connection failed.")
+            return
+        cur = con.cursor()
+
+        roll = input("Enter Student Roll Number : : ").strip()
+        cur.execute("SELECT NAME, CLASS FROM Students_Details WHERE ROLL_NUMBER=%s", (roll,))
+        student = cur.fetchone()
+        if not student:
+            print("Student not found!")
+            return
+        name, student_class = student
+
+        cur.execute("""
+            SELECT STATUS, COUNT(*) 
+            FROM Attendance_Details 
+            WHERE ROLL_NUMBER=%s 
+            GROUP BY STATUS
+        """, (roll,))
+        records = dict(cur.fetchall())
+        present = records.get("Present", 0)
+        absent = records.get("Absent", 0)
+        leave = records.get("Leave", 0)
+        total_days = present + absent + leave
+        if total_days == 0:
+            print(f"No attendance records logged for {name} yet.")
+            return
+        percentage = (present / total_days) * 100
+
+        labels = []
+        values = []
+        colors = []
+        if present > 0:
+            labels.append(f"Present ({present} days)")
+            values.append(present)
+            colors.append("#2ecc71")  
+        if absent > 0:
+            labels.append(f"Absent ({absent} days)")
+            values.append(absent)
+            colors.append("#e74c3c") 
+        if leave > 0:
+            labels.append(f"Leave ({leave} days)")
+            values.append(leave)
+            colors.append("#f39c12")  
+
+        fig, ax = plt.subplots(figsize=(8, 6))
+        wedges, texts, autotexts = ax.pie(
+            values,
+            labels=labels,
+            colors=colors,
+            autopct="%1.1f%%",
+            startangle=140,
+            pctdistance=0.78,
+            wedgeprops=dict(width=0.42, edgecolor="white", linewidth=2)
+        )
+        for autotext in autotexts:
+            autotext.set_color("white")
+            autotext.set_fontweight("bold")
+            autotext.set_fontsize(10)
+
+        center_color = "#27ae60" if percentage >= 75.0 else "#c0392b"
+        status_text = "ELIGIBLE" if percentage >= 75.0 else "DEFAULTER (<75%)"
+        ax.text(
+            0, 0.08, 
+            f"{percentage:.1f}%", 
+            ha="center", va="center", 
+            fontsize=22, fontweight="bold", 
+            color=center_color
+        )
+        ax.text(
+            0, -0.12, 
+            status_text, 
+            ha="center", va="center", 
+            fontsize=10, fontweight="bold", 
+            color=center_color
+        )
+        plt.title(
+            f"Attendance Report: {name} (Roll: {roll})\nClass: {student_class} | Total Working Days: {total_days}",
+            fontsize=12, fontweight="bold", pad=20
+        )
+        plt.tight_layout()
+        print("\nOpening Attendance Chart window... (Close the chart window to return)")
+        plt.show()
+    except Exception as e:
+        print("Attendance Chart Error:", e)
     finally:
         if con:
             cur.close()

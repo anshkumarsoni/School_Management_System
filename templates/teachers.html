@@ -3,113 +3,324 @@
 {% block content %}
 <div class="dashboard-container">
 
+    <!-- Top Action & Filter Toolbar -->
     <div class="page-toolbar">
         <div class="toolbar-left">
-            <h3 style="font-size: 18px; font-weight: 700; color: var(--text-primary);">Faculty & Teaching Staff</h3>
-            <p style="font-size: 13px; color: var(--text-secondary);">Manage school teachers and assigned subjects</p>
+            <form action="{{ url_for('teachers_view') }}" method="GET" class="filter-form" id="teacherFilterForm">
+                <div class="filter-input-wrapper" style="position: relative; display: flex; align-items: center;">
+                    <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 10px; color: var(--text-muted); font-size: 13px;"></i>
+                    <input type="text" name="search" class="filter-input" style="padding-left: 32px;" value="{{ search or '' }}" placeholder="Search name, ID, phone...">
+                </div>
+                
+                <div class="filter-select-wrapper">
+                    <select name="subject" class="filter-input" onchange="this.form.submit()">
+                        <option value="">All Subjects / Disciplines</option>
+                        {% for s in available_subjects %}
+                            <option value="{{ s }}" {% if selected_subject == s %}selected{% endif %}>{{ s }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <button type="submit" class="btn-filter"><i class="fa-solid fa-filter"></i> Filter</button>
+                {% if search or selected_subject %}
+                    <a href="{{ url_for('teachers_view') }}" class="btn-clear"><i class="fa-solid fa-rotate-left"></i> Reset</a>
+                {% endif %}
+            </form>
         </div>
+
         <div class="toolbar-right">
-            <button type="button" class="action-pill primary-pill" onclick="document.getElementById('addTeacherModal').classList.add('active')">
-                <i class="fa-solid fa-chalkboard-user"></i> Add Teacher
-            </button>
+            {% if current_role in ('super_admin', 'admin') %}
+                <button type="button" class="btn-toolbar-add" data-modal-target="#addTeacherModal" style="background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);">
+                    <i class="fa-solid fa-plus-circle"></i> Add Faculty
+                </button>
+            {% endif %}
         </div>
     </div>
 
-    <!-- Teachers Table -->
-    <div class="data-table-card">
+    <!-- Teachers Data Table Card -->
+    <div class="data-table-card" style="margin-top: 16px;">
         <div class="card-header">
             <div class="header-left">
                 <div class="card-badge-icon badge-purple">
                     <i class="fa-solid fa-chalkboard-user"></i>
                 </div>
                 <div>
-                    <h4 class="card-heading">Faculty Members</h4>
-                    <p class="card-subheading">Total recorded staff: {{ teachers|length }}</p>
+                    <h4 class="card-heading">Faculty & Staff Directory</h4>
+                    <p class="card-subheading">Showing {{ teachers|length }} of {{ total_records }} faculty member(s)</p>
                 </div>
             </div>
-            <span class="chart-tag"><i class="fa-solid fa-graduation-cap"></i> Staff Directory</span>
+            <span class="chart-tag"><i class="fa-solid fa-database"></i> Live MySQL Database</span>
         </div>
 
         <div class="table-responsive">
             <table class="modern-table">
                 <thead>
                     <tr>
-                        <th>Teacher ID</th>
-                        <th>Name</th>
+                        <th>Faculty ID</th>
+                        <th>Teacher Name</th>
                         <th>Subject</th>
+                        <th>Age</th>
+                        <th>Gender</th>
                         <th>Phone</th>
                         <th>Email</th>
-                        <th>Gender</th>
+                        <th>Address</th>
+                        {% if current_role in ('super_admin', 'admin') %}
+                            <th style="text-align: right; padding-right: 18px;">Actions</th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
                     {% if teachers and teachers|length > 0 %}
                         {% for t in teachers %}
                         <tr>
-                            <td><span class="roll-badge">#{{ t.TEACHER_ID }}</span></td>
-                            <td class="student-name">{{ t.NAME }}</td>
-                            <td><span class="class-pill">{{ t.SUBJECT }}</span></td>
-                            <td class="text-dim">{{ t.PHONE or 'N/A' }}</td>
-                            <td class="text-dim">{{ t.EMAIL or 'N/A' }}</td>
-                            <td class="text-dim">{{ t.GENDER or 'N/A' }}</td>
+                            <td><span class="roll-badge" style="background: #f3e8ff; color: #7e22ce; border-color: #e9d5ff;">#{{ t.TEACHER_ID }}</span></td>
+                            <td>
+                                <div class="student-name-cell">
+                                    <div class="mini-avatar" style="background: #7e22ce;">{{ t.NAME[0] | upper if t.NAME else 'T' }}</div>
+                                    <span class="student-name">{{ t.NAME }}</span>
+                                </div>
+                            </td>
+                            <td><span class="class-pill" style="background: #ede9fe; color: #5b21b6;">{{ t.SUBJECT }}</span></td>
+                            <td>{{ t.AGE if t.AGE else '—' }}</td>
+                            <td>
+                                {% if t.GENDER and t.GENDER|lower == 'male' %}
+                                    <span class="gender-pill gender-male"><i class="fa-solid fa-mars"></i> Male</span>
+                                {% elif t.GENDER and t.GENDER|lower == 'female' %}
+                                    <span class="gender-pill gender-female"><i class="fa-solid fa-venus"></i> Female</span>
+                                {% else %}
+                                    <span class="gender-pill">{{ t.GENDER or 'Other' }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-dim">{{ t.PHONE or '—' }}</td>
+                            <td class="text-dim">{{ t.EMAIL or '—' }}</td>
+                            <td class="text-dim" style="max-width: 170px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ t.ADDRESS }}">{{ t.ADDRESS or '—' }}</td>
+                            {% if current_role in ('super_admin', 'admin') %}
+                            <td style="text-align: right; padding-right: 18px;">
+                                <div class="action-btns-group" style="justify-content: flex-end;">
+                                    <button type="button" 
+                                            class="btn-table-edit" 
+                                            title="Edit Faculty Details"
+                                            onclick="openEditTeacherModal(this)"
+                                            data-id="{{ t.ID }}"
+                                            data-tid="{{ t.TEACHER_ID }}"
+                                            data-name="{{ t.NAME }}"
+                                            data-subject="{{ t.SUBJECT }}"
+                                            data-age="{{ t.AGE or '' }}"
+                                            data-gender="{{ t.GENDER or 'Male' }}"
+                                            data-phone="{{ t.PHONE or '' }}"
+                                            data-email="{{ t.EMAIL or '' }}"
+                                            data-address="{{ t.ADDRESS or '' }}">
+                                        <i class="fa-solid fa-pen-to-square"></i>
+                                    </button>
+                                    <form action="{{ url_for('delete_teacher_route', id=t.ID) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to permanently delete faculty member {{ t.NAME }} (ID #{{ t.TEACHER_ID }})?');">
+                                        <button type="submit" class="btn-table-delete" title="Delete Faculty Member">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                            {% endif %}
                         </tr>
                         {% endfor %}
                     {% else %}
                         <tr>
-                            <td colspan="6" class="empty-table-cell">
+                            <td colspan="{{ '9' if current_role in ('super_admin', 'admin') else '8' }}" class="empty-table-cell">
                                 <i class="fa-solid fa-chalkboard-user"></i>
-                                <p>No faculty members recorded yet.</p>
+                                <p>No matching faculty records found.</p>
+                                {% if search or selected_subject %}
+                                    <a href="{{ url_for('teachers_view') }}" class="btn-clear" style="margin-top: 8px; display: inline-block;">Clear all search filters</a>
+                                {% endif %}
                             </td>
                         </tr>
                     {% endif %}
                 </tbody>
             </table>
         </div>
-    </div>
 
-    <!-- Add Teacher Modal -->
-    <div class="modal-overlay" id="addTeacherModal">
-        <div class="modal-dialog">
-            <div class="modal-header">
-                <div class="modal-title-box">
-                    <div class="modal-icon badge-purple"><i class="fa-solid fa-chalkboard-user"></i></div>
-                    <div>
-                        <h3 class="modal-title">Register Teacher</h3>
-                        <p class="modal-subtitle">Add faculty member details</p>
-                    </div>
-                </div>
-                <button type="button" class="modal-close-btn" onclick="document.getElementById('addTeacherModal').classList.remove('active')">&times;</button>
+        <!-- Pagination Controls -->
+        {% if total_pages > 1 %}
+        <div class="pagination-bar">
+            <span style="font-size: 12.5px; color: var(--text-muted);">
+                Page <strong>{{ page }}</strong> of <strong>{{ total_pages }}</strong> (Total {{ total_records }} faculty members)
+            </span>
+            <div class="pagination-links">
+                {% if page > 1 %}
+                    <a href="{{ url_for('teachers_view', page=page-1, search=search, subject=selected_subject) }}" class="page-btn">
+                        <i class="fa-solid fa-angle-left"></i> Prev
+                    </a>
+                {% endif %}
+
+                {% for p in range(1, total_pages + 1) %}
+                    {% if p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+                        <a href="{{ url_for('teachers_view', page=p, search=search, subject=selected_subject) }}" 
+                           class="page-btn {% if p == page %}active{% endif %}">
+                            {{ p }}
+                        </a>
+                    {% elif p == page - 3 or p == page + 3 %}
+                        <span style="padding: 0 4px; color: var(--text-muted);">&bull;&bull;&bull;</span>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page < total_pages %}
+                    <a href="{{ url_for('teachers_view', page=page+1, search=search, subject=selected_subject) }}" class="page-btn">
+                        Next <i class="fa-solid fa-angle-right"></i>
+                    </a>
+                {% endif %}
             </div>
-            <form action="{{ url_for('add_teacher') }}" method="POST" class="modal-form">
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Teacher ID <span class="required">*</span></label>
-                        <input type="text" name="teacher_id" required placeholder="e.g. T-101">
-                    </div>
-                    <div class="form-group">
-                        <label>Full Name <span class="required">*</span></label>
-                        <input type="text" name="name" required placeholder="e.g. Dr. Ramesh Gupta">
-                    </div>
-                    <div class="form-group">
-                        <label>Subject Specialization</label>
-                        <input type="text" name="subject" placeholder="e.g. Mathematics, Physics">
-                    </div>
-                    <div class="form-group">
-                        <label>Phone Number</label>
-                        <input type="tel" name="phone" placeholder="e.g. 9812345678">
-                    </div>
-                    <div class="form-group full-width">
-                        <label>Email Address</label>
-                        <input type="email" name="email" placeholder="e.g. ramesh@school.com">
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn-cancel" onclick="document.getElementById('addTeacherModal').classList.remove('active')">Cancel</button>
-                    <button type="submit" class="btn-submit"><i class="fa-solid fa-check"></i> Save Faculty</button>
-                </div>
-            </form>
         </div>
+        {% endif %}
     </div>
 
 </div>
+
+{% if current_role in ('super_admin', 'admin') %}
+<!-- Add Teacher Modal -->
+<div class="modal-overlay" id="addTeacherModal">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <div class="modal-title-box">
+                <i class="fa-solid fa-chalkboard-user" style="color: #7e22ce;"></i>
+                <h3 class="modal-title">Register New Faculty Member</h3>
+            </div>
+            <button type="button" class="modal-close-btn" data-modal-close>&times;</button>
+        </div>
+        
+        <form action="{{ url_for('add_teacher_route') }}" method="POST" class="modal-form">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Teacher ID <span class="required">*</span></label>
+                    <input type="text" name="teacher_id" required placeholder="e.g. T-101" autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label>Full Name <span class="required">*</span></label>
+                    <input type="text" name="name" required placeholder="e.g. Dr. Ramesh Gupta" autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label>Subject Specialization <span class="required">*</span></label>
+                    <input type="text" name="subject" required placeholder="e.g. Mathematics" autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label>Age <span class="required">* (18 - 120)</span></label>
+                    <input type="number" name="age" min="18" max="120" required placeholder="e.g. 35">
+                </div>
+                <div class="form-group">
+                    <label>Gender</label>
+                    <select name="gender">
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Phone Number (10 Digits)</label>
+                    <input type="tel" name="phone" placeholder="e.g. 9876543210" pattern="[6-9][0-9]{9}">
+                </div>
+                <div class="form-group full-width">
+                    <label>Email Address</label>
+                    <input type="email" name="email" placeholder="e.g. teacher@school.edu">
+                </div>
+                <div class="form-group full-width">
+                    <label>Residential Address</label>
+                    <textarea name="address" rows="2" placeholder="e.g. 12 University Road, Civil Lines"></textarea>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" data-modal-close>Cancel</button>
+                <button type="submit" class="btn-submit" style="background: #7e22ce;"><i class="fa-solid fa-check"></i> Register Faculty</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Teacher Modal -->
+<div class="modal-overlay" id="editTeacherModal">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <div class="modal-title-box">
+                <i class="fa-solid fa-user-pen" style="color: #7e22ce;"></i>
+                <h3 class="modal-title" id="editTeacherHeading">Update Faculty Details</h3>
+            </div>
+            <button type="button" class="modal-close-btn" data-modal-close>&times;</button>
+        </div>
+        
+        <form id="editTeacherForm" method="POST" class="modal-form">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Teacher ID (Read-only)</label>
+                    <input type="text" id="editTeacherId" disabled style="background: #f1f5f9; cursor: not-allowed;">
+                </div>
+                <div class="form-group">
+                    <label>Full Name <span class="required">*</span></label>
+                    <input type="text" id="editTeacherName" name="name" required placeholder="e.g. Dr. Ramesh Gupta">
+                </div>
+                <div class="form-group">
+                    <label>Subject Specialization <span class="required">*</span></label>
+                    <input type="text" id="editTeacherSubject" name="subject" required placeholder="e.g. Physics">
+                </div>
+                <div class="form-group">
+                    <label>Age <span class="required">* (18 - 120)</span></label>
+                    <input type="number" id="editTeacherAge" name="age" min="18" max="120" required placeholder="e.g. 38">
+                </div>
+                <div class="form-group">
+                    <label>Gender</label>
+                    <select id="editTeacherGender" name="gender">
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Phone Number (10 Digits)</label>
+                    <input type="tel" id="editTeacherPhone" name="phone" placeholder="e.g. 9876543210" pattern="[6-9][0-9]{9}">
+                </div>
+                <div class="form-group full-width">
+                    <label>Email Address</label>
+                    <input type="email" id="editTeacherEmail" name="email" placeholder="e.g. teacher@school.edu">
+                </div>
+                <div class="form-group full-width">
+                    <label>Residential Address</label>
+                    <textarea id="editTeacherAddress" name="address" rows="2" placeholder="e.g. 12 University Road"></textarea>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" data-modal-close>Cancel</button>
+                <button type="submit" class="btn-submit" style="background: #7e22ce;"><i class="fa-solid fa-floppy-disk"></i> Save Faculty Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openEditTeacherModal(btn) {
+        const id = btn.getAttribute('data-id');
+        const tid = btn.getAttribute('data-tid');
+        const name = btn.getAttribute('data-name');
+        const subject = btn.getAttribute('data-subject');
+        const age = btn.getAttribute('data-age');
+        const gender = btn.getAttribute('data-gender');
+        const phone = btn.getAttribute('data-phone');
+        const email = btn.getAttribute('data-email');
+        const address = btn.getAttribute('data-address');
+
+        document.getElementById('editTeacherHeading').textContent = `Update Faculty (ID #${tid})`;
+        document.getElementById('editTeacherId').value = tid;
+        document.getElementById('editTeacherName').value = name;
+        document.getElementById('editTeacherSubject').value = subject;
+        document.getElementById('editTeacherAge').value = age;
+        document.getElementById('editTeacherGender').value = gender || 'Male';
+        document.getElementById('editTeacherPhone').value = phone;
+        document.getElementById('editTeacherEmail').value = email;
+        document.getElementById('editTeacherAddress').value = address;
+
+        const form = document.getElementById('editTeacherForm');
+        form.action = `/teachers/edit/${id}`;
+
+        const modal = document.getElementById('editTeacherModal');
+        modal.classList.add('active');
+    }
+</script>
+{% endif %}
+
 {% endblock %}

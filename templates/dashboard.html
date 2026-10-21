@@ -9,37 +9,46 @@
             <div class="welcome-chip">
                 <i class="fa-solid fa-sparkles"></i> Academic Session 2025 – 2026
             </div>
-            <h2 class="banner-title">Welcome to the Administration Portal</h2>
+            <h2 class="banner-title">Welcome back, {{ current_user or 'Administrator' }}!</h2>
             <p class="banner-desc">
-                Here is your live institutional overview across enrollments, academic faculty, fee transactions, and library catalog.
+                Here is your live institutional overview across students, academic faculty, fee transactions, and recent activity audit logs.
             </p>
         </div>
         <div class="quick-actions-bar">
-            <button type="button" class="action-pill primary-pill" data-modal-target="#addStudentModal">
-                <i class="fa-solid fa-user-plus"></i> New Student
-            </button>
+            {% if current_role in ('super_admin', 'admin') %}
+                <button type="button" class="action-pill primary-pill" data-modal-target="#addStudentModal">
+                    <i class="fa-solid fa-user-plus"></i> Enroll Student
+                </button>
+                <a href="{{ url_for('teachers_view') }}" class="action-pill secondary-pill">
+                    <i class="fa-solid fa-chalkboard-user"></i> Manage Faculty
+                </a>
+            {% else %}
+                <a href="{{ url_for('students_view') }}" class="action-pill primary-pill">
+                    <i class="fa-solid fa-users-viewfinder"></i> View Students
+                </a>
+                <a href="{{ url_for('teachers_view') }}" class="action-pill secondary-pill">
+                    <i class="fa-solid fa-chalkboard-user"></i> View Faculty
+                </a>
+            {% endif %}
             <a href="{{ url_for('fees_view') }}" class="action-pill secondary-pill">
-                <i class="fa-solid fa-receipt"></i> Record Fee
-            </a>
-            <a href="{{ url_for('library_view') }}" class="action-pill secondary-pill">
-                <i class="fa-solid fa-book-medical"></i> Add Book
+                <i class="fa-solid fa-receipt"></i> Fee Portal
             </a>
         </div>
     </div>
 
-    <!-- 2. Four KPI Stat Cards -->
+    <!-- 2. KPI Stat Cards -->
     <div class="kpi-grid">
         <a href="{{ url_for('students_view') }}" class="kpi-card card-cyan" style="text-decoration: none;">
             <div class="kpi-top">
                 <div class="kpi-icon-wrapper"><i class="fa-solid fa-user-graduate"></i></div>
-                <span class="kpi-pill"><i class="fa-solid fa-arrow-trend-up"></i> Active</span>
+                <span class="kpi-pill"><i class="fa-solid fa-circle-check"></i> Enrolled</span>
             </div>
             <div class="kpi-body">
                 <span class="kpi-label">Total Students</span>
                 <h3 class="kpi-value">{{ "{:,}".format(total_students or 0) }}</h3>
             </div>
             <div class="kpi-footer">
-                <span class="kpi-subtext"><i class="fa-regular fa-id-badge"></i> Enrolled in classes</span>
+                <span class="kpi-subtext"><i class="fa-regular fa-id-badge"></i> Active student records</span>
             </div>
         </a>
 
@@ -53,10 +62,25 @@
                 <h3 class="kpi-value">{{ "{:,}".format(total_teachers or 0) }}</h3>
             </div>
             <div class="kpi-footer">
-                <span class="kpi-subtext"><i class="fa-solid fa-chalkboard"></i> Active staff members</span>
+                <span class="kpi-subtext"><i class="fa-solid fa-chalkboard"></i> Teaching staff members</span>
             </div>
         </a>
 
+        {% if current_role == 'super_admin' %}
+        <a href="{{ url_for('users_view') }}" class="kpi-card card-amber" style="text-decoration: none;">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper"><i class="fa-solid fa-users-gear"></i></div>
+                <span class="kpi-pill"><i class="fa-solid fa-shield"></i> Security</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">System Accounts</span>
+                <h3 class="kpi-value">{{ "{:,}".format(total_users or 0) }}</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext"><i class="fa-solid fa-user-lock"></i> Super Admin, Admin & Viewers</span>
+            </div>
+        </a>
+        {% else %}
         <a href="{{ url_for('library_view') }}" class="kpi-card card-amber" style="text-decoration: none;">
             <div class="kpi-top">
                 <div class="kpi-icon-wrapper"><i class="fa-solid fa-book-bookmark"></i></div>
@@ -67,9 +91,10 @@
                 <h3 class="kpi-value">{{ "{:,}".format(total_books or 0) }}</h3>
             </div>
             <div class="kpi-footer">
-                <span class="kpi-subtext"><i class="fa-solid fa-layer-group"></i> Total copies in stock</span>
+                <span class="kpi-subtext"><i class="fa-solid fa-layer-group"></i> Total book copies in stock</span>
             </div>
         </a>
+        {% endif %}
 
         <a href="{{ url_for('fees_view') }}" class="kpi-card card-emerald" style="text-decoration: none;">
             <div class="kpi-top">
@@ -81,7 +106,7 @@
                 <h3 class="kpi-value">₹{{ "{:,.2f}".format(total_fees or 0) }}</h3>
             </div>
             <div class="kpi-footer">
-                <span class="kpi-subtext"><i class="fa-regular fa-credit-card"></i> Total received payments</span>
+                <span class="kpi-subtext"><i class="fa-regular fa-credit-card"></i> Total verified receipts</span>
             </div>
         </a>
     </div>
@@ -129,70 +154,120 @@
         </div>
     </div>
 
-    <!-- 4. Recent Student Registrations Table -->
-    <div class="data-table-card">
-        <div class="card-header">
-            <div class="header-left">
-                <div class="card-badge-icon badge-purple"><i class="fa-solid fa-clock-rotate-left"></i></div>
-                <div>
-                    <h4 class="card-heading">Recent Student Enrolments</h4>
-                    <p class="card-subheading">Latest verified student records logged into the MySQL database</p>
+    <!-- 4. Split Grid: Recent Registrations & History Audit Trail -->
+    <div class="dashboard-split-grid" style="margin-top: 24px;">
+        <!-- Left: Recent Students -->
+        <div class="data-table-card">
+            <div class="card-header">
+                <div class="header-left">
+                    <div class="card-badge-icon badge-blue"><i class="fa-solid fa-user-graduate"></i></div>
+                    <div>
+                        <h4 class="card-heading">Recent Student Enrolments</h4>
+                        <p class="card-subheading">Latest verified student admissions in MySQL database</p>
+                    </div>
                 </div>
+                <a href="{{ url_for('students_view') }}" class="view-all-link">View All <i class="fa-solid fa-arrow-right"></i></a>
             </div>
-            <a href="{{ url_for('students_view') }}" class="view-all-link">View All Records <i class="fa-solid fa-arrow-right"></i></a>
+
+            <div class="table-responsive">
+                <table class="modern-table">
+                    <thead>
+                        <tr>
+                            <th>Roll</th>
+                            <th>Name</th>
+                            <th>Class</th>
+                            <th>Gender</th>
+                            <th>Phone</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if recent_students and recent_students|length > 0 %}
+                            {% for s in recent_students %}
+                            <tr>
+                                <td><span class="roll-badge">#{{ s.ROLL_NUMBER }}</span></td>
+                                <td>
+                                    <div class="student-name-cell">
+                                        <div class="mini-avatar">{{ s.NAME[0] | upper if s.NAME else 'S' }}</div>
+                                        <span class="student-name">{{ s.NAME }}</span>
+                                    </div>
+                                </td>
+                                <td><span class="class-pill">{{ s.CLASS or 'N/A' }}</span></td>
+                                <td>
+                                    {% if s.GENDER and s.GENDER|lower == 'male' %}
+                                        <span class="gender-pill gender-male"><i class="fa-solid fa-mars"></i> M</span>
+                                    {% elif s.GENDER and s.GENDER|lower == 'female' %}
+                                        <span class="gender-pill gender-female"><i class="fa-solid fa-venus"></i> F</span>
+                                    {% else %}
+                                        <span class="gender-pill">{{ s.GENDER or 'Other' }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-dim"><i class="fa-solid fa-phone text-xs"></i> {{ s.PHONE or 'N/A' }}</td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="empty-table-cell">
+                                    <i class="fa-solid fa-inbox"></i>
+                                    <p>No students enrolled yet.</p>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
         </div>
 
-        <div class="table-responsive">
-            <table class="modern-table">
-                <thead>
-                    <tr>
-                        <th>Roll No.</th>
-                        <th>Student Name</th>
-                        <th>Class</th>
-                        <th>Phone</th>
-                        <th>Gender</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% if recent_students and recent_students|length > 0 %}
-                        {% for s in recent_students %}
-                        <tr>
-                            <td><span class="roll-badge">#{{ s.ROLL_NUMBER }}</span></td>
-                            <td>
-                                <div class="student-name-cell">
-                                    <div class="mini-avatar">{{ s.NAME[0] | upper }}</div>
-                                    <span class="student-name">{{ s.NAME }}</span>
-                                </div>
-                            </td>
-                            <td><span class="class-pill">{{ s.CLASS }}</span></td>
-                            <td class="text-dim"><i class="fa-solid fa-phone text-xs"></i> {{ s.PHONE or 'N/A' }}</td>
-                            <td>
-                                {% if s.GENDER|lower == 'male' %}
-                                    <span class="gender-pill gender-male"><i class="fa-solid fa-mars"></i> Male</span>
-                                {% elif s.GENDER|lower == 'female' %}
-                                    <span class="gender-pill gender-female"><i class="fa-solid fa-venus"></i> Female</span>
-                                {% else %}
-                                    <span class="gender-pill">{{ s.GENDER or 'Other' }}</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <span class="status-badge status-active">
-                                    <span class="badge-dot"></span> Active
-                                </span>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    {% else %}
-                        <tr>
-                            <td colspan="6" class="empty-table-cell">
-                                <i class="fa-solid fa-inbox"></i>
-                                <p>No students enrolled yet. Click "New Student" above to add the first record!</p>
-                            </td>
-                        </tr>
-                    {% endif %}
-                </tbody>
-            </table>
+        <!-- Right: Activity History Feed from history table -->
+        <div class="data-table-card">
+            <div class="card-header">
+                <div class="header-left">
+                    <div class="card-badge-icon badge-purple"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                    <div>
+                        <h4 class="card-heading">Recent Activity Log</h4>
+                        <p class="card-subheading">Live system audit trail recorded in database</p>
+                    </div>
+                </div>
+                {% if current_role == 'super_admin' %}
+                    <a href="{{ url_for('users_view') }}" class="view-all-link">Full Audit <i class="fa-solid fa-arrow-right"></i></a>
+                {% endif %}
+            </div>
+
+            <div class="history-feed" style="max-height: 380px; overflow-y: auto;">
+                {% if recent_activity and recent_activity|length > 0 %}
+                    {% for h in recent_activity %}
+                    <div class="history-item">
+                        <div class="history-icon">
+                            {% if 'login' in h.ACTIONS|lower %}
+                                <i class="fa-solid fa-right-to-bracket" style="color: #2563eb;"></i>
+                            {% elif 'logout' in h.ACTIONS|lower %}
+                                <i class="fa-solid fa-right-from-bracket" style="color: #64748b;"></i>
+                            {% elif 'delete' in h.ACTIONS|lower %}
+                                <i class="fa-solid fa-trash-can" style="color: #ef4444;"></i>
+                            {% elif 'add' in h.ACTIONS|lower or 'register' in h.ACTIONS|lower %}
+                                <i class="fa-solid fa-plus-circle" style="color: #10b981;"></i>
+                            {% elif 'update' in h.ACTIONS|lower or 'change' in h.ACTIONS|lower %}
+                                <i class="fa-solid fa-pen-to-square" style="color: #f59e0b;"></i>
+                            {% else %}
+                                <i class="fa-solid fa-bolt" style="color: var(--navy-700);"></i>
+                            {% endif %}
+                        </div>
+                        <div class="history-body">
+                            <span class="history-action">{{ h.ACTIONS }}</span>
+                            <span class="history-meta">
+                                <i class="fa-regular fa-user"></i> <strong>{{ h.USERNAME }}</strong>
+                                &bull;
+                                <i class="fa-regular fa-clock"></i> {{ h.LOG_TIME }}
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-table-cell" style="padding: 30px;">
+                        <i class="fa-solid fa-shield-halved"></i>
+                        <p>No activity logs recorded yet.</p>
+                    </div>
+                {% endif %}
+            </div>
         </div>
     </div>
 
@@ -223,10 +298,10 @@ document.addEventListener("DOMContentLoaded", function () {
     const genderCounts = chartData.genderCounts || [];
 
     if (typeof Chart !== "undefined") {
-        Chart.defaults.color = "#94a3b8";
-        Chart.defaults.font.family = "'Plus Jakarta Sans', sans-serif";
+        Chart.defaults.color = "#64748b";
+        Chart.defaults.font.family = "'Plus Jakarta Sans', system-ui, sans-serif";
 
-        // Bar Chart
+        // Bar Chart: Enrollment by Class
         const classCanvas = document.getElementById("classChart");
         const classEmptyState = document.getElementById("classChartEmpty");
 
@@ -236,8 +311,8 @@ document.addEventListener("DOMContentLoaded", function () {
         } else if (classCanvas) {
             const classCtx = classCanvas.getContext("2d");
             const barGradient = classCtx.createLinearGradient(0, 0, 0, 300);
-            barGradient.addColorStop(0, "rgba(59, 130, 246, 0.95)");
-            barGradient.addColorStop(1, "rgba(14, 165, 233, 0.45)");
+            barGradient.addColorStop(0, "#1e3a8a");
+            barGradient.addColorStop(1, "#3b82f6");
 
             new Chart(classCtx, {
                 type: "bar",
@@ -247,24 +322,37 @@ document.addEventListener("DOMContentLoaded", function () {
                         label: "Enrolled Students",
                         data: classCounts,
                         backgroundColor: barGradient,
-                        borderColor: "#3b82f6",
-                        borderWidth: 1.5,
-                        borderRadius: 8
+                        borderRadius: 6,
+                        borderSkipped: false
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: "#0f172a",
+                            padding: 10,
+                            cornerRadius: 6
+                        }
+                    },
                     scales: {
-                        x: { grid: { display: false } },
-                        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: "#64748b" }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1, color: "#64748b" },
+                            grid: { color: "#f1f5f9" }
+                        }
                     }
                 }
             });
         }
 
-        // Doughnut Chart
+        // Doughnut Chart: Gender Demographics
         const genderCanvas = document.getElementById("genderChart");
         const genderEmptyState = document.getElementById("genderChartEmpty");
 
@@ -272,7 +360,7 @@ document.addEventListener("DOMContentLoaded", function () {
             if (genderCanvas) genderCanvas.style.display = "none";
             if (genderEmptyState) genderEmptyState.style.display = "flex";
         } else if (genderCanvas) {
-            const colorPalette = { "male": "#3b82f6", "female": "#ec4899", "other": "#a855f7" };
+            const colorPalette = { "male": "#2563eb", "female": "#ec4899", "other": "#8b5cf6" };
             const backgroundColors = genderLabels.map(l => colorPalette[String(l).toLowerCase().trim()] || "#10b981");
 
             new Chart(genderCanvas.getContext("2d"), {
@@ -282,15 +370,25 @@ document.addEventListener("DOMContentLoaded", function () {
                     datasets: [{
                         data: genderCounts,
                         backgroundColor: backgroundColors,
-                        borderColor: "#111827",
-                        borderWidth: 3
+                        borderColor: "#ffffff",
+                        borderWidth: 2,
+                        hoverOffset: 4
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    cutout: "70%",
-                    plugins: { legend: { position: "bottom" } }
+                    cutout: "68%",
+                    plugins: {
+                        legend: {
+                            position: "bottom",
+                            labels: {
+                                boxWidth: 12,
+                                padding: 14,
+                                font: { size: 12 }
+                            }
+                        }
+                    }
                 }
             });
         }

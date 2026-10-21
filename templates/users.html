@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard-container">
+
+    <!-- Super Admin Header Banner -->
+    <div class="welcome-banner" style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);">
+        <div class="banner-content">
+            <div class="welcome-chip" style="background: rgba(255,255,255,0.15); color: #fff;">
+                <i class="fa-solid fa-shield-halved"></i> Super Administrator Access Only
+            </div>
+            <h2 class="banner-title" style="color: #ffffff;">User Security & Institutional Audit Trail</h2>
+            <p class="banner-desc" style="color: #cbd5e1;">
+                Manage operational user accounts, provision role-based administrative privileges, and inspect comprehensive audit logs recorded in the database.
+            </p>
+        </div>
+        <div class="quick-actions-bar">
+            <button type="button" class="action-pill primary-pill" onclick="document.getElementById('registerUserCard').scrollIntoView({behavior: 'smooth'})">
+                <i class="fa-solid fa-user-plus"></i> Create Account
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Grid: Accounts List & Audit History -->
+    <div class="dashboard-split-grid" style="margin-top: 24px;">
+        
+        <!-- Left Column: User Accounts Table & Provisioning Form -->
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+            
+            <!-- User Accounts Directory -->
+            <div class="data-table-card">
+                <div class="card-header">
+                    <div class="header-left">
+                        <div class="card-badge-icon badge-blue"><i class="fa-solid fa-users"></i></div>
+                        <div>
+                            <h4 class="card-heading">Provisioned User Accounts</h4>
+                            <p class="card-subheading">Total accounts registered: {{ users|length }}</p>
+                        </div>
+                    </div>
+                    <span class="chart-tag"><i class="fa-solid fa-lock"></i> Protected Hashes</span>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="modern-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Username</th>
+                                <th>Assigned Role</th>
+                                <th style="text-align: right; padding-right: 18px;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for u in users %}
+                            <tr>
+                                <td style="font-family: monospace; font-size: 11.5px; color: var(--text-muted);">{{ u.ID }}</td>
+                                <td>
+                                    <div class="student-name-cell">
+                                        <div class="mini-avatar" style="background: {% if u.ROLE == 'super_admin' %}#1e3a8a{% elif u.ROLE == 'admin' %}#2563eb{% else %}#64748b{% endif %};">
+                                            {{ u.USERNAME[0] | upper }}
+                                        </div>
+                                        <div style="display: flex; flex-direction: column;">
+                                            <span class="student-name">{{ u.USERNAME }}</span>
+                                            {% if u.USERNAME == current_user %}
+                                                <span style="font-size: 10.5px; color: #10b981; font-weight: 700;">(Current Account)</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="role-pill role-{{ u.ROLE }}">
+                                        {{ u.ROLE.replace('_', ' ') }}
+                                    </span>
+                                </td>
+                                <td style="text-align: right; padding-right: 18px;">
+                                    {% if u.USERNAME == current_user %}
+                                        <span style="font-size: 11.5px; color: var(--text-muted); font-style: italic;">Protected</span>
+                                    {% else %}
+                                        <form action="{{ url_for('delete_user_route', id=u.ID) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to permanently delete user account \'{{ u.USERNAME }}\'?');">
+                                            <button type="submit" class="btn-table-delete" title="Delete Account">
+                                                <i class="fa-solid fa-trash-can"></i>
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Create New User Form Card -->
+            <div class="data-table-card" id="registerUserCard">
+                <div class="card-header">
+                    <div class="header-left">
+                        <div class="card-badge-icon badge-purple"><i class="fa-solid fa-user-plus"></i></div>
+                        <div>
+                            <h4 class="card-heading">Provision New User Account</h4>
+                            <p class="card-subheading">Grant access to staff with role-based restrictions</p>
+                        </div>
+                    </div>
+                </div>
+
+                <form action="{{ url_for('add_user_route') }}" method="POST" autocomplete="off" style="margin-top: 14px; display: flex; flex-direction: column; gap: 14px;">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Username <span class="required">*</span></label>
+                            <input type="text" name="username" required placeholder="e.g. staff_john" autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label>Assigned Role <span class="required">*</span></label>
+                            <select name="role" required>
+                                <option value="admin">Administrator (Full CRUD operations)</option>
+                                <option value="viewer">Viewer (Read-only access)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Initial Password <span class="required">*</span></label>
+                        <div style="position: relative; display: flex; align-items: center;">
+                            <input type="password" id="newUserPassword" name="password" required placeholder="Enter strong password..." style="width: 100%; padding-right: 40px;">
+                            <button type="button" onclick="togglePasswordVisibility('newUserPassword', this)" style="position: absolute; right: 12px; background: none; border: none; color: var(--text-muted); cursor: pointer;">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style="background: #f8fafc; border: 1px dashed var(--border-color); padding: 10px 14px; border-radius: var(--radius-sm); font-size: 11.5px; color: var(--text-muted);">
+                        <strong><i class="fa-solid fa-circle-info"></i> Security Policy:</strong> Passwords must be at least 8 characters long, contain at least 1 uppercase letter, and 1 numeric digit. Passwords are encrypted with bcrypt before being stored.
+                    </div>
+
+                    <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+                        <button type="submit" class="btn-submit">
+                            <i class="fa-solid fa-user-check"></i> Register Account
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+        </div>
+
+        <!-- Right Column: System Audit Trail Logs -->
+        <div class="data-table-card">
+            <div class="card-header">
+                <div class="header-left">
+                    <div class="card-badge-icon badge-pink"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                    <div>
+                        <h4 class="card-heading">System Activity Audit Trail</h4>
+                        <p class="card-subheading">Chronological record of actions logged in database</p>
+                    </div>
+                </div>
+                <span class="chart-tag"><i class="fa-solid fa-fingerprint"></i> Last 50 Events</span>
+            </div>
+
+            <div class="history-feed" style="max-height: 720px; overflow-y: auto; margin-top: 10px;">
+                {% if history_logs and history_logs|length > 0 %}
+                    {% for h in history_logs %}
+                    <div class="history-item">
+                        <div class="history-icon">
+                            {% if 'login' in h.ACTIONS|lower %}
+                                <i class="fa-solid fa-right-to-bracket" style="color: #2563eb;"></i>
+                            {% elif 'logout' in h.ACTIONS|lower %}
+                                <i class="fa-solid fa-right-from-bracket" style="color: #64748b;"></i>
+                            {% elif 'delete' in h.ACTIONS|lower %}
+                                <i class="fa-solid fa-trash-can" style="color: #ef4444;"></i>
+                            {% elif 'add' in h.ACTIONS|lower or 'register' in h.ACTIONS|lower %}
+                                <i class="fa-solid fa-plus-circle" style="color: #10b981;"></i>
+                            {% elif 'update' in h.ACTIONS|lower or 'changed' in h.ACTIONS|lower %}
+                                <i class="fa-solid fa-pen-to-square" style="color: #f59e0b;"></i>
+                            {% else %}
+                                <i class="fa-solid fa-bolt" style="color: var(--navy-700);"></i>
+                            {% endif %}
+                        </div>
+                        <div class="history-body">
+                            <span class="history-action">{{ h.ACTIONS }}</span>
+                            <span class="history-meta">
+                                <i class="fa-regular fa-user"></i> <strong>{{ h.USERNAME }}</strong>
+                                &bull;
+                                <i class="fa-regular fa-clock"></i> {{ h.LOG_TIME }}
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-table-cell" style="padding: 40px;">
+                        <i class="fa-solid fa-shield-halved"></i>
+                        <p>No activity records logged in the database yet.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+    function togglePasswordVisibility(inputId, btn) {
+        const input = document.getElementById(inputId);
+        const icon = btn.querySelector('i');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    }
+</script>
+{% endblock %}

@@ -6,56 +6,63 @@
     <!-- Top Action & Filter Toolbar -->
     <div class="page-toolbar">
         <div class="toolbar-left">
-            <form action="{{ url_for('students_view') }}" method="GET" class="filter-form">
-                <div class="filter-search-box">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="text" name="search" value="{{ search or '' }}" placeholder="Search by name, roll no, or phone...">
+            <form action="{{ url_for('students_view') }}" method="GET" class="filter-form" id="studentFilterForm">
+                <div class="filter-input-wrapper" style="position: relative; display: flex; align-items: center;">
+                    <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 10px; color: var(--text-muted); font-size: 13px;"></i>
+                    <input type="text" name="search" class="filter-input" style="padding-left: 32px;" value="{{ search or '' }}" placeholder="Search name, roll, phone...">
                 </div>
                 
-                <div class="filter-select-box">
-                    <select name="class" onchange="this.form.submit()">
-                        <option value="">All Standards / Classes</option>
+                <div class="filter-select-wrapper">
+                    <select name="class" class="filter-input" onchange="this.form.submit()">
+                        <option value="">All Classes</option>
                         {% for c in available_classes %}
-                            <option value="{{ c }}" {% if selected_class == c %}selected{% endif %}>{{ c }}</option>
+                            <option value="{{ c }}" {% if selected_class == c %}selected{% endif %}>Class {{ c }}</option>
                         {% endfor %}
                     </select>
                 </div>
 
-                <button type="submit" class="btn-filter"><i class="fa-solid fa-filter"></i> Apply</button>
-                {% if search or selected_class %}
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    <input type="number" name="min_age" class="filter-input" style="width: 80px;" min="1" max="120" placeholder="Min Age" value="{{ min_age or '' }}">
+                    <span style="color: var(--text-muted); font-size: 12px;">to</span>
+                    <input type="number" name="max_age" class="filter-input" style="width: 80px;" min="1" max="120" placeholder="Max Age" value="{{ max_age or '' }}">
+                </div>
+
+                <button type="submit" class="btn-filter"><i class="fa-solid fa-filter"></i> Filter</button>
+                {% if search or selected_class or min_age or max_age %}
                     <a href="{{ url_for('students_view') }}" class="btn-clear"><i class="fa-solid fa-rotate-left"></i> Reset</a>
                 {% endif %}
             </form>
         </div>
 
         <div class="toolbar-right">
-            <!-- Button to open the Add Student Modal -->
-            <button type="button" class="action-pill primary-pill" data-modal-target="#addStudentModal">
-                <i class="fa-solid fa-user-plus"></i> Enroll Student
-            </button>
+            {% if current_role in ('super_admin', 'admin') %}
+                <button type="button" class="btn-toolbar-add" data-modal-target="#addStudentModal">
+                    <i class="fa-solid fa-plus-circle"></i> Add Student
+                </button>
+            {% endif %}
         </div>
     </div>
 
     <!-- Students Data Table Card -->
-    <div class="data-table-card">
+    <div class="data-table-card" style="margin-top: 16px;">
         <div class="card-header">
             <div class="header-left">
                 <div class="card-badge-icon badge-blue">
                     <i class="fa-solid fa-user-graduate"></i>
                 </div>
                 <div>
-                    <h4 class="card-heading">All Registered Students</h4>
-                    <p class="card-subheading">Showing {{ students|length }} enrolled student record(s)</p>
+                    <h4 class="card-heading">Student Directory</h4>
+                    <p class="card-subheading">Showing {{ students|length }} of {{ total_records }} registered student record(s)</p>
                 </div>
             </div>
-            <span class="chart-tag"><i class="fa-solid fa-database"></i> Live MySQL Records</span>
+            <span class="chart-tag"><i class="fa-solid fa-database"></i> Live MySQL Database</span>
         </div>
 
         <div class="table-responsive">
             <table class="modern-table">
                 <thead>
                     <tr>
-                        <th>Roll No</th>
+                        <th>Roll No.</th>
                         <th>Student Name</th>
                         <th>Class</th>
                         <th>Age</th>
@@ -63,7 +70,9 @@
                         <th>Phone</th>
                         <th>Email</th>
                         <th>Address</th>
-                        <th>Actions</th>
+                        {% if current_role in ('super_admin', 'admin') %}
+                            <th style="text-align: right; padding-right: 18px;">Actions</th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -73,48 +82,192 @@
                             <td><span class="roll-badge">#{{ s.ROLL_NUMBER }}</span></td>
                             <td>
                                 <div class="student-name-cell">
-                                    <div class="mini-avatar">{{ s.NAME[0] | upper }}</div>
+                                    <div class="mini-avatar">{{ s.NAME[0] | upper if s.NAME else 'S' }}</div>
                                     <span class="student-name">{{ s.NAME }}</span>
                                 </div>
                             </td>
                             <td><span class="class-pill">{{ s.CLASS or 'N/A' }}</span></td>
-                            <td class="text-dim">{{ s.AGE or 'N/A' }}</td>
+                            <td>{{ s.AGE if s.AGE else '—' }}</td>
                             <td>
-                                {% if s.GENDER|lower == 'male' %}
+                                {% if s.GENDER and s.GENDER|lower == 'male' %}
                                     <span class="gender-pill gender-male"><i class="fa-solid fa-mars"></i> Male</span>
-                                {% elif s.GENDER|lower == 'female' %}
+                                {% elif s.GENDER and s.GENDER|lower == 'female' %}
                                     <span class="gender-pill gender-female"><i class="fa-solid fa-venus"></i> Female</span>
                                 {% else %}
                                     <span class="gender-pill">{{ s.GENDER or 'Other' }}</span>
                                 {% endif %}
                             </td>
-                            <td class="text-dim">{{ s.PHONE or 'N/A' }}</td>
-                            <td class="text-dim">{{ s.EMAIL or 'N/A' }}</td>
-                            <td class="text-dim" style="max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ s.ADDRESS }}">{{ s.ADDRESS or 'N/A' }}</td>
-                            <td>
-                                <form action="{{ url_for('delete_student', id=s.ID) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete student {{ s.NAME }} (#{{ s.ROLL_NUMBER }})?');">
-                                    <button type="submit" class="btn-table-delete" title="Delete Student">
-                                        <i class="fa-solid fa-trash-can"></i>
+                            <td class="text-dim">{{ s.PHONE or '—' }}</td>
+                            <td class="text-dim">{{ s.EMAIL or '—' }}</td>
+                            <td class="text-dim" style="max-width: 170px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ s.ADDRESS }}">{{ s.ADDRESS or '—' }}</td>
+                            {% if current_role in ('super_admin', 'admin') %}
+                            <td style="text-align: right; padding-right: 18px;">
+                                <div class="action-btns-group" style="justify-content: flex-end;">
+                                    <button type="button" 
+                                            class="btn-table-edit" 
+                                            title="Edit Student"
+                                            onclick="openEditStudentModal(this)"
+                                            data-id="{{ s.ID }}"
+                                            data-roll="{{ s.ROLL_NUMBER }}"
+                                            data-name="{{ s.NAME }}"
+                                            data-class="{{ s.CLASS or '' }}"
+                                            data-age="{{ s.AGE or '' }}"
+                                            data-gender="{{ s.GENDER or 'Male' }}"
+                                            data-phone="{{ s.PHONE or '' }}"
+                                            data-email="{{ s.EMAIL or '' }}"
+                                            data-address="{{ s.ADDRESS or '' }}">
+                                        <i class="fa-solid fa-pen-to-square"></i>
                                     </button>
-                                </form>
+                                    <form action="{{ url_for('delete_student_route', id=s.ID) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to permanently delete student {{ s.NAME }} (Roll #{{ s.ROLL_NUMBER }})?');">
+                                        <button type="submit" class="btn-table-delete" title="Delete Student">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
+                            {% endif %}
                         </tr>
                         {% endfor %}
                     {% else %}
                         <tr>
-                            <td colspan="9" class="empty-table-cell">
-                                <i class="fa-solid fa-user-xmark"></i>
+                            <td colspan="{{ '9' if current_role in ('super_admin', 'admin') else '8' }}" class="empty-table-cell">
+                                <i class="fa-solid fa-inbox"></i>
                                 <p>No matching student records found.</p>
-                                <button type="button" class="action-pill primary-pill" data-modal-target="#addStudentModal" style="margin-top: 12px;">
-                                    <i class="fa-solid fa-user-plus"></i> Enroll First Student
-                                </button>
+                                {% if search or selected_class or min_age or max_age %}
+                                    <a href="{{ url_for('students_view') }}" class="btn-clear" style="margin-top: 8px; display: inline-block;">Clear all search filters</a>
+                                {% endif %}
                             </td>
                         </tr>
                     {% endif %}
                 </tbody>
             </table>
         </div>
+
+        <!-- Pagination Controls -->
+        {% if total_pages > 1 %}
+        <div class="pagination-bar">
+            <span style="font-size: 12.5px; color: var(--text-muted);">
+                Page <strong>{{ page }}</strong> of <strong>{{ total_pages }}</strong> (Total {{ total_records }} students)
+            </span>
+            <div class="pagination-links">
+                {% if page > 1 %}
+                    <a href="{{ url_for('students_view', page=page-1, search=search, class=selected_class, min_age=min_age, max_age=max_age) }}" class="page-btn">
+                        <i class="fa-solid fa-angle-left"></i> Prev
+                    </a>
+                {% endif %}
+
+                {% for p in range(1, total_pages + 1) %}
+                    {% if p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+                        <a href="{{ url_for('students_view', page=p, search=search, class=selected_class, min_age=min_age, max_age=max_age) }}" 
+                           class="page-btn {% if p == page %}active{% endif %}">
+                            {{ p }}
+                        </a>
+                    {% elif p == page - 3 or p == page + 3 %}
+                        <span style="padding: 0 4px; color: var(--text-muted);">&bull;&bull;&bull;</span>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page < total_pages %}
+                    <a href="{{ url_for('students_view', page=page+1, search=search, class=selected_class, min_age=min_age, max_age=max_age) }}" class="page-btn">
+                        Next <i class="fa-solid fa-angle-right"></i>
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
     </div>
 
 </div>
+
+{% if current_role in ('super_admin', 'admin') %}
+<!-- Edit Student Modal -->
+<div class="modal-overlay" id="editStudentModal">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <div class="modal-title-box">
+                <i class="fa-solid fa-user-pen" style="color: var(--navy-700);"></i>
+                <h3 class="modal-title" id="editModalHeading">Update Student Details</h3>
+            </div>
+            <button type="button" class="modal-close-btn" data-modal-close>&times;</button>
+        </div>
+        
+        <form id="editStudentForm" method="POST" class="modal-form">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Roll Number (Read-only)</label>
+                    <input type="text" id="editRollNumber" disabled style="background: #f1f5f9; cursor: not-allowed;">
+                </div>
+                <div class="form-group">
+                    <label>Student Full Name <span class="required">*</span></label>
+                    <input type="text" id="editName" name="name" required placeholder="e.g. Rahul Sharma">
+                </div>
+                <div class="form-group">
+                    <label>Class / Standard</label>
+                    <input type="text" id="editClass" name="class_name" placeholder="e.g. 10th A">
+                </div>
+                <div class="form-group">
+                    <label>Age</label>
+                    <input type="number" id="editAge" name="age" min="1" max="120" placeholder="e.g. 16">
+                </div>
+                <div class="form-group">
+                    <label>Gender</label>
+                    <select id="editGender" name="gender">
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Phone Number (10 Digits)</label>
+                    <input type="tel" id="editPhone" name="phone" placeholder="e.g. 9876543210" pattern="[6-9][0-9]{9}">
+                </div>
+                <div class="form-group full-width">
+                    <label>Email Address</label>
+                    <input type="email" id="editEmail" name="email" placeholder="e.g. student@example.com">
+                </div>
+                <div class="form-group full-width">
+                    <label>Residential Address</label>
+                    <textarea id="editAddress" name="address" rows="2" placeholder="e.g. Flat 302, Civil Lines"></textarea>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" data-modal-close>Cancel</button>
+                <button type="submit" class="btn-submit"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openEditStudentModal(btn) {
+        const id = btn.getAttribute('data-id');
+        const roll = btn.getAttribute('data-roll');
+        const name = btn.getAttribute('data-name');
+        const className = btn.getAttribute('data-class');
+        const age = btn.getAttribute('data-age');
+        const gender = btn.getAttribute('data-gender');
+        const phone = btn.getAttribute('data-phone');
+        const email = btn.getAttribute('data-email');
+        const address = btn.getAttribute('data-address');
+
+        document.getElementById('editModalHeading').textContent = `Update Student (Roll #${roll})`;
+        document.getElementById('editRollNumber').value = roll;
+        document.getElementById('editName').value = name;
+        document.getElementById('editClass').value = className;
+        document.getElementById('editAge').value = age;
+        document.getElementById('editGender').value = gender || 'Male';
+        document.getElementById('editPhone').value = phone;
+        document.getElementById('editEmail').value = email;
+        document.getElementById('editAddress').value = address;
+
+        const form = document.getElementById('editStudentForm');
+        form.action = `/students/edit/${id}`;
+
+        const modal = document.getElementById('editStudentModal');
+        modal.classList.add('active');
+    }
+</script>
+{% endif %}
+
 {% endblock %}

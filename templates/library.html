@@ -9,9 +9,11 @@
             <p style="font-size: 13px; color: var(--text-secondary);">Manage book inventory, circulation, and available copies</p>
         </div>
         <div class="toolbar-right">
-            <button type="button" class="action-pill primary-pill" onclick="document.getElementById('addBookModal').classList.add('active')">
-                <i class="fa-solid fa-book-medical"></i> Add Book
-            </button>
+            {% if current_role in ('super_admin', 'admin') %}
+                <button type="button" class="btn-toolbar-add" data-modal-target="#addBookModal" style="background: linear-gradient(135deg, #d97706 0%, #b45309 100%);">
+                    <i class="fa-solid fa-plus-circle"></i> Add Book
+                </button>
+            {% endif %}
         </div>
     </div>
 
@@ -78,7 +80,7 @@
                         <p class="modal-subtitle">Log new publication copies</p>
                     </div>
                 </div>
-                <button type="button" class="modal-close-btn" onclick="document.getElementById('addBookModal').classList.remove('active')">&times;</button>
+                <button type="button" class="modal-close-btn" data-modal-close onclick="document.getElementById('addBookModal').classList.remove('active')">&times;</button>
             </div>
             <form action="{{ url_for('add_book') }}" method="POST" class="modal-form">
                 <div class="form-grid">
@@ -104,7 +106,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn-cancel" onclick="document.getElementById('addBookModal').classList.remove('active')">Cancel</button>
+                    <button type="button" class="btn-cancel" data-modal-close onclick="document.getElementById('addBookModal').classList.remove('active')">Cancel</button>
                     <button type="submit" class="btn-submit"><i class="fa-solid fa-check"></i> Add to Catalog</button>
                 </div>
             </form>

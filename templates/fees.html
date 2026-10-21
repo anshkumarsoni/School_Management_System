@@ -9,9 +9,11 @@
             <p style="font-size: 13px; color: var(--text-secondary);">Total Recorded Collections: <strong style="color: var(--accent-emerald);">₹{{ "{:,.2f}".format(total_rev or 0) }}</strong></p>
         </div>
         <div class="toolbar-right">
-            <button type="button" class="action-pill primary-pill" onclick="document.getElementById('addFeeModal').classList.add('active')">
-                <i class="fa-solid fa-receipt"></i> Record Payment
-            </button>
+            {% if current_role in ('super_admin', 'admin') %}
+                <button type="button" class="btn-toolbar-add" data-modal-target="#addFeeModal" style="background: linear-gradient(135deg, #059669 0%, #047857 100%);">
+                    <i class="fa-solid fa-plus-circle"></i> Record Payment
+                </button>
+            {% endif %}
         </div>
     </div>
 
@@ -80,7 +82,7 @@
                         <p class="modal-subtitle">Log verified student fee receipt</p>
                     </div>
                 </div>
-                <button type="button" class="modal-close-btn" onclick="document.getElementById('addFeeModal').classList.remove('active')">&times;</button>
+                <button type="button" class="modal-close-btn" data-modal-close onclick="document.getElementById('addFeeModal').classList.remove('active')">&times;</button>
             </div>
             <form action="{{ url_for('add_fee') }}" method="POST" class="modal-form">
                 <div class="form-grid">
@@ -111,7 +113,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn-cancel" onclick="document.getElementById('addFeeModal').classList.remove('active')">Cancel</button>
+                    <button type="button" class="btn-cancel" data-modal-close onclick="document.getElementById('addFeeModal').classList.remove('active')">Cancel</button>
                     <button type="submit" class="btn-submit"><i class="fa-solid fa-check"></i> Save Transaction</button>
                 </div>
             </form>

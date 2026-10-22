@@ -1,5 +1,6 @@
 import os
 import math
+import datetime
 import mysql.connector as ms
 from mysql.connector import Error
 from dotenv import load_dotenv
@@ -31,6 +32,113 @@ def inject_user_context():
         "current_user": session.get("username"),
         "current_role": session.get("role")
     }
+
+# Ensure Database Schema includes DOB column and dashboard widgets tables
+def init_db_schema():
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            for table in ["Students_Details", "Teachers_Details"]:
+                cur.execute("""
+                    SELECT COLUMN_NAME 
+                    FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = 'DOB'
+                """, (table,))
+                if not cur.fetchone():
+                    cur.execute(f"ALTER TABLE {table} ADD COLUMN DOB DATE NULL")
+                    con.commit()
+
+            # Ensure Announcements table exists
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS announcements (
+                    ID INT AUTO_INCREMENT PRIMARY KEY,
+                    TITLE VARCHAR(200) NOT NULL,
+                    CATEGORY VARCHAR(50) DEFAULT 'General',
+                    DESCRIPTION TEXT,
+                    POST_DATE DATE DEFAULT (CURRENT_DATE),
+                    PRIORITY VARCHAR(20) DEFAULT 'Normal'
+                )
+            """)
+
+            # Ensure Academic Events table exists
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS academic_events (
+                    ID INT AUTO_INCREMENT PRIMARY KEY,
+                    TITLE VARCHAR(200) NOT NULL,
+                    EVENT_DATE DATE NOT NULL,
+                    CATEGORY VARCHAR(50) DEFAULT 'Academic',
+                    LOCATION VARCHAR(100) DEFAULT 'Main Campus'
+                )
+            """)
+
+            # Ensure Teacher Attendance table exists
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS Teacher_Attendance (
+                    ID INT AUTO_INCREMENT PRIMARY KEY,
+                    TEACHER_ID VARCHAR(20) NOT NULL,
+                    ATTENDANCE_DATE DATE NOT NULL,
+                    STATUS ENUM('Present', 'Absent', 'On Leave') NOT NULL,
+                    REMARKS VARCHAR(100),
+                    UNIQUE KEY unique_teacher_date (TEACHER_ID, ATTENDANCE_DATE)
+                )
+            """)
+            con.commit()
+        except Error as e:
+            print("Schema Init Notice:", e)
+        finally:
+            cur.close()
+            con.close()
+
+init_db_schema()
+
+def calculate_birthday_events(records):
+    """Calculates birthdays for today and upcoming in next 30 days."""
+    today = datetime.date.today()
+    todays_birthdays = []
+    upcoming_birthdays = []
+
+    for r in records:
+        dob = r.get("DOB")
+        if not dob:
+            continue
+        if isinstance(dob, str):
+            try:
+                dob = datetime.datetime.strptime(dob, "%Y-%m-%d").date()
+            except ValueError:
+                continue
+
+        try:
+            this_year_bday = dob.replace(year=today.year)
+        except ValueError:
+            this_year_bday = dob.replace(year=today.year, day=28)
+
+        if this_year_bday < today:
+            try:
+                next_bday = dob.replace(year=today.year + 1)
+            except ValueError:
+                next_bday = dob.replace(year=today.year + 1, day=28)
+        else:
+            next_bday = this_year_bday
+
+        days_until = (next_bday - today).days
+        turning_age = next_bday.year - dob.year
+
+        item = dict(r)
+        item["days_until"] = days_until
+        item["turning_age"] = turning_age
+        item["bday_formatted"] = dob.strftime("%b %d, %Y")
+        item["bday_short"] = dob.strftime("%b %d")
+        item["next_bday_formatted"] = next_bday.strftime("%b %d")
+        item["is_today"] = (days_until == 0)
+
+        if days_until == 0:
+            todays_birthdays.append(item)
+        elif 0 < days_until <= 30:
+            upcoming_birthdays.append(item)
+
+    upcoming_birthdays.sort(key=lambda x: x["days_until"])
+    return todays_birthdays, upcoming_birthdays
 
 # -------------------------------------------------------------------------
 # 1. AUTHENTICATION & SESSION MANAGEMENT
@@ -252,6 +360,53 @@ def dashboard():
     gender_labels = [r["GENDER"] for r in gender_rows]
     gender_counts = [int(r["count"]) for r in gender_rows]
 
+    # 6. Today's Birthdays (Students + Faculty)
+    cur.execute("SELECT NAME, CLASS, 'Student' as role FROM Students_Details WHERE DOB IS NOT NULL AND MONTH(DOB) = MONTH(CURDATE()) AND DAY(DOB) = DAY(CURDATE())")
+    todays_student_bdays = cur.fetchall()
+    cur.execute("SELECT NAME, SUBJECT as CLASS, 'Faculty' as role FROM Teachers_Details WHERE DOB IS NOT NULL AND MONTH(DOB) = MONTH(CURDATE()) AND DAY(DOB) = DAY(CURDATE())")
+    todays_teacher_bdays = cur.fetchall()
+    all_todays_bdays = todays_student_bdays + todays_teacher_bdays
+
+    # 7. Announcements / Notice Board
+    cur.execute("SELECT ID, TITLE, CATEGORY, DESCRIPTION, POST_DATE, PRIORITY FROM announcements ORDER BY ID DESC LIMIT 4")
+    raw_announcements = cur.fetchall()
+    announcements = []
+    for a in raw_announcements:
+        p_date = a.get("POST_DATE")
+        a["formatted_date"] = p_date.strftime("%b %d, %Y") if p_date else "Recent"
+        announcements.append(a)
+
+    # 8. Upcoming Academic Events & Milestones
+    today = datetime.date.today()
+    cur.execute("SELECT ID, TITLE, EVENT_DATE, CATEGORY, LOCATION FROM academic_events ORDER BY EVENT_DATE ASC LIMIT 4")
+    raw_events = cur.fetchall()
+    academic_events = []
+    for ev in raw_events:
+        ed = ev.get("EVENT_DATE")
+        if ed:
+            ev["month_abbr"] = ed.strftime("%b").upper()
+            ev["day_num"] = ed.strftime("%d")
+            ev["formatted_date"] = ed.strftime("%a, %b %d, %Y")
+            delta = (ed - today).days
+            if delta == 0:
+                ev["countdown"] = "Today"
+                ev["is_urgent"] = True
+            elif delta == 1:
+                ev["countdown"] = "Tomorrow"
+                ev["is_urgent"] = True
+            elif delta > 1:
+                ev["countdown"] = f"In {delta} days"
+                ev["is_urgent"] = (delta <= 7)
+            else:
+                ev["countdown"] = f"{abs(delta)}d ago"
+                ev["is_urgent"] = False
+        else:
+            ev["month_abbr"] = "TBD"
+            ev["day_num"] = "--"
+            ev["countdown"] = "Upcoming"
+            ev["is_urgent"] = False
+        academic_events.append(ev)
+
     cur.close()
     con.close()
 
@@ -266,6 +421,9 @@ def dashboard():
         total_books=total_books,
         recent_activity=recent_activity,
         recent_students=recent_students,
+        all_todays_bdays=all_todays_bdays,
+        announcements=announcements,
+        academic_events=academic_events,
         class_labels=class_labels,
         class_counts=class_counts,
         gender_labels=gender_labels,
@@ -330,6 +488,52 @@ def students_view():
     cur.execute(f"SELECT * {base_query} ORDER BY ID DESC LIMIT %s OFFSET %s", tuple(params + [per_page, offset]))
     students = cur.fetchall()
 
+    today = datetime.date.today()
+    for s in students:
+        dob_val = s.get("DOB")
+        if dob_val:
+            if isinstance(dob_val, (datetime.date, datetime.datetime)):
+                s["DOB_RAW"] = dob_val.strftime("%Y-%m-%d")
+                s["DOB_FORMATTED"] = dob_val.strftime("%b %d, %Y")
+                s["IS_TODAY_BDAY"] = (dob_val.month == today.month and dob_val.day == today.day)
+            else:
+                s["DOB_RAW"] = str(dob_val)
+                s["DOB_FORMATTED"] = str(dob_val)
+                s["IS_TODAY_BDAY"] = False
+        else:
+            s["DOB_RAW"] = ""
+            s["DOB_FORMATTED"] = ""
+            s["IS_TODAY_BDAY"] = False
+
+    # Fetch all students with DOB for the Birthday Section
+    cur.execute("SELECT ID, ROLL_NUMBER, NAME, CLASS, GENDER, DOB FROM Students_Details WHERE DOB IS NOT NULL")
+    all_bday_students = cur.fetchall()
+    bday_today, bday_upcoming = calculate_birthday_events(all_bday_students)
+
+    # Visual Pie Chart 1: Student Gender Demographics (Male / Female / Other)
+    cur.execute("""
+        SELECT 
+            COALESCE(NULLIF(TRIM(GENDER), ''), 'Other') as gender_label,
+            COUNT(*) as count
+        FROM Students_Details
+        GROUP BY gender_label
+        ORDER BY FIELD(gender_label, 'Male', 'Female', 'Other')
+    """)
+    gender_rows = cur.fetchall()
+    student_gender_labels = [r["gender_label"] for r in gender_rows]
+    student_gender_counts = [int(r["count"]) for r in gender_rows]
+
+    # Visual Pie Chart 2: Student Attendance Overview (Present / Absent / Leave)
+    cur.execute("""
+        SELECT STATUS as status_label, COUNT(*) as count
+        FROM attendance_details
+        GROUP BY STATUS
+        ORDER BY FIELD(STATUS, 'Present', 'Absent', 'Leave')
+    """)
+    att_rows = cur.fetchall()
+    student_att_labels = [r["status_label"] for r in att_rows]
+    student_att_counts = [int(r["count"]) for r in att_rows]
+
     cur.close()
     con.close()
 
@@ -339,6 +543,12 @@ def students_view():
         title="Student Management",
         students=students,
         available_classes=available_classes,
+        bday_today=bday_today,
+        bday_upcoming=bday_upcoming,
+        student_gender_labels=student_gender_labels,
+        student_gender_counts=student_gender_counts,
+        student_att_labels=student_att_labels,
+        student_att_counts=student_att_counts,
         search=search,
         selected_class=selected_class,
         min_age=min_age_raw,
@@ -360,6 +570,7 @@ def add_student_route():
     phone = request.form.get("phone", "").strip()
     email = request.form.get("email", "").strip()
     address = request.form.get("address", "").strip()
+    dob_raw = request.form.get("dob", "").strip()
 
     # Preserve Existing Validation Rules:
     if not roll_number.isdigit():
@@ -369,6 +580,18 @@ def add_student_route():
     if not name:
         flash("Validation Error: Student name cannot be empty.", "danger")
         return redirect(request.referrer or url_for("students_view"))
+
+    dob = None
+    if dob_raw:
+        try:
+            parsed_dob = datetime.datetime.strptime(dob_raw, "%Y-%m-%d").date()
+            if parsed_dob > datetime.date.today():
+                flash("Validation Error: Date of Birth cannot be in the future.", "danger")
+                return redirect(request.referrer or url_for("students_view"))
+            dob = dob_raw
+        except ValueError:
+            flash("Validation Error: Invalid Date of Birth format.", "danger")
+            return redirect(request.referrer or url_for("students_view"))
 
     age = None
     if age_raw:
@@ -380,6 +603,9 @@ def add_student_route():
         except ValueError:
             flash("Validation Error: Age must be a number.", "danger")
             return redirect(request.referrer or url_for("students_view"))
+    elif dob:
+        today = datetime.date.today()
+        age = today.year - parsed_dob.year - ((today.month, today.day) < (parsed_dob.month, parsed_dob.day))
 
     if phone and not valid_phonenumber(phone):
         flash("Validation Error: Invalid Indian phone number (10 digits starting with 6, 7, 8, or 9).", "danger")
@@ -407,9 +633,9 @@ def add_student_route():
             return redirect(request.referrer or url_for("students_view"))
 
         cur.execute("""
-            INSERT INTO Students_Details (ROLL_NUMBER, NAME, CLASS, AGE, ADDRESS, PHONE, EMAIL, GENDER)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """, (roll_number, name, class_name, age, address, phone, email, gender))
+            INSERT INTO Students_Details (ROLL_NUMBER, NAME, CLASS, AGE, ADDRESS, PHONE, EMAIL, GENDER, DOB)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (roll_number, name, class_name, age, address, phone, email, gender, dob))
         con.commit()
 
         username = session.get("username", "Admin")
@@ -434,10 +660,23 @@ def edit_student_route(id):
     phone = request.form.get("phone", "").strip()
     email = request.form.get("email", "").strip()
     address = request.form.get("address", "").strip()
+    dob_raw = request.form.get("dob", "").strip()
 
     if not name:
         flash("Validation Error: Student name cannot be empty.", "danger")
         return redirect(request.referrer or url_for("students_view"))
+
+    dob = None
+    if dob_raw:
+        try:
+            parsed_dob = datetime.datetime.strptime(dob_raw, "%Y-%m-%d").date()
+            if parsed_dob > datetime.date.today():
+                flash("Validation Error: Date of Birth cannot be in the future.", "danger")
+                return redirect(request.referrer or url_for("students_view"))
+            dob = dob_raw
+        except ValueError:
+            flash("Validation Error: Invalid Date of Birth format.", "danger")
+            return redirect(request.referrer or url_for("students_view"))
 
     age = None
     if age_raw:
@@ -449,6 +688,9 @@ def edit_student_route(id):
         except ValueError:
             flash("Validation Error: Age must be a number.", "danger")
             return redirect(request.referrer or url_for("students_view"))
+    elif dob:
+        today = datetime.date.today()
+        age = today.year - parsed_dob.year - ((today.month, today.day) < (parsed_dob.month, parsed_dob.day))
 
     if phone and not valid_phonenumber(phone):
         flash("Validation Error: Invalid Indian phone number.", "danger")
@@ -475,9 +717,9 @@ def edit_student_route(id):
 
         cur.execute("""
             UPDATE Students_Details
-            SET NAME = %s, CLASS = %s, AGE = %s, ADDRESS = %s, PHONE = %s, EMAIL = %s, GENDER = %s
+            SET NAME = %s, CLASS = %s, AGE = %s, ADDRESS = %s, PHONE = %s, EMAIL = %s, GENDER = %s, DOB = %s
             WHERE ID = %s
-        """, (name, class_name, age, address, phone, email, gender, id))
+        """, (name, class_name, age, address, phone, email, gender, dob, id))
         con.commit()
 
         username = session.get("username", "Admin")
@@ -562,6 +804,52 @@ def teachers_view():
     cur.execute(f"SELECT * {base_query} ORDER BY ID DESC LIMIT %s OFFSET %s", tuple(params + [per_page, offset]))
     teachers = cur.fetchall()
 
+    today = datetime.date.today()
+    for t in teachers:
+        dob_val = t.get("DOB")
+        if dob_val:
+            if isinstance(dob_val, (datetime.date, datetime.datetime)):
+                t["DOB_RAW"] = dob_val.strftime("%Y-%m-%d")
+                t["DOB_FORMATTED"] = dob_val.strftime("%b %d, %Y")
+                t["IS_TODAY_BDAY"] = (dob_val.month == today.month and dob_val.day == today.day)
+            else:
+                t["DOB_RAW"] = str(dob_val)
+                t["DOB_FORMATTED"] = str(dob_val)
+                t["IS_TODAY_BDAY"] = False
+        else:
+            t["DOB_RAW"] = ""
+            t["DOB_FORMATTED"] = ""
+            t["IS_TODAY_BDAY"] = False
+
+    # Fetch all teachers with DOB for the Birthday Section
+    cur.execute("SELECT ID, TEACHER_ID, NAME, SUBJECT, GENDER, DOB FROM Teachers_Details WHERE DOB IS NOT NULL")
+    all_bday_teachers = cur.fetchall()
+    bday_today, bday_upcoming = calculate_birthday_events(all_bday_teachers)
+
+    # Visual Pie Chart 1: Faculty Gender Demographics (Male / Female / Other)
+    cur.execute("""
+        SELECT 
+            COALESCE(NULLIF(TRIM(GENDER), ''), 'Other') as gender_label,
+            COUNT(*) as count
+        FROM Teachers_Details
+        GROUP BY gender_label
+        ORDER BY FIELD(gender_label, 'Male', 'Female', 'Other')
+    """)
+    t_gender_rows = cur.fetchall()
+    teacher_gender_labels = [r["gender_label"] for r in t_gender_rows]
+    teacher_gender_counts = [int(r["count"]) for r in t_gender_rows]
+
+    # Visual Pie Chart 2: Faculty Attendance Overview (Present / Absent / On Leave)
+    cur.execute("""
+        SELECT STATUS as status_label, COUNT(*) as count
+        FROM Teacher_Attendance
+        GROUP BY STATUS
+        ORDER BY FIELD(STATUS, 'Present', 'Absent', 'On Leave')
+    """)
+    t_att_rows = cur.fetchall()
+    teacher_att_labels = [r["status_label"] for r in t_att_rows]
+    teacher_att_counts = [int(r["count"]) for r in t_att_rows]
+
     cur.close()
     con.close()
 
@@ -571,6 +859,12 @@ def teachers_view():
         title="Faculty Management",
         teachers=teachers,
         available_subjects=available_subjects,
+        bday_today=bday_today,
+        bday_upcoming=bday_upcoming,
+        teacher_gender_labels=teacher_gender_labels,
+        teacher_gender_counts=teacher_gender_counts,
+        teacher_att_labels=teacher_att_labels,
+        teacher_att_counts=teacher_att_counts,
         search=search,
         selected_subject=selected_subject,
         page=page,
@@ -590,6 +884,7 @@ def add_teacher_route():
     phone = request.form.get("phone", "").strip()
     email = request.form.get("email", "").strip()
     address = request.form.get("address", "").strip()
+    dob_raw = request.form.get("dob", "").strip()
 
     if not teacher_id:
         flash("Validation Error: Teacher ID cannot be empty.", "danger")
@@ -599,8 +894,28 @@ def add_teacher_route():
         flash("Validation Error: Teacher name and Subject are required.", "danger")
         return redirect(request.referrer or url_for("teachers_view"))
 
+    dob = None
+    if dob_raw:
+        try:
+            parsed_dob = datetime.datetime.strptime(dob_raw, "%Y-%m-%d").date()
+            if parsed_dob > datetime.date.today():
+                flash("Validation Error: Date of Birth cannot be in the future.", "danger")
+                return redirect(request.referrer or url_for("teachers_view"))
+            dob = dob_raw
+        except ValueError:
+            flash("Validation Error: Invalid Date of Birth format.", "danger")
+            return redirect(request.referrer or url_for("teachers_view"))
+
     try:
-        age = int(age_raw)
+        if age_raw:
+            age = int(age_raw)
+        elif dob:
+            today = datetime.date.today()
+            age = today.year - parsed_dob.year - ((today.month, today.day) < (parsed_dob.month, parsed_dob.day))
+        else:
+            flash("Validation Error: Age or Date of Birth is required.", "danger")
+            return redirect(request.referrer or url_for("teachers_view"))
+
         if age < 18 or age > 120:
             flash("Validation Error: Teacher age must be between 18 and 120.", "danger")
             return redirect(request.referrer or url_for("teachers_view"))
@@ -629,9 +944,9 @@ def add_teacher_route():
             return redirect(request.referrer or url_for("teachers_view"))
 
         cur.execute("""
-            INSERT INTO Teachers_Details (TEACHER_ID, NAME, SUBJECT, AGE, ADDRESS, PHONE, EMAIL, GENDER)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """, (teacher_id, name, subject, age, address, phone, email, gender))
+            INSERT INTO Teachers_Details (TEACHER_ID, NAME, SUBJECT, AGE, ADDRESS, PHONE, EMAIL, GENDER, DOB)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (teacher_id, name, subject, age, address, phone, email, gender, dob))
         con.commit()
 
         username = session.get("username", "Admin")
@@ -656,13 +971,34 @@ def edit_teacher_route(id):
     phone = request.form.get("phone", "").strip()
     email = request.form.get("email", "").strip()
     address = request.form.get("address", "").strip()
+    dob_raw = request.form.get("dob", "").strip()
 
     if not name or not subject:
         flash("Validation Error: Name and Subject cannot be empty.", "danger")
         return redirect(request.referrer or url_for("teachers_view"))
 
+    dob = None
+    if dob_raw:
+        try:
+            parsed_dob = datetime.datetime.strptime(dob_raw, "%Y-%m-%d").date()
+            if parsed_dob > datetime.date.today():
+                flash("Validation Error: Date of Birth cannot be in the future.", "danger")
+                return redirect(request.referrer or url_for("teachers_view"))
+            dob = dob_raw
+        except ValueError:
+            flash("Validation Error: Invalid Date of Birth format.", "danger")
+            return redirect(request.referrer or url_for("teachers_view"))
+
     try:
-        age = int(age_raw)
+        if age_raw:
+            age = int(age_raw)
+        elif dob:
+            today = datetime.date.today()
+            age = today.year - parsed_dob.year - ((today.month, today.day) < (parsed_dob.month, parsed_dob.day))
+        else:
+            flash("Validation Error: Age or Date of Birth is required.", "danger")
+            return redirect(request.referrer or url_for("teachers_view"))
+
         if age < 18 or age > 120:
             flash("Validation Error: Teacher age must be between 18 and 120.", "danger")
             return redirect(request.referrer or url_for("teachers_view"))
@@ -695,9 +1031,9 @@ def edit_teacher_route(id):
 
         cur.execute("""
             UPDATE Teachers_Details
-            SET NAME = %s, SUBJECT = %s, AGE = %s, ADDRESS = %s, PHONE = %s, EMAIL = %s, GENDER = %s
+            SET NAME = %s, SUBJECT = %s, AGE = %s, ADDRESS = %s, PHONE = %s, EMAIL = %s, GENDER = %s, DOB = %s
             WHERE ID = %s
-        """, (name, subject, age, address, phone, email, gender, id))
+        """, (name, subject, age, address, phone, email, gender, dob, id))
         con.commit()
 
         username = session.get("username", "Admin")
@@ -882,6 +1218,8 @@ def library_view():
 def attendance_view():
     con = get_connection()
     records = []
+    students = []
+    stats = {"total": 0, "present": 0, "absent": 0, "leave": 0, "rate": 0}
     if con:
         cur = con.cursor(dictionary=True)
         cur.execute("""
@@ -889,12 +1227,92 @@ def attendance_view():
             FROM Attendance_Details a
             LEFT JOIN Students_Details s ON a.ROLL_NUMBER = s.ROLL_NUMBER
             ORDER BY a.ATTENDANCE_DATE DESC, a.ID DESC
-            LIMIT 50
+            LIMIT 100
         """)
         records = cur.fetchall()
+
+        cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM Students_Details ORDER BY ROLL_NUMBER ASC")
+        students = cur.fetchall()
+
+        cur.execute("""
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN STATUS = 'Present' THEN 1 ELSE 0 END) as present,
+                SUM(CASE WHEN STATUS = 'Absent' THEN 1 ELSE 0 END) as absent,
+                SUM(CASE WHEN STATUS = 'Leave' THEN 1 ELSE 0 END) as `leave`
+            FROM Attendance_Details
+        """)
+        row = cur.fetchone()
+        if row and row["total"]:
+            stats["total"] = int(row["total"] or 0)
+            stats["present"] = int(row["present"] or 0)
+            stats["absent"] = int(row["absent"] or 0)
+            stats["leave"] = int(row["leave"] or 0)
+            stats["rate"] = round((stats["present"] / stats["total"]) * 100, 1) if stats["total"] > 0 else 0
+
         cur.close()
         con.close()
-    return render_template("attendance.html", active_page="attendance", title="Attendance Records", records=records)
+    return render_template(
+        "attendance.html",
+        active_page="attendance",
+        title="Attendance Records",
+        records=records,
+        students=students,
+        stats=stats
+    )
+
+
+@app.route("/attendance/add", methods=["POST"], endpoint="add_attendance")
+@login_required
+@role_required(["super_admin", "admin"])
+def add_attendance_route():
+    roll_number = request.form.get("roll_number", "").strip()
+    att_date = request.form.get("attendance_date", "").strip()
+    status = request.form.get("status", "Present").strip()
+    remarks = request.form.get("remarks", "").strip()
+
+    if not roll_number:
+        flash("Validation Error: Student Roll Number is required.", "warning")
+        return redirect(url_for("attendance_view"))
+
+    if not att_date:
+        att_date = datetime.date.today().strftime("%Y-%m-%d")
+
+    # Normalize status
+    if status.lower() in ("p", "present"):
+        status = "Present"
+    elif status.lower() in ("a", "absent"):
+        status = "Absent"
+    elif status.lower() in ("l", "leave"):
+        status = "Leave"
+    else:
+        status = "Present"
+
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("SELECT NAME, CLASS FROM Students_Details WHERE ROLL_NUMBER = %s", (roll_number,))
+            student = cur.fetchone()
+            if not student:
+                flash(f"Validation Error: Student Roll Number '{roll_number}' was not found.", "danger")
+                return redirect(url_for("attendance_view"))
+
+            cur.execute("""
+                INSERT INTO Attendance_Details (ROLL_NUMBER, ATTENDANCE_DATE, STATUS, REMARKS)
+                VALUES (%s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE STATUS = %s, REMARKS = %s
+            """, (roll_number, att_date, status, remarks, status, remarks))
+            con.commit()
+            log_history(session.get("username", "Admin"), f"Marked attendance for Roll #{roll_number} as '{status}' on {att_date}")
+            flash(f"Attendance recorded successfully for {student['NAME']} (Roll #{roll_number}) as '{status}' on {att_date}!", "success")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("attendance_view"))
 
 
 @app.route("/fees")
@@ -927,6 +1345,8 @@ def fees_view():
 def exams_view():
     con = get_connection()
     marks = []
+    students = []
+    stats = {"total": 0, "avg_pct": 0, "highest": 0, "pass_count": 0}
     if con:
         cur = con.cursor(dictionary=True)
         cur.execute("""
@@ -934,12 +1354,106 @@ def exams_view():
             FROM Marks_Details m
             LEFT JOIN Students_Details s ON m.ROLL_NUMBER = s.ROLL_NUMBER
             ORDER BY m.ID DESC
-            LIMIT 50
+            LIMIT 100
         """)
-        marks = cur.fetchall()
+        raw_marks = cur.fetchall()
+        for m in raw_marks:
+            mo = float(m["MARKS_OBTAINED"])
+            mm = float(m["MAX_MARKS"]) if m["MAX_MARKS"] else 100.0
+            pct = round((mo / mm) * 100, 1) if mm > 0 else 0
+            m["percentage"] = pct
+            if pct >= 80:
+                m["grade"] = "A+"
+                m["grade_class"] = "status-active"
+            elif pct >= 60:
+                m["grade"] = "B"
+                m["grade_class"] = "badge-blue"
+            elif pct >= 40:
+                m["grade"] = "C"
+                m["grade_class"] = "badge-amber"
+            else:
+                m["grade"] = "F"
+                m["grade_class"] = "badge-rose"
+            marks.append(m)
+
+        cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM Students_Details ORDER BY ROLL_NUMBER ASC")
+        students = cur.fetchall()
+
+        if marks:
+            total_evals = len(marks)
+            avg_p = round(sum(m["percentage"] for m in marks) / total_evals, 1)
+            highest_score = max(m["percentage"] for m in marks)
+            passes = sum(1 for m in marks if m["percentage"] >= 40)
+            stats["total"] = total_evals
+            stats["avg_pct"] = avg_p
+            stats["highest"] = highest_score
+            stats["pass_count"] = passes
+
         cur.close()
         con.close()
-    return render_template("exams.html", active_page="exams", title="Examination Marks", marks=marks)
+    return render_template(
+        "exams.html",
+        active_page="exams",
+        title="Examination Marks",
+        marks=marks,
+        students=students,
+        stats=stats
+    )
+
+
+@app.route("/exams/add", methods=["POST"], endpoint="add_exam_mark")
+@login_required
+@role_required(["super_admin", "admin"])
+def add_exam_mark_route():
+    roll_number = request.form.get("roll_number", "").strip()
+    exam_type = request.form.get("exam_type", "").strip()
+    subject = request.form.get("subject", "").strip()
+    marks_raw = request.form.get("marks_obtained", "").strip()
+    max_marks_raw = request.form.get("max_marks", "100").strip()
+
+    if not roll_number or not exam_type or not subject or not marks_raw:
+        flash("Validation Error: Roll Number, Exam Type, Subject, and Marks Obtained are all required.", "warning")
+        return redirect(url_for("exams_view"))
+
+    try:
+        marks_obtained = float(marks_raw)
+        max_marks = float(max_marks_raw) if max_marks_raw else 100.0
+        if marks_obtained < 0 or max_marks <= 0:
+            flash("Validation Error: Marks must be positive numbers.", "danger")
+            return redirect(url_for("exams_view"))
+        if marks_obtained > max_marks:
+            flash(f"Validation Error: Marks obtained ({marks_obtained}) cannot exceed maximum marks ({max_marks}).", "danger")
+            return redirect(url_for("exams_view"))
+    except ValueError:
+        flash("Validation Error: Marks must be valid numerical values.", "danger")
+        return redirect(url_for("exams_view"))
+
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("SELECT NAME, CLASS FROM Students_Details WHERE ROLL_NUMBER = %s", (roll_number,))
+            student = cur.fetchone()
+            if not student:
+                flash(f"Validation Error: Student Roll Number '{roll_number}' was not found.", "danger")
+                return redirect(url_for("exams_view"))
+
+            cur.execute("""
+                INSERT INTO Marks_Details (ROLL_NUMBER, EXAM_TYPE, SUBJECT, MARKS_OBTAINED, MAX_MARKS)
+                VALUES (%s, %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE MARKS_OBTAINED = %s, MAX_MARKS = %s
+            """, (roll_number, exam_type, subject, marks_obtained, max_marks, marks_obtained, max_marks))
+            con.commit()
+            log_history(session.get("username", "Admin"), f"Entered exam marks for Roll #{roll_number}: {subject} ({marks_obtained}/{max_marks}) in {exam_type}")
+            pct = round((marks_obtained / max_marks) * 100, 1)
+            flash(f"Exam marks saved successfully for {student['NAME']} (Roll #{roll_number}) in {subject}: {marks_obtained}/{max_marks} ({pct}%)!", "success")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("exams_view"))
 
 
 @app.route("/library/add", methods=["POST"], endpoint="add_book")

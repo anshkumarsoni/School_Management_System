@@ -1694,11 +1694,578 @@ select.filter-input {
     background: #f8fafc;
 }
 
+/* ----------------- 14B. BIRTHDAY CELEBRATIONS SECTION ----------------- */
+.birthday-section-card {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 20px 22px;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 20px;
+}
+
+.birthday-section-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #ec4899, #f59e0b, #3b82f6);
+}
+
+.birthday-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.birthday-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.birthday-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.bday-icon-wrapper {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-sm);
+    background: linear-gradient(135deg, #fdf2f8, #fce7f3);
+    color: #db2777;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    border: 1px solid #fbcfe8;
+}
+
+.today-banner {
+    background: linear-gradient(135deg, #fff1f2 0%, #fef2f2 50%, #fff7ed 100%);
+    border: 1px solid #fecdd3;
+    border-radius: var(--radius-sm);
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    box-shadow: 0 2px 8px rgba(244, 63, 94, 0.08);
+}
+
+.today-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.today-sparkle-icon {
+    font-size: 26px;
+    color: #e11d48;
+    animation: bdayBounce 1.5s infinite;
+}
+
+@keyframes bdayBounce {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-3px) scale(1.1); }
+}
+
+.today-text h4 {
+    font-size: 15px;
+    font-weight: 800;
+    color: #9f1239;
+    letter-spacing: -0.01em;
+}
+
+.today-text p {
+    font-size: 12.5px;
+    color: #be123c;
+    margin-top: 1px;
+}
+
+.bday-chips-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+}
+
+.bday-chip-card {
+    background: #f8fafc;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    transition: all 0.15s ease;
+}
+
+.bday-chip-card:hover {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-xs);
+}
+
+.bday-chip-card.is-today {
+    background: #fff1f2;
+    border-color: #fecdd3;
+}
+
+.bday-chip-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.bday-avatar {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #f43f5e, #fb7185);
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.bday-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.bday-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--navy-900);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bday-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.bday-badge-col {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    flex-shrink: 0;
+}
+
+.bday-date-badge {
+    font-size: 11px;
+    font-weight: 700;
+    color: #be123c;
+    background: #ffe4e6;
+    padding: 2px 7px;
+    border-radius: 6px;
+    border: 1px solid #fecdd3;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.bday-days-left {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.bday-empty-banner {
+    background: #f8fafc;
+    border: 1px dashed var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.bday-table-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: #f8fafc;
+    border: 1px solid var(--border-color);
+    padding: 2px 8px;
+    border-radius: 6px;
+}
+
+.bday-table-pill.celebration {
+    background: #fff1f2;
+    border-color: #fecdd3;
+    color: #e11d48;
+    font-weight: 700;
+}
+
+/* =========================================================================
+   14C. DASHBOARD QUICK ACTION HUB & ENHANCED WIDGETS
+   ========================================================================= */
+
+/* Quick Action Hub */
+.quick-action-hub {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 20px 22px;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 24px;
+}
+
+.section-mini-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.mini-header-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.mini-header-title i {
+    font-size: 16px;
+}
+
+.mini-header-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.quick-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 14px;
+}
+
+.quick-action-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 16px 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    gap: 8px;
+    position: relative;
+    overflow: hidden;
+    outline: none;
+    font-family: inherit;
+}
+
+.quick-action-tile:hover {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px -4px rgba(15, 23, 42, 0.08);
+}
+
+.action-tile-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    transition: transform 0.2s ease;
+}
+
+.quick-action-tile:hover .action-tile-icon {
+    transform: scale(1.12);
+}
+
+.action-tile-icon.tile-blue {
+    background: #eff6ff;
+    color: #2563eb;
+    border: 1px solid #bfdbfe;
+}
+
+.action-tile-icon.tile-purple {
+    background: #faf5ff;
+    color: #9333ea;
+    border: 1px solid #e9d5ff;
+}
+
+.action-tile-icon.tile-amber {
+    background: #fffbeb;
+    color: #d97706;
+    border: 1px solid #fde68a;
+}
+
+.action-tile-icon.tile-emerald {
+    background: #ecfdf5;
+    color: #059669;
+    border: 1px solid #a7f3d0;
+}
+
+.action-tile-icon.tile-sky {
+    background: #f0f9ff;
+    color: #0284c7;
+    border: 1px solid #bae6fd;
+}
+
+.action-tile-icon.tile-indigo {
+    background: #eef2ff;
+    color: #4f46e5;
+    border: 1px solid #c7d2fe;
+}
+
+.action-tile-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-main);
+    line-height: 1.2;
+}
+
+.action-tile-desc {
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.2;
+}
+
+/* Campus Notice Board */
+.notice-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.notice-card-item {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.notice-card-item:hover {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 14px -2px rgba(15, 23, 42, 0.05);
+}
+
+.notice-item-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.notice-cat-badge {
+    font-size: 10px;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.cat-examination { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+.cat-sports { background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.cat-academic { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+.cat-holiday { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+.cat-general { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+
+.notice-date-text {
+    font-size: 11px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.notice-item-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-main);
+    line-height: 1.35;
+}
+
+.notice-item-desc {
+    font-size: 12px;
+    color: #475569;
+    line-height: 1.45;
+}
+
+/* Academic Calendar & Events */
+.event-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.event-card-item {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: all 0.2s ease;
+}
+
+.event-card-item:hover {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 14px -2px rgba(15, 23, 42, 0.05);
+}
+
+.event-date-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 52px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.event-date-box .event-month {
+    font-size: 10px;
+    font-weight: 800;
+    color: #1e40af;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    line-height: 1;
+}
+
+.event-date-box .event-day {
+    font-size: 18px;
+    font-weight: 800;
+    color: #1e3a8a;
+    line-height: 1.2;
+}
+
+.event-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.event-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.event-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.event-countdown-pill {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 12px;
+    background: #f1f5f9;
+    color: #475569;
+    white-space: nowrap;
+}
+
+.event-countdown-pill.highlight {
+    background: #fef3c7;
+    color: #b45309;
+    border: 1px solid #fde68a;
+}
+
+/* System Live Status Pill */
+.system-status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: #10b981;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.pulse-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+    animation: pulse-green 1.8s infinite;
+}
+
+@keyframes pulse-green {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+/* Dashboard Split Layout */
+.dashboard-main-columns {
+    display: grid;
+    grid-template-columns: 1.35fr 1fr;
+    gap: 24px;
+    margin-top: 24px;
+}
+
+.dashboard-col {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
 /* ----------------- 15. RESPONSIVE MEDIA QUERIES ----------------- */
 @media (max-width: 1200px) {
     .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .quick-actions-grid { grid-template-columns: repeat(3, 1fr); }
     .charts-section-grid { grid-template-columns: 1fr; }
     .dashboard-split-grid { grid-template-columns: 1fr; }
+    .dashboard-main-columns { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 768px) {
@@ -1718,6 +2285,7 @@ select.filter-input {
     .page-title { font-size: 16px; }
     .welcome-banner { flex-direction: column; align-items: flex-start; }
     .form-grid { grid-template-columns: 1fr; }
+    .quick-actions-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 480px) {

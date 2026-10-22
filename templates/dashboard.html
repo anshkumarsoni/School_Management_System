@@ -3,38 +3,65 @@
 {% block content %}
 <div class="dashboard-container">
 
-    <!-- 1. Welcome Banner -->
+    <!-- 1. Institutional Welcome Header -->
     <div class="welcome-banner">
         <div class="banner-content">
-            <div class="welcome-chip">
-                <i class="fa-solid fa-sparkles"></i> Academic Session 2025 – 2026
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px;">
+                <div class="welcome-chip">
+                    <i class="fa-solid fa-graduation-cap"></i> Academic Session 2025 – 2026
+                </div>
+                <div class="system-status-indicator">
+                    <span class="pulse-dot"></div> System Active & Online
+                </div>
             </div>
             <h2 class="banner-title">Welcome back, {{ current_user or 'Administrator' }}!</h2>
             <p class="banner-desc">
-                Here is your live institutional overview across students, academic faculty, fee transactions, and recent activity audit logs.
+                Institutional dashboard overview: student records, teaching faculty, financial accounting, library catalog, and campus notices.
             </p>
         </div>
         <div class="quick-actions-bar">
             {% if current_role in ('super_admin', 'admin') %}
                 <button type="button" class="action-pill primary-pill" data-modal-target="#addStudentModal">
-                    <i class="fa-solid fa-user-plus"></i> Enroll Student
+                    <i class="fa-solid fa-user-plus"></i> Quick Enroll
                 </button>
                 <a href="{{ url_for('teachers_view') }}" class="action-pill secondary-pill">
-                    <i class="fa-solid fa-chalkboard-user"></i> Manage Faculty
+                    <i class="fa-solid fa-chalkboard-user"></i> Faculty
                 </a>
             {% else %}
                 <a href="{{ url_for('students_view') }}" class="action-pill primary-pill">
-                    <i class="fa-solid fa-users-viewfinder"></i> View Students
+                    <i class="fa-solid fa-users-viewfinder"></i> Students
                 </a>
                 <a href="{{ url_for('teachers_view') }}" class="action-pill secondary-pill">
-                    <i class="fa-solid fa-chalkboard-user"></i> View Faculty
+                    <i class="fa-solid fa-chalkboard-user"></i> Faculty
                 </a>
             {% endif %}
             <a href="{{ url_for('fees_view') }}" class="action-pill secondary-pill">
-                <i class="fa-solid fa-receipt"></i> Fee Portal
+                <i class="fa-solid fa-receipt"></i> Fees
             </a>
         </div>
     </div>
+
+    {% if all_todays_bdays and all_todays_bdays|length > 0 %}
+    <!-- Today's Birthday Celebrations Banner -->
+    <div class="today-banner">
+        <div class="today-left">
+            <i class="fa-solid fa-champagne-glasses today-sparkle-icon"></i>
+            <div class="today-text">
+                <h4>🎉 Institutional Birthday Celebrations Today!</h4>
+                <p>Happy Birthday to:
+                    {% for p in all_todays_bdays %}
+                        <strong>{{ p.NAME }}</strong> ({{ p.role }}{% if p.CLASS %} - {{ p.CLASS }}{% endif %}){% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                </p>
+            </div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <a href="{{ url_for('students_view') }}" class="btn-filter" style="background: #e11d48; text-decoration: none;">
+                <i class="fa-solid fa-cake-candles"></i> Birthday Corner
+            </a>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- 2. KPI Stat Cards -->
     <div class="kpi-grid">
@@ -48,7 +75,7 @@
                 <h3 class="kpi-value">{{ "{:,}".format(total_students or 0) }}</h3>
             </div>
             <div class="kpi-footer">
-                <span class="kpi-subtext"><i class="fa-regular fa-id-badge"></i> Active student records</span>
+                <span class="kpi-subtext"><i class="fa-regular fa-id-badge"></i> Verified student admissions</span>
             </div>
         </a>
 
@@ -58,29 +85,14 @@
                 <span class="kpi-pill"><i class="fa-solid fa-check"></i> Faculty</span>
             </div>
             <div class="kpi-body">
-                <span class="kpi-label">Total Teachers</span>
+                <span class="kpi-label">Teaching Faculty</span>
                 <h3 class="kpi-value">{{ "{:,}".format(total_teachers or 0) }}</h3>
             </div>
             <div class="kpi-footer">
-                <span class="kpi-subtext"><i class="fa-solid fa-chalkboard"></i> Teaching staff members</span>
+                <span class="kpi-subtext"><i class="fa-solid fa-chalkboard"></i> Active academic instructors</span>
             </div>
         </a>
 
-        {% if current_role == 'super_admin' %}
-        <a href="{{ url_for('users_view') }}" class="kpi-card card-amber" style="text-decoration: none;">
-            <div class="kpi-top">
-                <div class="kpi-icon-wrapper"><i class="fa-solid fa-users-gear"></i></div>
-                <span class="kpi-pill"><i class="fa-solid fa-shield"></i> Security</span>
-            </div>
-            <div class="kpi-body">
-                <span class="kpi-label">System Accounts</span>
-                <h3 class="kpi-value">{{ "{:,}".format(total_users or 0) }}</h3>
-            </div>
-            <div class="kpi-footer">
-                <span class="kpi-subtext"><i class="fa-solid fa-user-lock"></i> Super Admin, Admin & Viewers</span>
-            </div>
-        </a>
-        {% else %}
         <a href="{{ url_for('library_view') }}" class="kpi-card card-amber" style="text-decoration: none;">
             <div class="kpi-top">
                 <div class="kpi-icon-wrapper"><i class="fa-solid fa-book-bookmark"></i></div>
@@ -91,10 +103,9 @@
                 <h3 class="kpi-value">{{ "{:,}".format(total_books or 0) }}</h3>
             </div>
             <div class="kpi-footer">
-                <span class="kpi-subtext"><i class="fa-solid fa-layer-group"></i> Total book copies in stock</span>
+                <span class="kpi-subtext"><i class="fa-solid fa-layer-group"></i> Total volumes in circulation</span>
             </div>
         </a>
-        {% endif %}
 
         <a href="{{ url_for('fees_view') }}" class="kpi-card card-emerald" style="text-decoration: none;">
             <div class="kpi-top">
@@ -109,166 +120,349 @@
                 <span class="kpi-subtext"><i class="fa-regular fa-credit-card"></i> Total verified receipts</span>
             </div>
         </a>
+
+        {% if current_role == 'super_admin' %}
+        <a href="{{ url_for('users_view') }}" class="kpi-card card-cyan" style="text-decoration: none; border-top: 3px solid #06b6d4;">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper" style="color: #0891b2; background: #ecfeff;"><i class="fa-solid fa-users-gear"></i></div>
+                <span class="kpi-pill"><i class="fa-solid fa-shield"></i> Security</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">System Accounts</span>
+                <h3 class="kpi-value">{{ "{:,}".format(total_users or 0) }}</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext"><i class="fa-solid fa-user-lock"></i> Super Admin, Admin & Viewers</span>
+            </div>
+        </a>
+        {% endif %}
     </div>
 
-    <!-- 3. Visual Charts -->
-    <div class="charts-section-grid">
-        <div class="analytics-card">
-            <div class="card-header">
-                <div class="header-left">
-                    <div class="card-badge-icon badge-blue"><i class="fa-solid fa-chart-column"></i></div>
-                    <div>
-                        <h4 class="card-heading">Enrollment by Class</h4>
-                        <p class="card-subheading">Distribution of registered students across active standards</p>
-                    </div>
-                </div>
-                <span class="chart-tag"><i class="fa-solid fa-circle-dot"></i> Live Distribution</span>
+    <!-- 3. Quick Action Hub (Action Center) -->
+    <div class="quick-action-hub">
+        <div class="section-mini-header">
+            <div class="mini-header-title">
+                <i class="fa-solid fa-bolt-lightning" style="color: #f59e0b;"></i>
+                <span>Quick Action Hub</span>
             </div>
-            <div class="chart-canvas-wrapper">
-                <canvas id="classChart"></canvas>
-                <div class="chart-empty-state" id="classChartEmpty" style="display: none;">
-                    <i class="fa-solid fa-folder-open"></i>
-                    <p>No class enrollment data found to plot.</p>
-                </div>
-            </div>
+            <span class="mini-header-sub">Frequently used administrative shortcuts</span>
         </div>
+        <div class="quick-actions-grid">
+            {% if current_role in ('super_admin', 'admin') %}
+            <button type="button" class="quick-action-tile" data-modal-target="#addStudentModal">
+                <div class="action-tile-icon tile-blue">
+                    <i class="fa-solid fa-user-plus"></i>
+                </div>
+                <span class="action-tile-label">Enroll Student</span>
+                <span class="action-tile-desc">New admission</span>
+            </button>
+            {% else %}
+            <a href="{{ url_for('students_view') }}" class="quick-action-tile">
+                <div class="action-tile-icon tile-blue">
+                    <i class="fa-solid fa-users-viewfinder"></i>
+                </div>
+                <span class="action-tile-label">Students</span>
+                <span class="action-tile-desc">View directory</span>
+            </a>
+            {% endif %}
 
-        <div class="analytics-card">
-            <div class="card-header">
-                <div class="header-left">
-                    <div class="card-badge-icon badge-pink"><i class="fa-solid fa-chart-pie"></i></div>
-                    <div>
-                        <h4 class="card-heading">Student Demographics</h4>
-                        <p class="card-subheading">Male vs Female student distribution ratio</p>
-                    </div>
+            <a href="{{ url_for('teachers_view') }}" class="quick-action-tile">
+                <div class="action-tile-icon tile-purple">
+                    <i class="fa-solid fa-chalkboard-user"></i>
                 </div>
-                <span class="chart-tag"><i class="fa-solid fa-venus-mars"></i> Gender Ratio</span>
-            </div>
-            <div class="chart-canvas-wrapper doughnut-wrapper">
-                <canvas id="genderChart"></canvas>
-                <div class="chart-empty-state" id="genderChartEmpty" style="display: none;">
-                    <i class="fa-solid fa-users-slash"></i>
-                    <p>No student gender records found to display.</p>
+                <span class="action-tile-label">Faculty Portal</span>
+                <span class="action-tile-desc">Manage teachers</span>
+            </a>
+
+            <a href="{{ url_for('library_view') }}" class="quick-action-tile">
+                <div class="action-tile-icon tile-amber">
+                    <i class="fa-solid fa-book-open-reader"></i>
                 </div>
-            </div>
+                <span class="action-tile-label">Library Desk</span>
+                <span class="action-tile-desc">Issue & catalog</span>
+            </a>
+
+            <a href="{{ url_for('fees_view') }}" class="quick-action-tile">
+                <div class="action-tile-icon tile-emerald">
+                    <i class="fa-solid fa-hand-holding-dollar"></i>
+                </div>
+                <span class="action-tile-label">Fee Collection</span>
+                <span class="action-tile-desc">Receipts & dues</span>
+            </a>
+
+            <a href="{{ url_for('attendance_view') }}" class="quick-action-tile">
+                <div class="action-tile-icon tile-sky">
+                    <i class="fa-solid fa-calendar-check"></i>
+                </div>
+                <span class="action-tile-label">Attendance</span>
+                <span class="action-tile-desc">Daily register</span>
+            </a>
+
+            <a href="{{ url_for('exams_view') }}" class="quick-action-tile">
+                <div class="action-tile-icon tile-indigo">
+                    <i class="fa-solid fa-award"></i>
+                </div>
+                <span class="action-tile-label">Examinations</span>
+                <span class="action-tile-desc">Marks & grades</span>
+            </a>
         </div>
     </div>
 
-    <!-- 4. Split Grid: Recent Registrations & History Audit Trail -->
-    <div class="dashboard-split-grid" style="margin-top: 24px;">
-        <!-- Left: Recent Students -->
-        <div class="data-table-card">
-            <div class="card-header">
-                <div class="header-left">
-                    <div class="card-badge-icon badge-blue"><i class="fa-solid fa-user-graduate"></i></div>
-                    <div>
-                        <h4 class="card-heading">Recent Student Enrolments</h4>
-                        <p class="card-subheading">Latest verified student admissions in MySQL database</p>
+    <!-- 4. Dashboard Main Workspace: 2-Column Responsive Layout -->
+    <div class="dashboard-main-columns">
+
+        <!-- LEFT COLUMN: Charts & Recent Enrolments -->
+        <div class="dashboard-col">
+            <!-- Visual Charts -->
+            <div class="charts-section-grid" style="grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="analytics-card">
+                    <div class="card-header">
+                        <div class="header-left">
+                            <div class="card-badge-icon badge-blue"><i class="fa-solid fa-chart-column"></i></div>
+                            <div>
+                                <h4 class="card-heading">Enrollment by Class</h4>
+                                <p class="card-subheading">Class distribution breakdown</p>
+                            </div>
+                        </div>
+                        <span class="chart-tag"><i class="fa-solid fa-circle-dot"></i> Real-time</span>
+                    </div>
+                    <div class="chart-canvas-wrapper" style="height: 220px;">
+                        <canvas id="classChart"></canvas>
+                        <div class="chart-empty-state" id="classChartEmpty" style="display: none;">
+                            <i class="fa-solid fa-folder-open"></i>
+                            <p>No enrollment records found.</p>
+                        </div>
                     </div>
                 </div>
-                <a href="{{ url_for('students_view') }}" class="view-all-link">View All <i class="fa-solid fa-arrow-right"></i></a>
-            </div>
 
-            <div class="table-responsive">
-                <table class="modern-table">
-                    <thead>
-                        <tr>
-                            <th>Roll</th>
-                            <th>Name</th>
-                            <th>Class</th>
-                            <th>Gender</th>
-                            <th>Phone</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if recent_students and recent_students|length > 0 %}
-                            {% for s in recent_students %}
-                            <tr>
-                                <td><span class="roll-badge">#{{ s.ROLL_NUMBER }}</span></td>
-                                <td>
-                                    <div class="student-name-cell">
-                                        <div class="mini-avatar">{{ s.NAME[0] | upper if s.NAME else 'S' }}</div>
-                                        <span class="student-name">{{ s.NAME }}</span>
-                                    </div>
-                                </td>
-                                <td><span class="class-pill">{{ s.CLASS or 'N/A' }}</span></td>
-                                <td>
-                                    {% if s.GENDER and s.GENDER|lower == 'male' %}
-                                        <span class="gender-pill gender-male"><i class="fa-solid fa-mars"></i> M</span>
-                                    {% elif s.GENDER and s.GENDER|lower == 'female' %}
-                                        <span class="gender-pill gender-female"><i class="fa-solid fa-venus"></i> F</span>
-                                    {% else %}
-                                        <span class="gender-pill">{{ s.GENDER or 'Other' }}</span>
-                                    {% endif %}
-                                </td>
-                                <td class="text-dim"><i class="fa-solid fa-phone text-xs"></i> {{ s.PHONE or 'N/A' }}</td>
-                            </tr>
-                            {% endfor %}
-                        {% else %}
-                            <tr>
-                                <td colspan="5" class="empty-table-cell">
-                                    <i class="fa-solid fa-inbox"></i>
-                                    <p>No students enrolled yet.</p>
-                                </td>
-                            </tr>
-                        {% endif %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Right: Activity History Feed from history table -->
-        <div class="data-table-card">
-            <div class="card-header">
-                <div class="header-left">
-                    <div class="card-badge-icon badge-purple"><i class="fa-solid fa-clock-rotate-left"></i></div>
-                    <div>
-                        <h4 class="card-heading">Recent Activity Log</h4>
-                        <p class="card-subheading">Live system audit trail recorded in database</p>
+                <div class="analytics-card">
+                    <div class="card-header">
+                        <div class="header-left">
+                            <div class="card-badge-icon badge-pink"><i class="fa-solid fa-chart-pie"></i></div>
+                            <div>
+                                <h4 class="card-heading">Gender Demographics</h4>
+                                <p class="card-subheading">Male vs Female student ratio</p>
+                            </div>
+                        </div>
+                        <span class="chart-tag"><i class="fa-solid fa-venus-mars"></i> Ratio</span>
+                    </div>
+                    <div class="chart-canvas-wrapper doughnut-wrapper" style="height: 220px;">
+                        <canvas id="genderChart"></canvas>
+                        <div class="chart-empty-state" id="genderChartEmpty" style="display: none;">
+                            <i class="fa-solid fa-users-slash"></i>
+                            <p>No gender records found.</p>
+                        </div>
                     </div>
                 </div>
-                {% if current_role == 'super_admin' %}
-                    <a href="{{ url_for('users_view') }}" class="view-all-link">Full Audit <i class="fa-solid fa-arrow-right"></i></a>
-                {% endif %}
             </div>
 
-            <div class="history-feed" style="max-height: 380px; overflow-y: auto;">
-                {% if recent_activity and recent_activity|length > 0 %}
-                    {% for h in recent_activity %}
-                    <div class="history-item">
-                        <div class="history-icon">
-                            {% if 'login' in h.ACTIONS|lower %}
-                                <i class="fa-solid fa-right-to-bracket" style="color: #2563eb;"></i>
-                            {% elif 'logout' in h.ACTIONS|lower %}
-                                <i class="fa-solid fa-right-from-bracket" style="color: #64748b;"></i>
-                            {% elif 'delete' in h.ACTIONS|lower %}
-                                <i class="fa-solid fa-trash-can" style="color: #ef4444;"></i>
-                            {% elif 'add' in h.ACTIONS|lower or 'register' in h.ACTIONS|lower %}
-                                <i class="fa-solid fa-plus-circle" style="color: #10b981;"></i>
-                            {% elif 'update' in h.ACTIONS|lower or 'change' in h.ACTIONS|lower %}
-                                <i class="fa-solid fa-pen-to-square" style="color: #f59e0b;"></i>
+            <!-- Recent Students Enrolments Card -->
+            <div class="data-table-card">
+                <div class="card-header">
+                    <div class="header-left">
+                        <div class="card-badge-icon badge-blue"><i class="fa-solid fa-user-graduate"></i></div>
+                        <div>
+                            <h4 class="card-heading">Recent Student Enrolments</h4>
+                            <p class="card-subheading">Latest verified student admissions in MySQL database</p>
+                        </div>
+                    </div>
+                    <a href="{{ url_for('students_view') }}" class="view-all-link">View All <i class="fa-solid fa-arrow-right"></i></a>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="modern-table">
+                        <thead>
+                            <tr>
+                                <th>Roll</th>
+                                <th>Student Name</th>
+                                <th>Class</th>
+                                <th>Gender</th>
+                                <th>Contact</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if recent_students and recent_students|length > 0 %}
+                                {% for s in recent_students %}
+                                <tr>
+                                    <td><span class="roll-badge">#{{ s.ROLL_NUMBER }}</span></td>
+                                    <td>
+                                        <div class="student-name-cell">
+                                            <div class="mini-avatar">{{ s.NAME[0] | upper if s.NAME else 'S' }}</div>
+                                            <span class="student-name">{{ s.NAME }}</span>
+                                        </div>
+                                    </td>
+                                    <td><span class="class-pill">{{ s.CLASS or 'N/A' }}</span></td>
+                                    <td>
+                                        {% if s.GENDER and s.GENDER|lower == 'male' %}
+                                            <span class="gender-pill gender-male"><i class="fa-solid fa-mars"></i> M</span>
+                                        {% elif s.GENDER and s.GENDER|lower == 'female' %}
+                                            <span class="gender-pill gender-female"><i class="fa-solid fa-venus"></i> F</span>
+                                        {% else %}
+                                            <span class="gender-pill">{{ s.GENDER or 'Other' }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-dim"><i class="fa-solid fa-phone text-xs"></i> {{ s.PHONE or 'N/A' }}</td>
+                                </tr>
+                                {% endfor %}
                             {% else %}
-                                <i class="fa-solid fa-bolt" style="color: var(--navy-700);"></i>
+                                <tr>
+                                    <td colspan="5" class="empty-table-cell">
+                                        <i class="fa-solid fa-inbox"></i>
+                                        <p>No students enrolled yet.</p>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: Notice Board, Academic Calendar & Activity Feed -->
+        <div class="dashboard-col">
+
+            <!-- 1. Campus Notice Board & Announcements -->
+            <div class="data-table-card">
+                <div class="card-header">
+                    <div class="header-left">
+                        <div class="card-badge-icon badge-blue"><i class="fa-solid fa-bullhorn"></i></div>
+                        <div>
+                            <h4 class="card-heading">Campus Notice Board</h4>
+                            <p class="card-subheading">Official circulars & administrative notices</p>
+                        </div>
+                    </div>
+                    <span class="badge-blue" style="font-size: 11px; padding: 4px 8px; border-radius: 6px; font-weight: 700;">
+                        {{ announcements|length if announcements else 0 }} Active
+                    </span>
+                </div>
+
+                <div class="notice-list">
+                    {% if announcements and announcements|length > 0 %}
+                        {% for n in announcements %}
+                        <div class="notice-card-item">
+                            <div class="notice-item-top">
+                                <span class="notice-cat-badge cat-{{ n.CATEGORY|lower if n.CATEGORY else 'general' }}">
+                                    {{ n.CATEGORY or 'General' }}
+                                </span>
+                                <span class="notice-date-text">
+                                    <i class="fa-regular fa-clock"></i> {{ n.formatted_date }}
+                                </span>
+                            </div>
+                            <span class="notice-item-title">{{ n.TITLE }}</span>
+                            {% if n.DESCRIPTION %}
+                            <p class="notice-item-desc">{{ n.DESCRIPTION }}</p>
                             {% endif %}
                         </div>
-                        <div class="history-body">
-                            <span class="history-action">{{ h.ACTIONS }}</span>
-                            <span class="history-meta">
-                                <i class="fa-regular fa-user"></i> <strong>{{ h.USERNAME }}</strong>
-                                &bull;
-                                <i class="fa-regular fa-clock"></i> {{ h.LOG_TIME }}
-                            </span>
+                        {% endfor %}
+                    {% else %}
+                        <div style="text-align: center; padding: 24px 10px; color: var(--text-muted);">
+                            <i class="fa-solid fa-clipboard-list" style="font-size: 28px; opacity: 0.4; margin-bottom: 8px;"></i>
+                            <p style="font-size: 13px; margin: 0;">No active campus notices posted.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 2. Academic Calendar & Upcoming Milestones -->
+            <div class="data-table-card">
+                <div class="card-header">
+                    <div class="header-left">
+                        <div class="card-badge-icon badge-emerald"><i class="fa-solid fa-calendar-days"></i></div>
+                        <div>
+                            <h4 class="card-heading">Academic Calendar</h4>
+                            <p class="card-subheading">Upcoming events, exams & schedule</p>
                         </div>
                     </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="empty-table-cell" style="padding: 30px;">
-                        <i class="fa-solid fa-shield-halved"></i>
-                        <p>No activity logs recorded yet.</p>
-                    </div>
-                {% endif %}
+                    <span class="chart-tag"><i class="fa-regular fa-calendar-check"></i> Term 2026</span>
+                </div>
+
+                <div class="event-list">
+                    {% if academic_events and academic_events|length > 0 %}
+                        {% for ev in academic_events %}
+                        <div class="event-card-item">
+                            <div class="event-date-box">
+                                <span class="event-month">{{ ev.month_abbr }}</span>
+                                <span class="event-day">{{ ev.day_num }}</span>
+                            </div>
+                            <div class="event-details">
+                                <div class="event-title" title="{{ ev.TITLE }}">{{ ev.TITLE }}</div>
+                                <div class="event-meta">
+                                    <span><i class="fa-solid fa-location-dot"></i> {{ ev.LOCATION or 'Main Campus' }}</span>
+                                </div>
+                            </div>
+                            <span class="event-countdown-pill {% if ev.is_urgent %}highlight{% endif %}">
+                                {{ ev.countdown }}
+                            </span>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div style="text-align: center; padding: 24px 10px; color: var(--text-muted);">
+                            <i class="fa-regular fa-calendar-xmark" style="font-size: 28px; opacity: 0.4; margin-bottom: 8px;"></i>
+                            <p style="font-size: 13px; margin: 0;">No upcoming academic events scheduled.</p>
+                        </div>
+                    {% endif %}
+                </div>
             </div>
+
+            <!-- 3. System Activity Log -->
+            <div class="data-table-card">
+                <div class="card-header">
+                    <div class="header-left">
+                        <div class="card-badge-icon badge-purple"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                        <div>
+                            <h4 class="card-heading">System Audit Log</h4>
+                            <p class="card-subheading">Live activity recorded in MySQL database</p>
+                        </div>
+                    </div>
+                    {% if current_role == 'super_admin' %}
+                        <a href="{{ url_for('users_view') }}" class="view-all-link">Full Audit <i class="fa-solid fa-arrow-right"></i></a>
+                    {% endif %}
+                </div>
+
+                <div class="history-feed" style="max-height: 280px; overflow-y: auto;">
+                    {% if recent_activity and recent_activity|length > 0 %}
+                        {% for h in recent_activity %}
+                        <div class="history-item">
+                            <div class="history-icon">
+                                {% if 'login' in h.ACTIONS|lower %}
+                                    <i class="fa-solid fa-right-to-bracket" style="color: #2563eb;"></i>
+                                {% elif 'logout' in h.ACTIONS|lower %}
+                                    <i class="fa-solid fa-right-from-bracket" style="color: #64748b;"></i>
+                                {% elif 'delete' in h.ACTIONS|lower %}
+                                    <i class="fa-solid fa-trash-can" style="color: #ef4444;"></i>
+                                {% elif 'add' in h.ACTIONS|lower or 'register' in h.ACTIONS|lower or 'enrolled' in h.ACTIONS|lower %}
+                                    <i class="fa-solid fa-plus-circle" style="color: #10b981;"></i>
+                                {% elif 'update' in h.ACTIONS|lower or 'change' in h.ACTIONS|lower %}
+                                    <i class="fa-solid fa-pen-to-square" style="color: #f59e0b;"></i>
+                                {% else %}
+                                    <i class="fa-solid fa-bolt" style="color: var(--navy-700);"></i>
+                                {% endif %}
+                            </div>
+                            <div class="history-body">
+                                <span class="history-action">{{ h.ACTIONS }}</span>
+                                <span class="history-meta">
+                                    <i class="fa-regular fa-user"></i> <strong>{{ h.USERNAME }}</strong>
+                                    &bull;
+                                    {% if h.LOG_TIME %}
+                                        {{ h.LOG_TIME.strftime('%b %d, %H:%M') if h.LOG_TIME.strftime is defined else h.LOG_TIME }}
+                                    {% else %}
+                                        Just now
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div style="text-align: center; padding: 24px 10px; color: var(--text-muted);">
+                            <i class="fa-solid fa-clock-rotate-left" style="font-size: 28px; opacity: 0.4; margin-bottom: 8px;"></i>
+                            <p style="font-size: 13px; margin: 0;">No system activity recorded yet.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
         </div>
+
     </div>
 
 </div>
@@ -310,7 +504,7 @@ document.addEventListener("DOMContentLoaded", function () {
             if (classEmptyState) classEmptyState.style.display = "flex";
         } else if (classCanvas) {
             const classCtx = classCanvas.getContext("2d");
-            const barGradient = classCtx.createLinearGradient(0, 0, 0, 300);
+            const barGradient = classCtx.createLinearGradient(0, 0, 0, 220);
             barGradient.addColorStop(0, "#1e3a8a");
             barGradient.addColorStop(1, "#3b82f6");
 
@@ -319,7 +513,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 data: {
                     labels: classLabels,
                     datasets: [{
-                        label: "Enrolled Students",
+                        label: "Students",
                         data: classCounts,
                         backgroundColor: barGradient,
                         borderRadius: 6,
@@ -340,11 +534,11 @@ document.addEventListener("DOMContentLoaded", function () {
                     scales: {
                         x: {
                             grid: { display: false },
-                            ticks: { color: "#64748b" }
+                            ticks: { color: "#64748b", font: { size: 11 } }
                         },
                         y: {
                             beginAtZero: true,
-                            ticks: { stepSize: 1, color: "#64748b" },
+                            ticks: { stepSize: 1, color: "#64748b", font: { size: 11 } },
                             grid: { color: "#f1f5f9" }
                         }
                     }
@@ -384,8 +578,8 @@ document.addEventListener("DOMContentLoaded", function () {
                             position: "bottom",
                             labels: {
                                 boxWidth: 12,
-                                padding: 14,
-                                font: { size: 12 }
+                                padding: 12,
+                                font: { size: 11 }
                             }
                         }
                     }

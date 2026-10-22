@@ -37,8 +37,160 @@
         </div>
     </div>
 
+    <!-- 🎂 Dedicated Faculty Birthday Celebrations Section -->
+    <div class="birthday-section-card">
+        <div class="birthday-container">
+            <div class="birthday-header">
+                <div class="birthday-header-left">
+                    <div class="bday-icon-wrapper" style="background: linear-gradient(135deg, #f5f3ff, #ede9fe); color: #7c3aed; border-color: #ddd6fe;">
+                        <i class="fa-solid fa-cake-candles"></i>
+                    </div>
+                    <div>
+                        <h4 class="card-heading" style="font-size: 16px;">Faculty Birthday Corner & Celebrations</h4>
+                        <p class="card-subheading">Live institutional birthday tracker & upcoming celebrations for faculty</p>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    {% if bday_today and bday_today|length > 0 %}
+                        <span class="chart-tag" style="background: #fff1f2; color: #e11d48; border-color: #fecdd3; font-weight: 800;">
+                            <i class="fa-solid fa-gift"></i> {{ bday_today|length }} Birthday Today!
+                        </span>
+                    {% endif %}
+                    <span class="chart-tag">
+                        <i class="fa-regular fa-calendar-check"></i> Next 30 Days: {{ bday_upcoming|length }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Today's Birthday Banner (if any) -->
+            {% if bday_today and bday_today|length > 0 %}
+                <div class="today-banner">
+                    <div class="today-left">
+                        <i class="fa-solid fa-champagne-glasses today-sparkle-icon"></i>
+                        <div class="today-text">
+                            <h4>🎉 Today's Faculty Celebration!</h4>
+                            <p>Wish a very Happy Birthday to our esteemed faculty member(s) celebrating today:</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        {% for b in bday_today %}
+                            <div class="bday-chip-card is-today" style="background: #ffffff; border-color: #f43f5e; box-shadow: 0 2px 6px rgba(244, 63, 94, 0.15);">
+                                <div class="bday-chip-left">
+                                    <div class="bday-avatar" style="background: linear-gradient(135deg, #7c3aed, #9333ea);">
+                                        {{ b.NAME[0] | upper }}
+                                    </div>
+                                    <div class="bday-info">
+                                        <span class="bday-name" style="color: #581c87;">{{ b.NAME }}</span>
+                                        <span class="bday-sub">{{ b.SUBJECT }} &bull; ID #{{ b.TEACHER_ID }}</span>
+                                    </div>
+                                </div>
+                                <div class="bday-badge-col">
+                                    <span class="bday-date-badge" style="background: #e11d48; color: #fff; border-color: #e11d48;">
+                                        <i class="fa-solid fa-cake-candles"></i> Today!
+                                    </span>
+                                    <span class="bday-days-left" style="color: #be123c; font-weight: 700;">Turns {{ b.turning_age }}</span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Upcoming Birthdays Grid -->
+            {% if bday_upcoming and bday_upcoming|length > 0 %}
+                <div>
+                    <div style="font-size: 12px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">
+                        <i class="fa-solid fa-hourglass-half" style="color: #7c3aed; margin-right: 4px;"></i> Upcoming in the Next 30 Days:
+                    </div>
+                    <div class="bday-chips-grid">
+                        {% for b in bday_upcoming %}
+                            <div class="bday-chip-card">
+                                <div class="bday-chip-left">
+                                    <div class="bday-avatar" style="background: linear-gradient(135deg, #7c3aed, #9333ea);">
+                                        {{ b.NAME[0] | upper }}
+                                    </div>
+                                    <div class="bday-info">
+                                        <span class="bday-name">{{ b.NAME }}</span>
+                                        <span class="bday-sub">{{ b.SUBJECT }} &bull; ID #{{ b.TEACHER_ID }}</span>
+                                    </div>
+                                </div>
+                                <div class="bday-badge-col">
+                                    <span class="bday-date-badge" style="background: #f5f3ff; color: #7c3aed; border-color: #ddd6fe;">
+                                        <i class="fa-solid fa-cake-candles"></i> {{ b.next_bday_formatted }}
+                                    </span>
+                                    <span class="bday-days-left">
+                                        {% if b.days_until == 1 %}
+                                            Tomorrow! (Turns {{ b.turning_age }})
+                                        {% else %}
+                                            In {{ b.days_until }} days (Turns {{ b.turning_age }})
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% elif not (bday_today and bday_today|length > 0) %}
+                <div class="bday-empty-banner">
+                    <i class="fa-solid fa-cake-candles" style="font-size: 24px; color: #7c3aed;"></i>
+                    <div style="flex: 1;">
+                        <strong style="color: var(--navy-900);">No faculty birthdays in the next 30 days.</strong>
+                        <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+                            Add faculty Date of Birth (DOB) using the "Add Faculty" or "Edit" buttons to celebrate birthdays and anniversaries!
+                        </p>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 📊 Faculty Analytics: Gender & Attendance Visual Pie Charts -->
+    <div class="charts-section-grid" style="grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
+        <!-- Card 1: Faculty Gender Demographics (Male / Female / Other) -->
+        <div class="analytics-card">
+            <div class="card-header">
+                <div class="header-left">
+                    <div class="card-badge-icon badge-pink"><i class="fa-solid fa-venus-mars"></i></div>
+                    <div>
+                        <h4 class="card-heading">Faculty Gender Demographics</h4>
+                        <p class="card-subheading">Male, Female & Other teaching staff breakdown ratio</p>
+                    </div>
+                </div>
+                <span class="chart-tag"><i class="fa-solid fa-chart-pie"></i> Gender Ratio</span>
+            </div>
+            <div class="chart-canvas-wrapper doughnut-wrapper" style="height: 220px;">
+                <canvas id="teacherGenderChart"></canvas>
+                <div class="chart-empty-state" id="teacherGenderChartEmpty" style="display: none;">
+                    <i class="fa-solid fa-users-slash"></i>
+                    <p>No faculty gender records found.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 2: Faculty Attendance Status (Present / Absent / On Leave) -->
+        <div class="analytics-card">
+            <div class="card-header">
+                <div class="header-left">
+                    <div class="card-badge-icon badge-emerald"><i class="fa-solid fa-clipboard-user"></i></div>
+                    <div>
+                        <h4 class="card-heading">Faculty Attendance Status</h4>
+                        <p class="card-subheading">Daily faculty attendance (Present, Absent, On Leave)</p>
+                    </div>
+                </div>
+                <span class="chart-tag"><i class="fa-solid fa-circle-check"></i> Duty Status</span>
+            </div>
+            <div class="chart-canvas-wrapper doughnut-wrapper" style="height: 220px;">
+                <canvas id="teacherAttendanceChart"></canvas>
+                <div class="chart-empty-state" id="teacherAttendanceChartEmpty" style="display: none;">
+                    <i class="fa-solid fa-calendar-xmark"></i>
+                    <p>No faculty attendance records recorded.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Teachers Data Table Card -->
-    <div class="data-table-card" style="margin-top: 16px;">
+    <div class="data-table-card">
         <div class="card-header">
             <div class="header-left">
                 <div class="card-badge-icon badge-purple">
@@ -60,6 +212,7 @@
                         <th>Teacher Name</th>
                         <th>Subject</th>
                         <th>Age</th>
+                        <th>Birthday (DOB)</th>
                         <th>Gender</th>
                         <th>Phone</th>
                         <th>Email</th>
@@ -82,6 +235,21 @@
                             </td>
                             <td><span class="class-pill" style="background: #ede9fe; color: #5b21b6;">{{ t.SUBJECT }}</span></td>
                             <td>{{ t.AGE if t.AGE else '—' }}</td>
+                            <td>
+                                {% if t.DOB_FORMATTED %}
+                                    {% if t.IS_TODAY_BDAY %}
+                                        <span class="bday-table-pill celebration" title="Happy Birthday!">
+                                            <i class="fa-solid fa-gift"></i> Today! 🎉
+                                        </span>
+                                    {% else %}
+                                        <span class="bday-table-pill" title="Date of Birth: {{ t.DOB_FORMATTED }}">
+                                            <i class="fa-solid fa-cake-candles" style="color: #7c3aed; font-size: 11px;"></i> {{ t.DOB_FORMATTED }}
+                                        </span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-dim">—</span>
+                                {% endif %}
+                            </td>
                             <td>
                                 {% if t.GENDER and t.GENDER|lower == 'male' %}
                                     <span class="gender-pill gender-male"><i class="fa-solid fa-mars"></i> Male</span>
@@ -106,6 +274,7 @@
                                             data-name="{{ t.NAME }}"
                                             data-subject="{{ t.SUBJECT }}"
                                             data-age="{{ t.AGE or '' }}"
+                                            data-dob="{{ t.DOB_RAW or '' }}"
                                             data-gender="{{ t.GENDER or 'Male' }}"
                                             data-phone="{{ t.PHONE or '' }}"
                                             data-email="{{ t.EMAIL or '' }}"
@@ -124,7 +293,7 @@
                         {% endfor %}
                     {% else %}
                         <tr>
-                            <td colspan="{{ '9' if current_role in ('super_admin', 'admin') else '8' }}" class="empty-table-cell">
+                            <td colspan="{{ '10' if current_role in ('super_admin', 'admin') else '9' }}" class="empty-table-cell">
                                 <i class="fa-solid fa-chalkboard-user"></i>
                                 <p>No matching faculty records found.</p>
                                 {% if search or selected_subject %}
@@ -201,7 +370,11 @@
                 </div>
                 <div class="form-group">
                     <label>Age <span class="required">* (18 - 120)</span></label>
-                    <input type="number" name="age" min="18" max="120" required placeholder="e.g. 35">
+                    <input type="number" name="age" min="18" max="120" placeholder="e.g. 35">
+                </div>
+                <div class="form-group">
+                    <label><i class="fa-solid fa-cake-candles" style="color: #7c3aed; margin-right: 4px;"></i> Date of Birth / Birthday</label>
+                    <input type="date" name="dob">
                 </div>
                 <div class="form-group">
                     <label>Gender</label>
@@ -211,7 +384,7 @@
                         <option value="Other">Other</option>
                     </select>
                 </div>
-                <div class="form-group">
+                <div class="form-group full-width">
                     <label>Phone Number (10 Digits)</label>
                     <input type="tel" name="phone" placeholder="e.g. 9876543210" pattern="[6-9][0-9]{9}">
                 </div>
@@ -260,7 +433,11 @@
                 </div>
                 <div class="form-group">
                     <label>Age <span class="required">* (18 - 120)</span></label>
-                    <input type="number" id="editTeacherAge" name="age" min="18" max="120" required placeholder="e.g. 38">
+                    <input type="number" id="editTeacherAge" name="age" min="18" max="120" placeholder="e.g. 38">
+                </div>
+                <div class="form-group">
+                    <label><i class="fa-solid fa-cake-candles" style="color: #7c3aed; margin-right: 4px;"></i> Date of Birth / Birthday</label>
+                    <input type="date" id="editTeacherDob" name="dob">
                 </div>
                 <div class="form-group">
                     <label>Gender</label>
@@ -270,7 +447,7 @@
                         <option value="Other">Other</option>
                     </select>
                 </div>
-                <div class="form-group">
+                <div class="form-group full-width">
                     <label>Phone Number (10 Digits)</label>
                     <input type="tel" id="editTeacherPhone" name="phone" placeholder="e.g. 9876543210" pattern="[6-9][0-9]{9}">
                 </div>
@@ -299,6 +476,7 @@
         const name = btn.getAttribute('data-name');
         const subject = btn.getAttribute('data-subject');
         const age = btn.getAttribute('data-age');
+        const dob = btn.getAttribute('data-dob');
         const gender = btn.getAttribute('data-gender');
         const phone = btn.getAttribute('data-phone');
         const email = btn.getAttribute('data-email');
@@ -309,6 +487,7 @@
         document.getElementById('editTeacherName').value = name;
         document.getElementById('editTeacherSubject').value = subject;
         document.getElementById('editTeacherAge').value = age;
+        document.getElementById('editTeacherDob').value = dob || '';
         document.getElementById('editTeacherGender').value = gender || 'Male';
         document.getElementById('editTeacherPhone').value = phone;
         document.getElementById('editTeacherEmail').value = email;
@@ -322,5 +501,142 @@
     }
 </script>
 {% endif %}
+
+<!-- Safe Data Passing Block: 100% Linter-Safe JSON -->
+<script type="application/json" id="teacher-analytics-data">
+{
+    "genderLabels": {{ teacher_gender_labels | tojson }},
+    "genderCounts": {{ teacher_gender_counts | tojson }},
+    "attLabels": {{ teacher_att_labels | tojson }},
+    "attCounts": {{ teacher_att_counts | tojson }}
+}
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const rawDataElem = document.getElementById("teacher-analytics-data");
+    let data = { genderLabels: [], genderCounts: [], attLabels: [], attCounts: [] };
+    if (rawDataElem) {
+        try { data = JSON.parse(rawDataElem.textContent || "{}"); } catch(e) {}
+    }
+
+    if (typeof Chart !== "undefined") {
+        Chart.defaults.color = "#64748b";
+        Chart.defaults.font.family = "'Plus Jakarta Sans', system-ui, sans-serif";
+
+        // 1. Faculty Gender Pie / Doughnut Chart
+        const genderCanvas = document.getElementById("teacherGenderChart");
+        const genderEmpty = document.getElementById("teacherGenderChartEmpty");
+        const genderLabels = data.genderLabels || [];
+        const genderCounts = data.genderCounts || [];
+        const totalGender = genderCounts.reduce((a, b) => a + b, 0);
+
+        if (totalGender === 0 || genderLabels.length === 0) {
+            if (genderCanvas) genderCanvas.style.display = "none";
+            if (genderEmpty) genderEmpty.style.display = "flex";
+        } else if (genderCanvas) {
+            const colorPalette = { "male": "#2563eb", "female": "#ec4899", "other": "#8b5cf6" };
+            const bgColors = genderLabels.map(l => colorPalette[String(l).toLowerCase().trim()] || "#06b6d4");
+
+            new Chart(genderCanvas.getContext("2d"), {
+                type: "doughnut",
+                data: {
+                    labels: genderLabels,
+                    datasets: [{
+                        data: genderCounts,
+                        backgroundColor: bgColors,
+                        borderColor: "#ffffff",
+                        borderWidth: 2,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: "64%",
+                    plugins: {
+                        legend: {
+                            position: "bottom",
+                            labels: {
+                                boxWidth: 12,
+                                padding: 12,
+                                font: { size: 12, weight: 600 }
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: "#0f172a",
+                            padding: 10,
+                            cornerRadius: 6,
+                            callbacks: {
+                                label: function (ctx) {
+                                    const count = ctx.raw || 0;
+                                    const pct = totalGender ? Math.round((count / totalGender) * 100) : 0;
+                                    return ` ${ctx.label}: ${count} faculty (${pct}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 2. Faculty Attendance Pie / Doughnut Chart
+        const attCanvas = document.getElementById("teacherAttendanceChart");
+        const attEmpty = document.getElementById("teacherAttendanceChartEmpty");
+        const attLabels = data.attLabels || [];
+        const attCounts = data.attCounts || [];
+        const totalAtt = attCounts.reduce((a, b) => a + b, 0);
+
+        if (totalAtt === 0 || attLabels.length === 0) {
+            if (attCanvas) attCanvas.style.display = "none";
+            if (attEmpty) attEmpty.style.display = "flex";
+        } else if (attCanvas) {
+            const attColorPalette = { "present": "#10b981", "absent": "#ef4444", "leave": "#f59e0b", "on leave": "#f59e0b" };
+            const attBgColors = attLabels.map(l => attColorPalette[String(l).toLowerCase().trim()] || "#64748b");
+
+            new Chart(attCanvas.getContext("2d"), {
+                type: "doughnut",
+                data: {
+                    labels: attLabels,
+                    datasets: [{
+                        data: attCounts,
+                        backgroundColor: attBgColors,
+                        borderColor: "#ffffff",
+                        borderWidth: 2,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: "64%",
+                    plugins: {
+                        legend: {
+                            position: "bottom",
+                            labels: {
+                                boxWidth: 12,
+                                padding: 12,
+                                font: { size: 12, weight: 600 }
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: "#0f172a",
+                            padding: 10,
+                            cornerRadius: 6,
+                            callbacks: {
+                                label: function (ctx) {
+                                    const count = ctx.raw || 0;
+                                    const pct = totalAtt ? Math.round((count / totalAtt) * 100) : 0;
+                                    return ` ${ctx.label}: ${count} (${pct}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+});
+</script>
 
 {% endblock %}

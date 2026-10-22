@@ -3,14 +3,166 @@
 {% block content %}
 <div class="dashboard-container">
 
+    <!-- Page Toolbar -->
     <div class="page-toolbar">
         <div class="toolbar-left">
-            <h3 style="font-size: 18px; font-weight: 700; color: var(--text-primary);">Examination Marks & Performance</h3>
-            <p style="font-size: 13px; color: var(--text-secondary);">Student test evaluations & academic subject scoring</p>
+            <h3 style="font-size: 18px; font-weight: 700; color: var(--text-main);">Examination Marks & Performance</h3>
+            <p style="font-size: 13px; color: var(--text-muted);">Student test evaluations, subject scoring & performance analytics</p>
+        </div>
+        <div class="toolbar-right">
+            {% if current_role in ('super_admin', 'admin') %}
+                <button type="button" class="btn-toolbar-add" data-modal-target="#addExamModal">
+                    <i class="fa-solid fa-plus-circle"></i> Enter Exam Marks
+                </button>
+            {% endif %}
         </div>
     </div>
 
-    <!-- Marks Table -->
+    <!-- Exam Performance Overview KPI Grid -->
+    <div class="kpi-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 24px;">
+        <div class="kpi-card card-cyan">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper"><i class="fa-solid fa-file-signature"></i></div>
+                <span class="kpi-pill"><i class="fa-solid fa-award"></i> Evaluations</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Recorded Evaluations</span>
+                <h3 class="kpi-value">{{ stats.total }}</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext"><i class="fa-solid fa-layer-group"></i> Total student test entries</span>
+            </div>
+        </div>
+
+        <div class="kpi-card card-emerald">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper"><i class="fa-solid fa-chart-line"></i></div>
+                <span class="kpi-pill pill-emerald"><i class="fa-solid fa-gauge"></i> Average</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Class Average Score</span>
+                <h3 class="kpi-value">{{ stats.avg_pct }}%</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext"><i class="fa-solid fa-check-double"></i> Cumulative performance</span>
+            </div>
+        </div>
+
+        <div class="kpi-card card-purple">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper"><i class="fa-solid fa-trophy"></i></div>
+                <span class="kpi-pill"><i class="fa-solid fa-star"></i> Top Score</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Highest Score Achieved</span>
+                <h3 class="kpi-value">{{ stats.highest }}%</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext"><i class="fa-solid fa-medal"></i> Top academic distinction</span>
+            </div>
+        </div>
+
+        <div class="kpi-card card-amber">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper"><i class="fa-solid fa-circle-check"></i></div>
+                <span class="kpi-pill"><i class="fa-solid fa-user-graduate"></i> Qualified</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Passing Evaluations</span>
+                <h3 class="kpi-value">{{ stats.pass_count }}</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext"><i class="fa-solid fa-percent"></i> Score &ge; 40% threshold</span>
+            </div>
+        </div>
+    </div>
+
+    {% if current_role in ('super_admin', 'admin') %}
+    <!-- 📝 Dedicated On-Page "Enter Exam Marks" Section -->
+    <div class="data-table-card" style="margin-bottom: 24px; border-left: 4px solid var(--navy-800);">
+        <div class="card-header" style="margin-bottom: 14px;">
+            <div class="header-left">
+                <div class="card-badge-icon badge-pink"><i class="fa-solid fa-file-pen"></i></div>
+                <div>
+                    <h4 class="card-heading">Record Examination Marks</h4>
+                    <p class="card-subheading">Enter or update academic exam scores for enrolled students in MySQL</p>
+                </div>
+            </div>
+            <span class="chart-tag"><i class="fa-solid fa-pen"></i> Direct Entry</span>
+        </div>
+
+        <form action="{{ url_for('add_exam_mark') }}" method="POST" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 18px 20px;">
+            <div style="display: grid; grid-template-columns: 2fr 1.5fr 1.5fr 1fr 1fr auto; gap: 14px; align-items: flex-end;">
+                
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" style="font-weight: 700; font-size: 12px; color: var(--text-main);">
+                        Select Student <span style="color: #ef4444;">*</span>
+                    </label>
+                    <select name="roll_number" class="form-control" required style="background: #ffffff;">
+                        <option value="">-- Choose Student --</option>
+                        {% for s in students %}
+                            <option value="{{ s.ROLL_NUMBER }}">Roll #{{ s.ROLL_NUMBER }} - {{ s.NAME }} ({{ s.CLASS or 'General' }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" style="font-weight: 700; font-size: 12px; color: var(--text-main);">
+                        Exam Type <span style="color: #ef4444;">*</span>
+                    </label>
+                    <select name="exam_type" class="form-control" required style="background: #ffffff;">
+                        <option value="Mid-Term Examination" selected>Mid-Term Examination</option>
+                        <option value="Final Examination">Final Examination</option>
+                        <option value="Unit Test 1">Unit Test 1</option>
+                        <option value="Unit Test 2">Unit Test 2</option>
+                        <option value="Class Assessment">Class Assessment</option>
+                        <option value="Practical & Viva">Practical &amp; Viva</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" style="font-weight: 700; font-size: 12px; color: var(--text-main);">
+                        Subject <span style="color: #ef4444;">*</span>
+                    </label>
+                    <input type="text" name="subject" class="form-control" placeholder="e.g. Mathematics / Physics" required list="subjectSuggestions" style="background: #ffffff;">
+                    <datalist id="subjectSuggestions">
+                        <option value="Mathematics">
+                        <option value="Physics">
+                        <option value="Chemistry">
+                        <option value="Biology">
+                        <option value="English Literature">
+                        <option value="Computer Science">
+                        <option value="History">
+                        <option value="Geography">
+                    </datalist>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" style="font-weight: 700; font-size: 12px; color: var(--text-main);">
+                        Marks <span style="color: #ef4444;">*</span>
+                    </label>
+                    <input type="number" step="0.5" min="0" max="1000" name="marks_obtained" class="form-control" placeholder="e.g. 85.5" required style="background: #ffffff;">
+                </div>
+
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" style="font-weight: 700; font-size: 12px; color: var(--text-main);">
+                        Max Marks
+                    </label>
+                    <input type="number" step="1" min="1" max="1000" name="max_marks" class="form-control" value="100" required style="background: #ffffff;">
+                </div>
+
+                <div>
+                    <button type="submit" class="btn-filter" style="height: 42px; padding: 0 20px; background: var(--navy-800); color: #ffffff; font-weight: 700;">
+                        <i class="fa-solid fa-check"></i> Save
+                    </button>
+                </div>
+
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- Exam Marks Records Table Card -->
     <div class="data-table-card">
         <div class="card-header">
             <div class="header-left">
@@ -18,11 +170,11 @@
                     <i class="fa-solid fa-award"></i>
                 </div>
                 <div>
-                    <h4 class="card-heading">Exam Records</h4>
-                    <p class="card-subheading">Showing {{ marks|length }} recorded mark evaluations</p>
+                    <h4 class="card-heading">Exam Performance Registry</h4>
+                    <p class="card-subheading">Showing {{ marks|length }} recorded mark evaluations in MySQL</p>
                 </div>
             </div>
-            <span class="chart-tag"><i class="fa-solid fa-file-signature"></i> Academic Records</span>
+            <span class="chart-tag"><i class="fa-solid fa-database"></i> Live Database</span>
         </div>
 
         <div class="table-responsive">
@@ -34,8 +186,9 @@
                         <th>Class</th>
                         <th>Exam Type</th>
                         <th>Subject</th>
-                        <th>Marks Obtained</th>
-                        <th>Maximum Marks</th>
+                        <th>Score</th>
+                        <th>Percentage</th>
+                        <th>Grade</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -43,17 +196,36 @@
                         {% for m in marks %}
                         <tr>
                             <td><span class="roll-badge">#{{ m.ROLL_NUMBER }}</span></td>
-                            <td class="student-name">{{ m.NAME or 'Unknown' }}</td>
+                            <td>
+                                <div class="student-name-cell">
+                                    <div class="mini-avatar">{{ m.NAME[0] | upper if m.NAME else 'S' }}</div>
+                                    <span class="student-name">{{ m.NAME or 'Unknown' }}</span>
+                                </div>
+                            </td>
                             <td><span class="class-pill">{{ m.CLASS or 'N/A' }}</span></td>
-                            <td><span class="class-pill">{{ m.EXAM_TYPE }}</span></td>
-                            <td class="text-dim">{{ m.SUBJECT }}</td>
-                            <td style="font-weight: 700; color: var(--accent-cyan);">{{ m.MARKS_OBTAINED }}</td>
-                            <td class="text-dim">{{ m.MAX_MARKS }}</td>
+                            <td><span class="class-pill" style="background: #eff6ff; color: #1e40af; border-color: #bfdbfe;">{{ m.EXAM_TYPE }}</span></td>
+                            <td style="font-weight: 600; color: var(--text-main);">{{ m.SUBJECT }}</td>
+                            <td>
+                                <span style="font-weight: 800; font-size: 14px; color: var(--navy-900);">
+                                    {{ m.MARKS_OBTAINED }}
+                                </span>
+                                <span class="text-dim" style="font-size: 12px;">/ {{ m.MAX_MARKS }}</span>
+                            </td>
+                            <td>
+                                <span style="font-weight: 700; color: #0284c7;">
+                                    {{ m.percentage }}%
+                                </span>
+                            </td>
+                            <td>
+                                <span class="status-badge {{ m.grade_class }}">
+                                    <span class="badge-dot"></span> Grade {{ m.grade }}
+                                </span>
+                            </td>
                         </tr>
                         {% endfor %}
                     {% else %}
                         <tr>
-                            <td colspan="7" class="empty-table-cell">
+                            <td colspan="8" class="empty-table-cell">
                                 <i class="fa-solid fa-award"></i>
                                 <p>No examination marks entered yet.</p>
                             </td>
@@ -65,4 +237,78 @@
     </div>
 
 </div>
+
+<!-- Modal: Add Exam Marks -->
+{% if current_role in ('super_admin', 'admin') %}
+<div class="modal-overlay" id="addExamModal">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <div class="modal-title-box">
+                <i class="fa-solid fa-file-pen" style="color: var(--navy-700);"></i>
+                <h3 class="modal-title">Enter Examination Marks</h3>
+            </div>
+            <button type="button" class="modal-close-btn" data-modal-close>&times;</button>
+        </div>
+
+        <form action="{{ url_for('add_exam_mark') }}" method="POST" class="modal-form">
+            <div class="form-grid">
+                <div class="form-group full-width">
+                    <label class="form-label">Select Student <span class="required">*</span></label>
+                    <select name="roll_number" class="form-control" required>
+                        <option value="">-- Choose Student --</option>
+                        {% for s in students %}
+                            <option value="{{ s.ROLL_NUMBER }}">Roll #{{ s.ROLL_NUMBER }} - {{ s.NAME }} ({{ s.CLASS or 'General' }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Exam Type <span class="required">*</span></label>
+                    <select name="exam_type" class="form-control" required>
+                        <option value="Mid-Term Examination" selected>Mid-Term Examination</option>
+                        <option value="Final Examination">Final Examination</option>
+                        <option value="Unit Test 1">Unit Test 1</option>
+                        <option value="Unit Test 2">Unit Test 2</option>
+                        <option value="Class Assessment">Class Assessment</option>
+                        <option value="Practical & Viva">Practical &amp; Viva</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Subject <span class="required">*</span></label>
+                    <input type="text" name="subject" class="form-control" placeholder="e.g. Mathematics" required list="modalSubjectSuggestions">
+                    <datalist id="modalSubjectSuggestions">
+                        <option value="Mathematics">
+                        <option value="Physics">
+                        <option value="Chemistry">
+                        <option value="Biology">
+                        <option value="English Literature">
+                        <option value="Computer Science">
+                        <option value="History">
+                        <option value="Geography">
+                    </datalist>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Marks Obtained <span class="required">*</span></label>
+                    <input type="number" step="0.5" min="0" max="1000" name="marks_obtained" class="form-control" placeholder="e.g. 88.5" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Maximum Marks <span class="required">*</span></label>
+                    <input type="number" step="1" min="1" max="1000" name="max_marks" class="form-control" value="100" required>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn-modal-cancel" data-modal-close>Cancel</button>
+                <button type="submit" class="btn-modal-submit">
+                    <i class="fa-solid fa-check"></i> Save Exam Marks
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
 {% endblock %}

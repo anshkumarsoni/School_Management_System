@@ -57,6 +57,12 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a href="{{ url_for('parents_view') }}" class="nav-link {% if active_page == 'parents' %}active{% endif %}">
+                            <i class="fa-solid fa-people-roof"></i>
+                            <span class="link-text">Parent Details</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a href="{{ url_for('teachers_view') }}" class="nav-link {% if active_page == 'teachers' %}active{% endif %}">
                             <i class="fa-solid fa-chalkboard-user"></i>
                             <span class="link-text">Teacher Details</span>
@@ -89,13 +95,13 @@
                 </ul>
 
                 {% if current_role == 'super_admin' %}
-                <div class="nav-group-label">Administration</div>
+                <div class="nav-group-label">Principal Office</div>
                 <ul class="nav-menu">
                     <li class="nav-item">
                         <a href="{{ url_for('users_view') }}" class="nav-link {% if active_page == 'users' %}active{% endif %}">
                             <i class="fa-solid fa-users-gear"></i>
-                            <span class="link-text">User & Activity Logs</span>
-                            <span class="nav-badge-purple">Super</span>
+                            <span class="link-text">User & Role Accounts</span>
+                            <span class="nav-badge-purple">Principal</span>
                         </a>
                     </li>
                 </ul>
@@ -166,7 +172,7 @@
                         </div>
                         <div class="user-meta">
                             <span class="user-username">{{ current_user or 'User' }}</span>
-                            <span class="role-pill role-{{ current_role }}">{{ (current_role or 'viewer').replace('_', ' ') }}</span>
+                            <span class="role-pill role-{{ current_role }}">{{ current_role | role_name }}</span>
                         </div>
                     </div>
 

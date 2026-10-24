@@ -25,13 +25,65 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "edupulse_academic_secret_998877")
 
-# Global Template Context Injector for Session User
+# Role Display Names and Flexible Persona Mapping
+ROLE_DISPLAY = {
+    "super_admin": "Principal",
+    "admin": "Teacher",
+    "viewer": "Parent & Student"
+}
+
+ROLE_ALIASES = {
+    # Canonical MySQL ENUM values
+    "super_admin": "super_admin",
+    "admin": "admin",
+    "viewer": "viewer",
+    # Principal aliases (user requested: super_admin as Principle / Principal)
+    "principal": "super_admin",
+    "principle": "super_admin",
+    "superadmin": "super_admin",
+    "super admin": "super_admin",
+    "super administrator": "super_admin",
+    "headmaster": "super_admin",
+    # Teacher aliases (user requested: admin as Teachers)
+    "teacher": "admin",
+    "teachers": "admin",
+    "faculty": "admin",
+    "staff": "admin",
+    "administrator": "admin",
+    # Parent & Student / Viewer aliases (user requested: Parents and Students as Viewer)
+    "parent": "viewer",
+    "parents": "viewer",
+    "student": "viewer",
+    "students": "viewer",
+    "parents and students": "viewer",
+    "parents & students": "viewer",
+    "parent and student": "viewer",
+    "parent & student": "viewer",
+    "read-only": "viewer",
+    "readonly": "viewer"
+}
+
+def get_role_display(role_code: str) -> str:
+    """Returns human-friendly display title for technical database role codes."""
+    if not role_code:
+        return "Parent & Student"
+    return ROLE_DISPLAY.get(role_code.lower().strip(), role_code.replace("_", " ").title())
+
+# Global Template Context Injector for Session User & Role Labels
 @app.context_processor
 def inject_user_context():
+    role = session.get("role")
     return {
         "current_user": session.get("username"),
-        "current_role": session.get("role")
+        "current_role": role,
+        "current_role_name": get_role_display(role),
+        "ROLE_DISPLAY": ROLE_DISPLAY
     }
+
+# Jinja2 Template Filter for formatting role badges
+@app.template_filter("role_name")
+def role_name_filter(role_code):
+    return get_role_display(role_code)
 
 # Ensure Database Schema includes DOB column and dashboard widgets tables
 def init_db_schema():
@@ -81,6 +133,28 @@ def init_db_schema():
                     STATUS ENUM('Present', 'Absent', 'On Leave') NOT NULL,
                     REMARKS VARCHAR(100),
                     UNIQUE KEY unique_teacher_date (TEACHER_ID, ATTENDANCE_DATE)
+                )
+            """)
+
+            # Ensure Parents Details table exists
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS Parents_Details (
+                    ID INT AUTO_INCREMENT PRIMARY KEY,
+                    ROLL_NUMBER VARCHAR(20) NOT NULL,
+                    FATHER_NAME VARCHAR(100),
+                    FATHER_OCCUPATION VARCHAR(100),
+                    FATHER_PHONE VARCHAR(15),
+                    MOTHER_NAME VARCHAR(100),
+                    MOTHER_OCCUPATION VARCHAR(100),
+                    MOTHER_PHONE VARCHAR(15),
+                    GUARDIAN_NAME VARCHAR(100),
+                    RELATION VARCHAR(50) DEFAULT 'Parent',
+                    PRIMARY_CONTACT VARCHAR(15) NOT NULL,
+                    EMAIL VARCHAR(100),
+                    RESIDENTIAL_ADDRESS VARCHAR(255),
+                    EMERGENCY_CONTACT VARCHAR(15),
+                    ANNUAL_INCOME DECIMAL(12,2) DEFAULT 0.00,
+                    UNIQUE KEY unique_student_parent (ROLL_NUMBER)
                 )
             """)
             con.commit()
@@ -187,10 +261,10 @@ def login():
                     (username, hashed, "super_admin")
                 )
                 con.commit()
-                log_history(username, "Initial Super Admin account registered")
+                log_history(username, "Initial Principal account registered")
                 session["username"] = username
                 session["role"] = "super_admin"
-                flash(f"Welcome, {username}! Initial Super Admin account created.", "success")
+                flash(f"Welcome, {username}! Initial Principal (Super Admin) account created.", "success")
                 cur.close()
                 con.close()
                 return redirect(url_for("dashboard"))
@@ -221,15 +295,21 @@ def login():
         stored_hash = user_row["PASSWORD"]
         user_role = user_row["ROLE"]
 
-        if selected_role and selected_role != user_role:
-            flash(f"Access Denied: Account belongs to '{user_role.replace('_', ' ').title()}', not '{selected_role.replace('_', ' ').title()}'.", "danger")
-            return render_template("login.html", first_run=False)
+        # Support role aliases (e.g. principal -> super_admin, teacher -> admin, student/parent -> viewer)
+        if selected_role:
+            canonical_selected = ROLE_ALIASES.get(selected_role.lower(), selected_role)
+            if canonical_selected != user_role:
+                expected_label = get_role_display(user_role)
+                selected_label = get_role_display(canonical_selected)
+                flash(f"Access Denied: Account belongs to '{expected_label}', not '{selected_label}'.", "danger")
+                return render_template("login.html", first_run=False)
 
         if check_password(password, stored_hash):
             session["username"] = user_row["USERNAME"]
             session["role"] = user_role
-            log_history(user_row["USERNAME"], "Logged in")
-            flash(f"Welcome back, {user_row['USERNAME']}!", "success")
+            role_label = get_role_display(user_role)
+            log_history(user_row["USERNAME"], f"Logged in as {role_label}")
+            flash(f"Welcome back, {user_row['USERNAME']} ({role_label})!", "success")
             
             next_url = request.args.get("next")
             return redirect(next_url or url_for("dashboard"))
@@ -762,6 +842,236 @@ def delete_student_route(id):
 
 
 # -------------------------------------------------------------------------
+# 3B. PARENT & GUARDIAN DETAILS MODULE
+# -------------------------------------------------------------------------
+
+@app.route("/parents")
+@login_required
+def parents_view():
+    search = request.args.get("search", "").strip()
+    page = int(request.args.get("page", 1))
+    per_page = 10
+
+    con = get_connection()
+    parents = []
+    students = []
+    total_records = 0
+    total_pages = 1
+
+    if con:
+        cur = con.cursor(dictionary=True)
+
+        query = """
+            SELECT 
+                p.ID, p.ROLL_NUMBER,
+                COALESCE(s.NAME, 'Unknown Student') AS STUDENT_NAME,
+                COALESCE(s.CLASS, 'N/A') AS STUDENT_CLASS,
+                COALESCE(s.PHONE, 'N/A') AS STUDENT_PHONE,
+                p.FATHER_NAME, p.FATHER_OCCUPATION, p.FATHER_PHONE,
+                p.MOTHER_NAME, p.MOTHER_OCCUPATION, p.MOTHER_PHONE,
+                p.GUARDIAN_NAME, p.RELATION,
+                p.PRIMARY_CONTACT, p.EMAIL,
+                p.RESIDENTIAL_ADDRESS, p.EMERGENCY_CONTACT, p.ANNUAL_INCOME
+            FROM Parents_Details p
+            LEFT JOIN Students_Details s ON p.ROLL_NUMBER = s.ROLL_NUMBER
+        """
+        count_query = "SELECT COUNT(*) as cnt FROM Parents_Details p LEFT JOIN Students_Details s ON p.ROLL_NUMBER = s.ROLL_NUMBER"
+        params = []
+
+        if search:
+            query += " WHERE (p.ROLL_NUMBER LIKE %s OR s.NAME LIKE %s OR p.FATHER_NAME LIKE %s OR p.MOTHER_NAME LIKE %s OR p.PRIMARY_CONTACT LIKE %s)"
+            count_query += " WHERE (p.ROLL_NUMBER LIKE %s OR s.NAME LIKE %s OR p.FATHER_NAME LIKE %s OR p.MOTHER_NAME LIKE %s OR p.PRIMARY_CONTACT LIKE %s)"
+            wildcard = f"%{search}%"
+            params.extend([wildcard, wildcard, wildcard, wildcard, wildcard])
+
+        cur.execute(count_query, params)
+        total_records = cur.fetchone()["cnt"] or 0
+        total_pages = max(1, (total_records + per_page - 1) // per_page)
+        offset = (page - 1) * per_page
+
+        query += " ORDER BY p.ROLL_NUMBER ASC LIMIT %s OFFSET %s"
+        query_params = list(params) + [per_page, offset]
+        cur.execute(query, query_params)
+        parents = cur.fetchall()
+
+        cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM Students_Details ORDER BY ROLL_NUMBER ASC")
+        students = cur.fetchall()
+
+        cur.close()
+        con.close()
+
+    return render_template(
+        "parents.html",
+        active_page="parents",
+        title="Parent & Guardian Directory",
+        parents=parents,
+        students=students,
+        search=search,
+        page=page,
+        total_pages=total_pages,
+        total_records=total_records
+    )
+
+
+@app.route("/parents/add", methods=["POST"], endpoint="add_parent_route")
+@login_required
+@role_required(["super_admin", "admin"])
+def add_parent_route():
+    roll_number = request.form.get("roll_number", "").strip()
+    father_name = request.form.get("father_name", "").strip()
+    father_occ = request.form.get("father_occupation", "").strip()
+    father_phone = request.form.get("father_phone", "").strip()
+    mother_name = request.form.get("mother_name", "").strip()
+    mother_occ = request.form.get("mother_occupation", "").strip()
+    mother_phone = request.form.get("mother_phone", "").strip()
+    guardian_name = request.form.get("guardian_name", "").strip()
+    relation = request.form.get("relation", "Parent").strip()
+    primary_contact = request.form.get("primary_contact", "").strip()
+    email = request.form.get("email", "").strip()
+    address = request.form.get("address", "").strip()
+    emergency_contact = request.form.get("emergency_contact", "").strip()
+    income_raw = request.form.get("annual_income", "0").strip()
+
+    if not roll_number:
+        flash("Validation Error: Student Roll Number is required.", "warning")
+        return redirect(url_for("parents_view"))
+
+    if not primary_contact:
+        primary_contact = father_phone or mother_phone
+
+    if not primary_contact:
+        flash("Validation Error: A valid Primary Contact Phone number is required.", "danger")
+        return redirect(url_for("parents_view"))
+
+    try:
+        annual_income = float(income_raw) if income_raw else 0.00
+    except ValueError:
+        annual_income = 0.00
+
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("SELECT NAME, CLASS FROM Students_Details WHERE ROLL_NUMBER = %s", (roll_number,))
+            student = cur.fetchone()
+            if not student:
+                flash(f"Validation Error: Student with Roll Number '{roll_number}' was not found.", "danger")
+                return redirect(url_for("parents_view"))
+
+            cur.execute("""
+                INSERT INTO Parents_Details (
+                    ROLL_NUMBER, FATHER_NAME, FATHER_OCCUPATION, FATHER_PHONE,
+                    MOTHER_NAME, MOTHER_OCCUPATION, MOTHER_PHONE,
+                    GUARDIAN_NAME, RELATION, PRIMARY_CONTACT,
+                    EMAIL, RESIDENTIAL_ADDRESS, EMERGENCY_CONTACT, ANNUAL_INCOME
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                    FATHER_NAME = %s, FATHER_OCCUPATION = %s, FATHER_PHONE = %s,
+                    MOTHER_NAME = %s, MOTHER_OCCUPATION = %s, MOTHER_PHONE = %s,
+                    GUARDIAN_NAME = %s, RELATION = %s, PRIMARY_CONTACT = %s,
+                    EMAIL = %s, RESIDENTIAL_ADDRESS = %s, EMERGENCY_CONTACT = %s, ANNUAL_INCOME = %s
+            """, (
+                roll_number, father_name, father_occ, father_phone,
+                mother_name, mother_occ, mother_phone,
+                guardian_name, relation, primary_contact,
+                email, address, emergency_contact, annual_income,
+                father_name, father_occ, father_phone,
+                mother_name, mother_occ, mother_phone,
+                guardian_name, relation, primary_contact,
+                email, address, emergency_contact, annual_income
+            ))
+            con.commit()
+            log_history(session.get("username", "Admin"), f"Linked parent details for student Roll #{roll_number} ({student['NAME']})")
+            flash(f"Parent/Guardian details successfully linked to {student['NAME']} (Roll #{roll_number})!", "success")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("parents_view"))
+
+
+@app.route("/parents/edit/<int:id>", methods=["POST"], endpoint="edit_parent_route")
+@login_required
+@role_required(["super_admin", "admin"])
+def edit_parent_route(id):
+    father_name = request.form.get("father_name", "").strip()
+    father_occ = request.form.get("father_occupation", "").strip()
+    father_phone = request.form.get("father_phone", "").strip()
+    mother_name = request.form.get("mother_name", "").strip()
+    mother_occ = request.form.get("mother_occupation", "").strip()
+    mother_phone = request.form.get("mother_phone", "").strip()
+    guardian_name = request.form.get("guardian_name", "").strip()
+    relation = request.form.get("relation", "Parent").strip()
+    primary_contact = request.form.get("primary_contact", "").strip()
+    email = request.form.get("email", "").strip()
+    address = request.form.get("address", "").strip()
+    emergency_contact = request.form.get("emergency_contact", "").strip()
+    income_raw = request.form.get("annual_income", "0").strip()
+
+    try:
+        annual_income = float(income_raw) if income_raw else 0.00
+    except ValueError:
+        annual_income = 0.00
+
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("""
+                UPDATE Parents_Details SET
+                    FATHER_NAME = %s, FATHER_OCCUPATION = %s, FATHER_PHONE = %s,
+                    MOTHER_NAME = %s, MOTHER_OCCUPATION = %s, MOTHER_PHONE = %s,
+                    GUARDIAN_NAME = %s, RELATION = %s, PRIMARY_CONTACT = %s,
+                    EMAIL = %s, RESIDENTIAL_ADDRESS = %s, EMERGENCY_CONTACT = %s, ANNUAL_INCOME = %s
+                WHERE ID = %s
+            """, (
+                father_name, father_occ, father_phone,
+                mother_name, mother_occ, mother_phone,
+                guardian_name, relation, primary_contact,
+                email, address, emergency_contact, annual_income,
+                id
+            ))
+            con.commit()
+            log_history(session.get("username", "Admin"), f"Updated parent details ID #{id}")
+            flash("Parent details updated successfully!", "success")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("parents_view"))
+
+
+@app.route("/parents/delete/<int:id>", methods=["POST"], endpoint="delete_parent_route")
+@login_required
+@role_required(["super_admin", "admin"])
+def delete_parent_route(id):
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("SELECT ROLL_NUMBER FROM Parents_Details WHERE ID = %s", (id,))
+            row = cur.fetchone()
+            roll = row["ROLL_NUMBER"] if row else id
+
+            cur.execute("DELETE FROM Parents_Details WHERE ID = %s", (id,))
+            con.commit()
+            log_history(session.get("username", "Admin"), f"Deleted parent details record for Roll #{roll}")
+            flash(f"Parent record for Roll #{roll} was removed successfully.", "info")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("parents_view"))
+
+
+# -------------------------------------------------------------------------
 # 4. TEACHER MANAGEMENT MODULE
 # -------------------------------------------------------------------------
 
@@ -1114,14 +1424,15 @@ def users_view():
 def add_user_route():
     username = request.form.get("username", "").strip()
     password = request.form.get("password", "").strip()
-    role = request.form.get("role", "").strip().lower()
+    role_input = request.form.get("role", "").strip().lower()
 
     if not username or not password:
         flash("Username and password are required.", "warning")
         return redirect(url_for("users_view"))
 
-    if role not in ("admin", "viewer"):
-        flash("Invalid role assignment. Only 'admin' or 'viewer' accounts can be created.", "danger")
+    canonical_role = ROLE_ALIASES.get(role_input, role_input)
+    if canonical_role not in ("super_admin", "admin", "viewer"):
+        flash("Invalid role assignment. Allowed roles: Principal, Teacher, Parent & Student.", "danger")
         return redirect(url_for("users_view"))
 
     is_valid, err_msg = validate_password_strength(password)
@@ -1142,12 +1453,13 @@ def add_user_route():
             return redirect(url_for("users_view"))
 
         hashed = hash_password(password)
-        cur.execute("INSERT INTO users (USERNAME, PASSWORD, ROLE) VALUES (%s, %s, %s)", (username, hashed, role))
+        cur.execute("INSERT INTO users (USERNAME, PASSWORD, ROLE) VALUES (%s, %s, %s)", (username, hashed, canonical_role))
         con.commit()
 
         curr_user = session.get("username")
-        log_history(curr_user, f"Registered user {username} as {role}")
-        flash(f"User '{username}' registered successfully with role '{role.title()}'!", "success")
+        display_role = get_role_display(canonical_role)
+        log_history(curr_user, f"Registered user {username} as {display_role}")
+        flash(f"User '{username}' registered successfully as '{display_role}'!", "success")
     except Error as e:
         flash(f"Database Error: {e}", "danger")
     finally:

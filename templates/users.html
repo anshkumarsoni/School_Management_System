@@ -3,15 +3,15 @@
 {% block content %}
 <div class="dashboard-container">
 
-    <!-- Super Admin Header Banner -->
+    <!-- Principal Access Header Banner -->
     <div class="welcome-banner" style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);">
         <div class="banner-content">
             <div class="welcome-chip" style="background: rgba(255,255,255,0.15); color: #fff;">
-                <i class="fa-solid fa-shield-halved"></i> Super Administrator Access Only
+                <i class="fa-solid fa-shield-halved"></i> Principal Access Only
             </div>
-            <h2 class="banner-title" style="color: #ffffff;">User Security & Institutional Audit Trail</h2>
+            <h2 class="banner-title" style="color: #ffffff;">User Security & Institutional Role Management</h2>
             <p class="banner-desc" style="color: #cbd5e1;">
-                Manage operational user accounts, provision role-based administrative privileges, and inspect comprehensive audit logs recorded in the database.
+                Manage operational user accounts for Teachers, Parents & Students, and Principals; provision role-based administrative privileges; and inspect comprehensive audit logs recorded in the database.
             </p>
         </div>
         <div class="quick-actions-bar">
@@ -69,7 +69,7 @@
                                 </td>
                                 <td>
                                     <span class="role-pill role-{{ u.ROLE }}">
-                                        {{ u.ROLE.replace('_', ' ') }}
+                                        {{ u.ROLE | role_name }}
                                     </span>
                                 </td>
                                 <td style="text-align: right; padding-right: 18px;">
@@ -97,7 +97,7 @@
                         <div class="card-badge-icon badge-purple"><i class="fa-solid fa-user-plus"></i></div>
                         <div>
                             <h4 class="card-heading">Provision New User Account</h4>
-                            <p class="card-subheading">Grant access to staff with role-based restrictions</p>
+                            <p class="card-subheading">Grant access to Teachers, Parents & Students, or Principals</p>
                         </div>
                     </div>
                 </div>
@@ -111,8 +111,9 @@
                         <div class="form-group">
                             <label>Assigned Role <span class="required">*</span></label>
                             <select name="role" required>
-                                <option value="admin">Administrator (Full CRUD operations)</option>
-                                <option value="viewer">Viewer (Read-only access)</option>
+                                <option value="admin">Teacher (Faculty Access: Students, Attendance, Marks)</option>
+                                <option value="viewer">Parents & Students (Viewer: Read-Only Portal Access)</option>
+                                <option value="super_admin">Principal (Super Admin: Full Institution Control)</option>
                             </select>
                         </div>
                     </div>

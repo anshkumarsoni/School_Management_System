@@ -271,6 +271,9 @@
                             {% if current_role in ('super_admin', 'admin') %}
                             <td style="text-align: right; padding-right: 18px;">
                                 <div class="action-btns-group" style="justify-content: flex-end;">
+                                    <a href="{{ url_for('parents_view', search=s.ROLL_NUMBER) }}" class="btn-table-edit" style="color: #4f46e5; text-decoration: none;" title="View Parent / Guardian Details">
+                                        <i class="fa-solid fa-people-roof"></i>
+                                    </a>
                                     <button type="button" 
                                             class="btn-table-edit" 
                                             title="Edit Student"

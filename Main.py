@@ -12,11 +12,13 @@ from FeeFinance_Management_System import create_fee_tables, fee_menu
 from ExamMarks_Management_System import create_exam_tables, exam_menu
 from Export_Management_System import export_menu
 from Import_Management_System import import_menu
+from Parent_Management_System import create_parent_tables, parent_menu
 
 # ============================== DATABASE INITIALIZATION ==================
 def init_database():
     create_database()
     create_student_table()
+    create_parent_tables()
     create_teacher_tables()
     create_library_tables()
     create_attendance_tables()
@@ -55,6 +57,7 @@ def main():
         print("7. Export Reports to CSV / Excel".center(100))
         print("8. Import Bulk Data from CSV / Excel".center(100))
         print("9. School Demographics & Analytics (Charts)".center(100))
+        print("10. Parent & Guardian Details System".center(100))
         print("0. Exit".center(100))
         print("=" * 100)
         
@@ -77,6 +80,8 @@ def main():
             import_menu()
         elif choice == '9':                                              # <-- ADD THIS BLOCK
             plot_school_demographics()
+        elif choice == '10':
+            parent_menu()
         elif choice == '0':
             clear_screen()
             screen_down = pyfiglet.figlet_format("HAVE A GREAT DAY !!!!", font='doom')

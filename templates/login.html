@@ -96,7 +96,7 @@
             <h1 class="login-title">Edu<span>Pulse</span> Portal</h1>
             <p class="login-subtitle">
                 {% if first_run %}
-                    Initial System Setup &bull; First Super Administrator
+                    Initial System Setup &bull; First Principal Account
                 {% else %}
                     School Administration & Academic Management Portal
                 {% endif %}
@@ -113,7 +113,7 @@
                             <div class="alert-content">
                                 {% if category == 'success' %}
                                     <i class="fa-solid fa-circle-check"></i>
-                                {% elif category == 'danger' %}
+                                厚 elif category == 'danger' %}
                                     <i class="fa-solid fa-triangle-exclamation"></i>
                                 {% elif category == 'warning' %}
                                     <i class="fa-solid fa-circle-exclamation"></i>
@@ -133,7 +133,7 @@
                     First-Time Setup Required
                 </div>
                 <p style="font-size: 12px; color: var(--text-secondary); line-height: 1.45; margin-bottom: 2px;">
-                    Welcome! No user accounts were found in the database. Please create the initial <strong>Super Administrator</strong> account to access all features.
+                    Welcome! No user accounts were found in the database. Please create the initial <strong>Principal (Super Admin)</strong> account to access all features.
                 </p>
             {% endif %}
 
@@ -178,16 +178,16 @@
                         <label for="role"><i class="fa-solid fa-user-tag" style="color: var(--navy-600); margin-right: 4px;"></i> Role Verification (Optional)</label>
                         <select id="role" name="role">
                             <option value="">Any Authorized Account</option>
-                            <option value="super_admin">Super Administrator</option>
-                            <option value="admin">Administrator</option>
-                            <option value="viewer">Viewer (Read-Only)</option>
+                            <option value="super_admin">Principal (Super Admin)</option>
+                            <option value="admin">Teacher (Faculty Admin)</option>
+                            <option value="viewer">Parents & Students (Viewer)</option>
                         </select>
                     </div>
                 {% endif %}
 
                 <button type="submit" class="btn-login">
                     {% if first_run %}
-                        <i class="fa-solid fa-user-shield"></i> Initialize Super Admin
+                        <i class="fa-solid fa-user-shield"></i> Initialize Principal Account
                     {% else %}
                         <i class="fa-solid fa-right-to-bracket"></i> Sign In to Portal
                     {% endif %}

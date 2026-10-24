@@ -31,10 +31,10 @@ A modern, professional **School Management System** built with **Python, Flask, 
 ## ✨ Key Features
 
 ### 1. Role-Based Access Control (RBAC)
-The system strictly enforces permissions on both the client interface and server controllers:
-* **Super Admin**: Full administrative authority. Can manage students and faculty, provision new user accounts (Admin/Viewer), delete accounts (with self-lockout prevention), inspect complete activity audit trails, and update system passwords.
-* **Admin**: Operational authority. Can add, search, filter, edit, and delete student and teacher records. Restricted from user provisioning.
-* **Viewer**: Read-only directory access. Can view student records, faculty directory, library books, and attendance. All Add, Edit, and Delete controls are hidden from the UI and blocked on the server (`@role_required`).
+The system strictly enforces permissions on both the client interface and server controllers, mapping executive and academic roles to security levels:
+* **Principal (Super Admin)**: Full institutional and administrative authority. Can manage students, faculty, and parent profiles, provision and delete user accounts for Teachers and Parents/Students, inspect complete activity audit trails, and oversee school-wide configurations.
+* **Teacher (Admin)**: Operational faculty authority. Can record and update student details, parents information, attendance records, exam marks, and teacher listings. Restricted from user provisioning.
+* **Parents & Students (Viewer)**: Read-only institutional portal access. Can view student directory, announcements, academic calendar, library catalog, and attendance statistics. All Add, Edit, and Delete action buttons are hidden from the UI and blocked on the server (`@role_required`).
 
 ### 2. Modern Web Dashboard & Data Visualizations
 * **Light Navy-Blue Theme**: Crisp slate background (`#f8fafc`), deep navy primary tones (`#1e3a8a` / `#0f172a`), card elevation, and responsive spacing suitable for institutional demonstrations.

@@ -1,0 +1,491 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard-container">
+
+    <!-- Top Action & Filter Toolbar -->
+    <div class="page-toolbar">
+        <div class="toolbar-left">
+            <form action="{{ url_for('parents_view') }}" method="GET" class="filter-form">
+                <div class="filter-input-wrapper" style="position: relative; display: flex; align-items: center;">
+                    <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 14px; color: var(--text-muted); font-size: 13px;"></i>
+                    <input type="text" name="search" class="filter-input" style="padding-left: 36px; min-width: 280px;" placeholder="Search roll, student, parent name or phone..." value="{{ search }}">
+                </div>
+
+                <button type="submit" class="btn-filter"><i class="fa-solid fa-filter"></i> Search</button>
+                {% if search %}
+                    <a href="{{ url_for('parents_view') }}" class="btn-clear"><i class="fa-solid fa-rotate-left"></i> Reset</a>
+                {% endif %}
+            </form>
+        </div>
+
+        <div class="toolbar-right">
+            {% if current_role in ('super_admin', 'admin') %}
+                <button type="button" class="btn-toolbar-add" data-modal-target="#addParentModal">
+                    <i class="fa-solid fa-user-group"></i> Link Parent Details
+                </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Parent & Guardian Directory Table Card -->
+    <div class="data-table-card">
+        <div class="card-header">
+            <div class="header-left">
+                <div class="card-badge-icon badge-blue">
+                    <i class="fa-solid fa-people-roof"></i>
+                </div>
+                <div>
+                    <h4 class="card-heading">Parent & Guardian Records</h4>
+                    <p class="card-subheading">Showing {{ parents|length }} of {{ total_records }} parent/guardian family profile(s)</p>
+                </div>
+            </div>
+            <span class="chart-tag"><i class="fa-solid fa-database"></i> Live MySQL Database</span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>Student</th>
+                        <th>Class</th>
+                        <th>Father Details</th>
+                        <th>Mother Details</th>
+                        <th>Primary Phone</th>
+                        <th>Email & Emergency</th>
+                        <th>Residential Address</th>
+                        {% if current_role in ('super_admin', 'admin') %}
+                            <th style="text-align: right; padding-right: 18px;">Actions</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if parents and parents|length > 0 %}
+                        {% for p in parents %}
+                        <tr>
+                            <td>
+                                <div class="student-name-cell">
+                                    <div class="mini-avatar">{{ p.STUDENT_NAME[0] | upper if p.STUDENT_NAME else 'S' }}</div>
+                                    <div>
+                                        <span class="student-name">{{ p.STUDENT_NAME }}</span>
+                                        <span class="roll-badge" style="display: block; margin-top: 2px;">#{{ p.ROLL_NUMBER }}</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td><span class="class-pill">{{ p.STUDENT_CLASS }}</span></td>
+                            <td>
+                                <div style="display: flex; flex-direction: column; gap: 2px;">
+                                    <span style="font-weight: 700; color: var(--text-main);">
+                                        <i class="fa-solid fa-user-tie" style="color: #2563eb; margin-right: 4px; font-size: 11px;"></i>
+                                        {{ p.FATHER_NAME or '—' }}
+                                    </span>
+                                    {% if p.FATHER_OCCUPATION %}
+                                        <span style="font-size: 11px; color: var(--text-muted);">{{ p.FATHER_OCCUPATION }}</span>
+                                    {% endif %}
+                                    {% if p.FATHER_PHONE %}
+                                        <span style="font-size: 11px; color: #475569;"><i class="fa-solid fa-phone" style="font-size: 10px;"></i> {{ p.FATHER_PHONE }}</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <div style="display: flex; flex-direction: column; gap: 2px;">
+                                    <span style="font-weight: 700; color: var(--text-main);">
+                                        <i class="fa-solid fa-user" style="color: #ec4899; margin-right: 4px; font-size: 11px;"></i>
+                                        {{ p.MOTHER_NAME or '—' }}
+                                    </span>
+                                    {% if p.MOTHER_OCCUPATION %}
+                                        <span style="font-size: 11px; color: var(--text-muted);">{{ p.MOTHER_OCCUPATION }}</span>
+                                    {% endif %}
+                                    {% if p.MOTHER_PHONE %}
+                                        <span style="font-size: 11px; color: #475569;"><i class="fa-solid fa-phone" style="font-size: 10px;"></i> {{ p.MOTHER_PHONE }}</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="roll-badge" style="background: #eff6ff; color: #1e40af; border-color: #bfdbfe; font-size: 12px; font-weight: 700;">
+                                    <i class="fa-solid fa-phone"></i> {{ p.PRIMARY_CONTACT }}
+                                </span>
+                                {% if p.RELATION %}
+                                    <span style="display: block; font-size: 11px; color: var(--text-muted); margin-top: 3px;">
+                                        Relation: {{ p.RELATION }}
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div style="display: flex; flex-direction: column; gap: 3px;">
+                                    {% if p.EMAIL %}
+                                        <span style="font-size: 12px; color: var(--text-main);">
+                                            <i class="fa-regular fa-envelope" style="color: #64748b; font-size: 11px;"></i> {{ p.EMAIL }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-dim" style="font-size: 11px;">No email</span>
+                                    {% endif %}
+                                    {% if p.EMERGENCY_CONTACT %}
+                                        <span style="font-size: 11px; color: #dc2626; font-weight: 600;">
+                                            <i class="fa-solid fa-truck-medical"></i> Emg: {{ p.EMERGENCY_CONTACT }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="text-dim" style="max-width: 220px; font-size: 12px;">
+                                <i class="fa-solid fa-location-dot" style="font-size: 11px; margin-right: 4px; color: var(--text-muted);"></i>
+                                {{ p.RESIDENTIAL_ADDRESS or 'N/A' }}
+                            </td>
+                            {% if current_role in ('super_admin', 'admin') %}
+                            <td style="text-align: right; white-space: nowrap; padding-right: 18px;">
+                                <button type="button" class="btn-action btn-edit" title="Edit Parent Details"
+                                    data-id="{{ p.ID }}"
+                                    data-roll="{{ p.ROLL_NUMBER }}"
+                                    data-sname="{{ p.STUDENT_NAME }}"
+                                    data-fname="{{ p.FATHER_NAME or '' }}"
+                                    data-focc="{{ p.FATHER_OCCUPATION or '' }}"
+                                    data-fphone="{{ p.FATHER_PHONE or '' }}"
+                                    data-mname="{{ p.MOTHER_NAME or '' }}"
+                                    data-mocc="{{ p.MOTHER_OCCUPATION or '' }}"
+                                    data-mphone="{{ p.MOTHER_PHONE or '' }}"
+                                    data-gname="{{ p.GUARDIAN_NAME or '' }}"
+                                    data-rel="{{ p.RELATION or 'Parent' }}"
+                                    data-contact="{{ p.PRIMARY_CONTACT or '' }}"
+                                    data-email="{{ p.EMAIL or '' }}"
+                                    data-address="{{ p.RESIDENTIAL_ADDRESS or '' }}"
+                                    data-emg="{{ p.EMERGENCY_CONTACT or '' }}"
+                                    data-income="{{ p.ANNUAL_INCOME or '0' }}"
+                                    onclick="openEditParentModal(this)">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                                <button type="button" class="btn-action btn-delete" title="Delete Parent Record"
+                                    data-id="{{ p.ID }}"
+                                    data-roll="{{ p.ROLL_NUMBER }}"
+                                    data-name="{{ p.STUDENT_NAME }}"
+                                    onclick="openDeleteParentModal(this)">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="8" class="empty-table-cell">
+                                <i class="fa-solid fa-people-roof"></i>
+                                <p>No parent/guardian records found.</p>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination Controls -->
+        {% if total_pages > 1 %}
+        <div class="pagination-footer">
+            <span class="pagination-info">Showing page {{ page }} of {{ total_pages }} ({{ total_records }} records)</span>
+            <div class="pagination-links">
+                {% if page > 1 %}
+                    <a href="{{ url_for('parents_view', page=page-1, search=search) }}" class="page-link">
+                        <i class="fa-solid fa-chevron-left"></i> Prev
+                    </a>
+                {% endif %}
+
+                {% for p in range(1, total_pages + 1) %}
+                    {% if p == page %}
+                        <span class="page-link current-page">{{ p }}</span>
+                    {% elif p <= 3 or p >= total_pages - 1 or (p >= page - 1 and p <= page + 1) %}
+                        <a href="{{ url_for('parents_view', page=p, search=search) }}" class="page-link">{{ p }}</a>
+                    {% elif p == 4 or p == total_pages - 2 %}
+                        <span class="page-link dots">&hellip;</span>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page < total_pages %}
+                    <a href="{{ url_for('parents_view', page=page+1, search=search) }}" class="page-link">
+                        Next <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+<!-- =========================================================================
+     MODALS
+     ========================================================================= -->
+
+{% if current_role in ('super_admin', 'admin') %}
+<!-- 1. Add / Link Parent Modal -->
+<div class="modal-overlay" id="addParentModal">
+    <div class="modal-dialog" style="max-width: 650px;">
+        <div class="modal-header">
+            <div class="modal-title-box">
+                <i class="fa-solid fa-user-group" style="color: var(--navy-700);"></i>
+                <h3 class="modal-title">Link Parent &amp; Guardian Details</h3>
+            </div>
+            <button type="button" class="modal-close-btn" data-modal-close>&times;</button>
+        </div>
+
+        <form action="{{ url_for('add_parent_route') }}" method="POST" class="modal-form">
+            <div class="form-grid">
+                
+                <div class="form-group full-width">
+                    <label class="form-label">Select Student <span class="required">*</span></label>
+                    <select name="roll_number" class="form-control" required>
+                        <option value="">-- Choose Student --</option>
+                        {% for s in students %}
+                            <option value="{{ s.ROLL_NUMBER }}">Roll #{{ s.ROLL_NUMBER }} - {{ s.NAME }} ({{ s.CLASS or 'General' }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Father's Details -->
+                <div class="form-group">
+                    <label class="form-label">Father's Full Name</label>
+                    <input type="text" name="father_name" class="form-control" placeholder="e.g. Sunil Sharma">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Father's Occupation</label>
+                    <input type="text" name="father_occupation" class="form-control" placeholder="e.g. Civil Engineer">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Father's Phone Number</label>
+                    <input type="text" name="father_phone" class="form-control" placeholder="10-digit number">
+                </div>
+
+                <!-- Mother's Details -->
+                <div class="form-group">
+                    <label class="form-label">Mother's Full Name</label>
+                    <input type="text" name="mother_name" class="form-control" placeholder="e.g. Sunita Sharma">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Mother's Occupation</label>
+                    <input type="text" name="mother_occupation" class="form-control" placeholder="e.g. Professor / Homemaker">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Mother's Phone Number</label>
+                    <input type="text" name="mother_phone" class="form-control" placeholder="10-digit number">
+                </div>
+
+                <!-- Contact & Reachability -->
+                <div class="form-group">
+                    <label class="form-label">Primary Contact Phone <span class="required">*</span></label>
+                    <input type="text" name="primary_contact" class="form-control" placeholder="Official mobile for SMS/Calls" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Parent Email Address</label>
+                    <input type="email" name="email" class="form-control" placeholder="parents@example.com">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Relationship with Student</label>
+                    <input type="text" name="relation" class="form-control" value="Father" placeholder="e.g. Father, Mother, Guardian">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Emergency Contact Phone</label>
+                    <input type="text" name="emergency_contact" class="form-control" placeholder="Emergency mobile number">
+                </div>
+
+                <div class="form-group full-width">
+                    <label class="form-label">Residential Address</label>
+                    <textarea name="address" class="form-control" rows="2" placeholder="Full residential street, sector, city"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Annual Family Income (INR)</label>
+                    <input type="number" step="1000" name="annual_income" class="form-control" placeholder="e.g. 1200000">
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn-modal-cancel" data-modal-close>Cancel</button>
+                <button type="submit" class="btn-modal-submit">
+                    <i class="fa-solid fa-check"></i> Save Parent Record
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 2. Edit Parent Modal -->
+<div class="modal-overlay" id="editParentModal">
+    <div class="modal-dialog" style="max-width: 650px;">
+        <div class="modal-header">
+            <div class="modal-title-box">
+                <i class="fa-solid fa-pen-to-square" style="color: var(--navy-700);"></i>
+                <h3 class="modal-title" id="editParentHeading">Update Parent Details</h3>
+            </div>
+            <button type="button" class="modal-close-btn" data-modal-close>&times;</button>
+        </div>
+
+        <form action="" method="POST" class="modal-form" id="editParentForm">
+            <div class="form-grid">
+                
+                <div class="form-group full-width">
+                    <label class="form-label">Linked Student</label>
+                    <input type="text" class="form-control" id="editParentStudentDisplay" disabled style="background: #f1f5f9; font-weight: 700;">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Father's Name</label>
+                    <input type="text" name="father_name" class="form-control" id="editFatherName">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Father's Occupation</label>
+                    <input type="text" name="father_occupation" class="form-control" id="editFatherOcc">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Father's Phone</label>
+                    <input type="text" name="father_phone" class="form-control" id="editFatherPhone">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Mother's Name</label>
+                    <input type="text" name="mother_name" class="form-control" id="editMotherName">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Mother's Occupation</label>
+                    <input type="text" name="mother_occupation" class="form-control" id="editMotherOcc">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Mother's Phone</label>
+                    <input type="text" name="mother_phone" class="form-control" id="editMotherPhone">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Primary Contact Phone <span class="required">*</span></label>
+                    <input type="text" name="primary_contact" class="form-control" id="editPrimaryContact" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Email Address</label>
+                    <input type="email" name="email" class="form-control" id="editEmail">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Relationship</label>
+                    <input type="text" name="relation" class="form-control" id="editRelation">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Emergency Phone</label>
+                    <input type="text" name="emergency_contact" class="form-control" id="editEmergency">
+                </div>
+
+                <div class="form-group full-width">
+                    <label class="form-label">Residential Address</label>
+                    <textarea name="address" class="form-control" id="editAddress" rows="2"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Annual Family Income (INR)</label>
+                    <input type="number" step="1000" name="annual_income" class="form-control" id="editIncome">
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn-modal-cancel" data-modal-close>Cancel</button>
+                <button type="submit" class="btn-modal-submit">
+                    <i class="fa-solid fa-check"></i> Update Record
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 3. Delete Parent Modal -->
+<div class="modal-overlay" id="deleteParentModal">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-header">
+            <div class="modal-title-box">
+                <i class="fa-solid fa-triangle-exclamation" style="color: #ef4444;"></i>
+                <h3 class="modal-title">Confirm Deletion</h3>
+            </div>
+            <button type="button" class="modal-close-btn" data-modal-close>&times;</button>
+        </div>
+
+        <form action="" method="POST" id="deleteParentForm">
+            <div class="modal-body-pad">
+                <p>Are you sure you want to delete the parent details record for student <strong id="deleteParentStudent"></strong> (Roll #<span id="deleteParentRoll"></span>)?</p>
+                <p class="warning-text"><i class="fa-solid fa-circle-exclamation"></i> This action removes family contact records from MySQL.</p>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn-modal-cancel" data-modal-close>Cancel</button>
+                <button type="submit" class="btn-modal-delete">
+                    <i class="fa-solid fa-trash-can"></i> Delete
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openEditParentModal(btn) {
+        const id = btn.getAttribute('data-id');
+        const roll = btn.getAttribute('data-roll');
+        const sname = btn.getAttribute('data-sname');
+        const fname = btn.getAttribute('data-fname');
+        const focc = btn.getAttribute('data-focc');
+        const fphone = btn.getAttribute('data-fphone');
+        const mname = btn.getAttribute('data-mname');
+        const mocc = btn.getAttribute('data-mocc');
+        const mphone = btn.getAttribute('data-mphone');
+        const rel = btn.getAttribute('data-rel');
+        const contact = btn.getAttribute('data-contact');
+        const email = btn.getAttribute('data-email');
+        const address = btn.getAttribute('data-address');
+        const emg = btn.getAttribute('data-emg');
+        const income = btn.getAttribute('data-income');
+
+        document.getElementById('editParentHeading').textContent = `Update Parent Details (Roll #${roll})`;
+        document.getElementById('editParentStudentDisplay').value = `Roll #${roll} - ${sname}`;
+        document.getElementById('editFatherName').value = fname;
+        document.getElementById('editFatherOcc').value = focc;
+        document.getElementById('editFatherPhone').value = fphone;
+        document.getElementById('editMotherName').value = mname;
+        document.getElementById('editMotherOcc').value = mocc;
+        document.getElementById('editMotherPhone').value = mphone;
+        document.getElementById('editPrimaryContact').value = contact;
+        document.getElementById('editEmail').value = email;
+        document.getElementById('editRelation').value = rel || 'Parent';
+        document.getElementById('editEmergency').value = emg;
+        document.getElementById('editAddress').value = address;
+        document.getElementById('editIncome').value = income;
+
+        const form = document.getElementById('editParentForm');
+        form.action = `/parents/edit/${id}`;
+
+        const modal = document.getElementById('editParentModal');
+        modal.classList.add('active');
+    }
+
+    function openDeleteParentModal(btn) {
+        const id = btn.getAttribute('data-id');
+        const roll = btn.getAttribute('data-roll');
+        const name = btn.getAttribute('data-name');
+
+        document.getElementById('deleteParentStudent').textContent = name;
+        document.getElementById('deleteParentRoll').textContent = roll;
+
+        const form = document.getElementById('deleteParentForm');
+        form.action = `/parents/delete/${id}`;
+
+        const modal = document.getElementById('deleteParentModal');
+        modal.classList.add('active');
+    }
+</script>
+{% endif %}
+
+{% endblock %}

@@ -4,7 +4,7 @@ import datetime
 import mysql.connector as ms
 from mysql.connector import Error
 from dotenv import load_dotenv
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 
 from utils import (
     get_connection,
@@ -157,12 +157,88 @@ def init_db_schema():
                     UNIQUE KEY unique_student_parent (ROLL_NUMBER)
                 )
             """)
-            con.commit()
+
+            # Ensure Book_Issues table exists (Issue/Return, Due Dates, Overdue & Fines)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS Book_Issues (
+                    ID INT AUTO_INCREMENT PRIMARY KEY,
+                    ISSUE_ID VARCHAR(30) UNIQUE NOT NULL,
+                    BOOK_ID VARCHAR(20) NOT NULL,
+                    BORROWER_TYPE ENUM('Student', 'Teacher') NOT NULL DEFAULT 'Student',
+                    BORROWER_ID VARCHAR(30) NOT NULL,
+                    BORROWER_NAME VARCHAR(100) NOT NULL,
+                    ISSUE_DATE DATE NOT NULL,
+                    DUE_DATE DATE NOT NULL,
+                    RETURN_DATE DATE NULL,
+                    STATUS ENUM('Issued', 'Returned', 'Overdue') NOT NULL DEFAULT 'Issued',
+                    FINE_AMOUNT DECIMAL(10, 2) DEFAULT 0.00,
+                    FINE_STATUS ENUM('None', 'Unpaid', 'Paid', 'Waived') DEFAULT 'None',
+                    REMARKS VARCHAR(255) NULL,
+                    CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
+            # Ensure Book_Reservations table exists
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS Book_Reservations (
+                    ID INT AUTO_INCREMENT PRIMARY KEY,
+                    RESERVATION_ID VARCHAR(30) UNIQUE NOT NULL,
+                    BOOK_ID VARCHAR(20) NOT NULL,
+                    BORROWER_TYPE ENUM('Student', 'Teacher') NOT NULL DEFAULT 'Student',
+                    BORROWER_ID VARCHAR(30) NOT NULL,
+                    BORROWER_NAME VARCHAR(100) NOT NULL,
+                    RESERVE_DATE DATE NOT NULL,
+                    EXPIRY_DATE DATE NULL,
+                    STATUS ENUM('Pending', 'Ready for Pickup', 'Fulfilled', 'Cancelled') NOT NULL DEFAULT 'Pending',
+                    NOTES VARCHAR(255) NULL,
+                    CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
+            # Ensure Books_Details has extended attributes (shelf location, ISBN, publisher)
+            for col_def in [
+                ("SHELF_LOCATION", "VARCHAR(50) DEFAULT NULL"),
+                ("ISBN", "VARCHAR(30) DEFAULT NULL"),
+                ("PUBLISHER", "VARCHAR(100) DEFAULT NULL")
+            ]:
+                col_name, col_type = col_def
+                cur.execute("""
+                    SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'Books_Details' AND COLUMN_NAME = %s
+                """, (col_name,))
+                if not cur.fetchone():
+                    cur.execute(f"ALTER TABLE Books_Details ADD COLUMN {col_name} {col_type}")
+                    con.commit()
         except Error as e:
             print("Schema Init Notice:", e)
         finally:
             cur.close()
             con.close()
+
+    try:
+        from Coursework_Management_System import create_coursework_tables
+        create_coursework_tables()
+    except Exception as _cw_err:
+        print("Coursework schema init notice:", _cw_err)
+    try:
+        from Health_Discipline_Management_System import create_health_discipline_tables, seed_health_discipline_data
+        create_health_discipline_tables()
+        seed_health_discipline_data()
+    except Exception as _hd_err:
+        print("Health & Discipline schema init notice:", _hd_err)
+    try:
+        from Calendar_PTM_Management_System import create_calendar_ptm_tables, seed_calendar_ptm_data
+        create_calendar_ptm_tables()
+        seed_calendar_ptm_data()
+    except Exception as _cptm_err:
+        print("Calendar & PTM schema init notice:", _cptm_err)
+    try:
+        from Analytics_Management_System import init_analytics_tables
+        init_analytics_tables()
+    except Exception as _ams_err:
+        print("Performance Analytics schema init notice:", _ams_err)
+
+
 
 init_db_schema()
 
@@ -456,10 +532,17 @@ def dashboard():
         a["formatted_date"] = p_date.strftime("%b %d, %Y") if p_date else "Recent"
         announcements.append(a)
 
-    # 8. Upcoming Academic Events & Milestones
+    # 8. Upcoming Academic Events & Milestones (Synchronized with School_Events)
     today = datetime.date.today()
-    cur.execute("SELECT ID, TITLE, EVENT_DATE, CATEGORY, LOCATION FROM academic_events ORDER BY EVENT_DATE ASC LIMIT 4")
-    raw_events = cur.fetchall()
+    try:
+        cur.execute("SELECT ID, TITLE, EVENT_DATE, CATEGORY, LOCATION FROM School_Events WHERE EVENT_DATE >= %s AND STATUS != 'Cancelled' ORDER BY EVENT_DATE ASC LIMIT 4", (today,))
+        raw_events = cur.fetchall()
+        if not raw_events:
+            cur.execute("SELECT ID, TITLE, EVENT_DATE, CATEGORY, LOCATION FROM School_Events ORDER BY EVENT_DATE ASC LIMIT 4")
+            raw_events = cur.fetchall()
+    except Exception:
+        cur.execute("SELECT ID, TITLE, EVENT_DATE, CATEGORY, LOCATION FROM academic_events ORDER BY EVENT_DATE ASC LIMIT 4")
+        raw_events = cur.fetchall()
     academic_events = []
     for ev in raw_events:
         ed = ev.get("EVENT_DATE")
@@ -1514,15 +1597,179 @@ def delete_user_route(id):
 @app.route("/library")
 @login_required
 def library_view():
+    tab = request.args.get("tab", "catalogue").strip().lower()
+    search = request.args.get("search", "").strip()
+    selected_genre = request.args.get("genre", "").strip()
+    selected_status = request.args.get("status", "").strip()
+
     con = get_connection()
     books = []
+    issues = []
+    overdue_issues = []
+    reservations = []
+    students = []
+    teachers = []
+    genres = set()
+    stats = {
+        "total_titles": 0,
+        "total_copies": 0,
+        "available_copies": 0,
+        "issued_copies": 0,
+        "overdue_count": 0,
+        "total_fines_unpaid": 0.0,
+        "total_fines_collected": 0.0,
+        "active_reservations": 0
+    }
+
     if con:
         cur = con.cursor(dictionary=True)
-        cur.execute("SELECT * FROM Books_Details ORDER BY ID DESC")
-        books = cur.fetchall()
+        today = datetime.date.today()
+
+        # 1. Fetch Books Catalogue
+        cur.execute("SELECT * FROM Books_Details ORDER BY ID ASC")
+        all_books = cur.fetchall()
+        for b in all_books:
+            if b.get("GENRE"):
+                genres.add(b["GENRE"])
+            b["issued_copies"] = max(0, b["TOTAL_COPIES"] - b["AVAILABLE_COPIES"])
+            b["stock_status"] = "in_stock" if b["AVAILABLE_COPIES"] > 2 else ("low_stock" if b["AVAILABLE_COPIES"] > 0 else "out_of_stock")
+
+        # Filter books if search or genre specified
+        for b in all_books:
+            match_search = True
+            if search and tab == "catalogue":
+                s_lower = search.lower()
+                match_search = (s_lower in b["BOOK_ID"].lower() or 
+                                s_lower in b["TITLE"].lower() or 
+                                s_lower in (b["AUTHOR"] or "").lower() or
+                                s_lower in (b.get("SHELF_LOCATION") or "").lower())
+            match_genre = True
+            if selected_genre:
+                match_genre = (b.get("GENRE") == selected_genre)
+            if match_search and match_genre:
+                books.append(b)
+
+        # 2. Fetch All Issues
+        cur.execute("""
+            SELECT i.*, b.TITLE AS BOOK_TITLE, b.AUTHOR AS BOOK_AUTHOR, b.GENRE AS BOOK_GENRE, b.SHELF_LOCATION
+            FROM Book_Issues i
+            LEFT JOIN Books_Details b ON i.BOOK_ID = b.BOOK_ID
+            ORDER BY i.ID DESC
+        """)
+        all_issues = cur.fetchall()
+
+        for iss in all_issues:
+            due = iss["DUE_DATE"]
+            return_dt = iss.get("RETURN_DATE")
+            
+            iss["issue_date_fmt"] = iss["ISSUE_DATE"].strftime("%b %d, %Y")
+            iss["due_date_fmt"] = due.strftime("%b %d, %Y")
+            iss["return_date_fmt"] = return_dt.strftime("%b %d, %Y") if return_dt else None
+
+            if iss["STATUS"] == "Issued":
+                if today > due:
+                    iss["is_overdue"] = True
+                    iss["days_overdue"] = (today - due).days
+                    iss["days_left"] = 0
+                    iss["display_status"] = "Overdue"
+                    computed_fine = iss["days_overdue"] * 5.00
+                    if float(iss.get("FINE_AMOUNT") or 0.0) < computed_fine and iss.get("FINE_STATUS") != "Paid":
+                        iss["FINE_AMOUNT"] = computed_fine
+                        if iss["FINE_STATUS"] == "None":
+                            iss["FINE_STATUS"] = "Unpaid"
+                else:
+                    iss["is_overdue"] = False
+                    iss["days_overdue"] = 0
+                    iss["days_left"] = (due - today).days
+                    iss["display_status"] = "Active"
+            else:
+                iss["is_overdue"] = False
+                iss["days_overdue"] = 0
+                iss["days_left"] = 0
+                iss["display_status"] = "Returned"
+
+            match_issue_search = True
+            if search and tab in ("issues", "fines"):
+                s_lower = search.lower()
+                match_issue_search = (s_lower in iss["ISSUE_ID"].lower() or
+                                      s_lower in iss["BOOK_ID"].lower() or
+                                      s_lower in (iss.get("BOOK_TITLE") or "").lower() or
+                                      s_lower in iss["BORROWER_NAME"].lower() or
+                                      s_lower in iss["BORROWER_ID"].lower())
+            match_status = True
+            if selected_status:
+                if selected_status == "overdue":
+                    match_status = iss.get("is_overdue", False)
+                elif selected_status == "active":
+                    match_status = (iss["STATUS"] == "Issued" and not iss.get("is_overdue"))
+                elif selected_status == "returned":
+                    match_status = (iss["STATUS"] == "Returned")
+
+            if match_issue_search and match_status:
+                issues.append(iss)
+
+            if iss.get("is_overdue") or (float(iss.get("FINE_AMOUNT") or 0.0) > 0 and iss.get("FINE_STATUS") == "Unpaid"):
+                overdue_issues.append(iss)
+
+        # 3. Fetch Book Reservations
+        cur.execute("""
+            SELECT r.*, b.TITLE AS BOOK_TITLE, b.AUTHOR AS BOOK_AUTHOR, b.AVAILABLE_COPIES
+            FROM Book_Reservations r
+            LEFT JOIN Books_Details b ON r.BOOK_ID = b.BOOK_ID
+            ORDER BY r.ID DESC
+        """)
+        all_reservations = cur.fetchall()
+        for res_item in all_reservations:
+            res_item["reserve_date_fmt"] = res_item["RESERVE_DATE"].strftime("%b %d, %Y")
+            res_item["expiry_date_fmt"] = res_item["EXPIRY_DATE"].strftime("%b %d, %Y") if res_item.get("EXPIRY_DATE") else None
+            match_res = True
+            if search and tab == "reservations":
+                s_lower = search.lower()
+                match_res = (s_lower in res_item["RESERVATION_ID"].lower() or
+                             s_lower in res_item["BOOK_ID"].lower() or
+                             s_lower in (res_item.get("BOOK_TITLE") or "").lower() or
+                             s_lower in res_item["BORROWER_NAME"].lower() or
+                             s_lower in res_item["BORROWER_ID"].lower())
+            if match_res:
+                reservations.append(res_item)
+
+        # 4. Fetch Students & Faculty for autocompletion dropdowns
+        cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM Students_Details ORDER BY ROLL_NUMBER ASC")
+        students = cur.fetchall()
+
+        cur.execute("SELECT TEACHER_ID, NAME, SUBJECT FROM Teachers_Details ORDER BY TEACHER_ID ASC")
+        teachers = cur.fetchall()
+
+        # Compute Summary Stats
+        stats["total_titles"] = len(all_books)
+        stats["total_copies"] = sum(b["TOTAL_COPIES"] for b in all_books)
+        stats["available_copies"] = sum(b["AVAILABLE_COPIES"] for b in all_books)
+        stats["issued_copies"] = sum(1 for i in all_issues if i["STATUS"] == "Issued")
+        stats["overdue_count"] = sum(1 for i in all_issues if i["STATUS"] == "Issued" and i.get("is_overdue"))
+        stats["total_fines_unpaid"] = sum(float(i.get("FINE_AMOUNT") or 0.0) for i in all_issues if i.get("FINE_STATUS") == "Unpaid")
+        stats["total_fines_collected"] = sum(float(i.get("FINE_AMOUNT") or 0.0) for i in all_issues if i.get("FINE_STATUS") == "Paid")
+        stats["active_reservations"] = sum(1 for r in all_reservations if r["STATUS"] in ("Pending", "Ready for Pickup"))
+
         cur.close()
         con.close()
-    return render_template("library.html", active_page="library", title="Library Catalog", books=books)
+
+    return render_template(
+        "library.html",
+        active_page="library",
+        title="Library & Resource Management",
+        tab=tab,
+        search=search,
+        selected_genre=selected_genre,
+        selected_status=selected_status,
+        books=books,
+        issues=issues,
+        overdue_issues=overdue_issues,
+        reservations=reservations,
+        students=students,
+        teachers=teachers,
+        genres=sorted(list(genres)),
+        stats=stats
+    )
 
 
 @app.route("/attendance")
@@ -1768,6 +2015,10 @@ def add_exam_mark_route():
     return redirect(url_for("exams_view"))
 
 
+# -------------------------------------------------------------------------
+# LIBRARY MANAGEMENT ROUTES (CATALOGUE, ISSUE/RETURN, DUE DATES, FINES, RESERVATIONS)
+# -------------------------------------------------------------------------
+
 @app.route("/library/add", methods=["POST"], endpoint="add_book")
 @role_required(["super_admin", "admin"])
 def add_book_route():
@@ -1775,11 +2026,14 @@ def add_book_route():
     title = request.form.get("title", "").strip()
     author = request.form.get("author", "").strip()
     genre = request.form.get("genre", "").strip()
+    shelf = request.form.get("shelf_location", "").strip() or None
+    isbn = request.form.get("isbn", "").strip() or None
+    publisher = request.form.get("publisher", "").strip() or None
     copies_raw = request.form.get("copies", "1").strip()
 
     if not book_id or not title:
         flash("Validation Error: Book ID and Title are required.", "warning")
-        return redirect(url_for("library_view"))
+        return redirect(url_for("library_view", tab="catalogue"))
 
     try:
         copies = max(1, int(copies_raw))
@@ -1792,14 +2046,15 @@ def add_book_route():
         try:
             cur.execute("SELECT 1 FROM Books_Details WHERE BOOK_ID = %s", (book_id,))
             if cur.fetchone():
-                flash(f"Validation Error: Book ID '{book_id}' already exists.", "danger")
+                flash(f"Validation Error: Book ID '{book_id}' already exists in catalogue.", "danger")
             else:
                 cur.execute("""
-                    INSERT INTO Books_Details (BOOK_ID, TITLE, AUTHOR, GENRE, TOTAL_COPIES, AVAILABLE_COPIES)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                """, (book_id, title, author, genre, copies, copies))
+                    INSERT INTO Books_Details 
+                    (BOOK_ID, TITLE, AUTHOR, GENRE, TOTAL_COPIES, AVAILABLE_COPIES, SHELF_LOCATION, ISBN, PUBLISHER)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (book_id, title, author, genre, copies, copies, shelf, isbn, publisher))
                 con.commit()
-                log_history(session.get("username", "Admin"), f"Added book ID {book_id}")
+                log_history(session.get("username", "Admin"), f"Added book ID {book_id} ({title})")
                 flash(f"Book '{title}' added to library catalog successfully!", "success")
         except Error as e:
             flash(f"Database Error: {e}", "danger")
@@ -1807,7 +2062,386 @@ def add_book_route():
             cur.close()
             con.close()
 
-    return redirect(url_for("library_view"))
+    return redirect(url_for("library_view", tab="catalogue"))
+
+
+@app.route("/library/edit/<book_id>", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def edit_book_route(book_id):
+    title = request.form.get("title", "").strip()
+    author = request.form.get("author", "").strip()
+    genre = request.form.get("genre", "").strip()
+    shelf = request.form.get("shelf_location", "").strip() or None
+    isbn = request.form.get("isbn", "").strip() or None
+    publisher = request.form.get("publisher", "").strip() or None
+    total_copies_raw = request.form.get("total_copies", "").strip()
+
+    if not title:
+        flash("Title cannot be empty.", "warning")
+        return redirect(url_for("library_view", tab="catalogue"))
+
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("SELECT * FROM Books_Details WHERE BOOK_ID = %s", (book_id,))
+            book = cur.fetchone()
+            if not book:
+                flash("Book not found.", "danger")
+                return redirect(url_for("library_view", tab="catalogue"))
+
+            if total_copies_raw:
+                try:
+                    new_total = max(1, int(total_copies_raw))
+                    issued_count = max(0, book["TOTAL_COPIES"] - book["AVAILABLE_COPIES"])
+                    if new_total < issued_count:
+                        flash(f"Cannot reduce total copies below {issued_count} (currently issued copies).", "danger")
+                        return redirect(url_for("library_view", tab="catalogue"))
+                    new_available = new_total - issued_count
+                except ValueError:
+                    new_total = book["TOTAL_COPIES"]
+                    new_available = book["AVAILABLE_COPIES"]
+            else:
+                new_total = book["TOTAL_COPIES"]
+                new_available = book["AVAILABLE_COPIES"]
+
+            cur.execute("""
+                UPDATE Books_Details 
+                SET TITLE = %s, AUTHOR = %s, GENRE = %s, TOTAL_COPIES = %s, AVAILABLE_COPIES = %s,
+                    SHELF_LOCATION = %s, ISBN = %s, PUBLISHER = %s
+                WHERE BOOK_ID = %s
+            """, (title, author, genre, new_total, new_available, shelf, isbn, publisher, book_id))
+            con.commit()
+
+            curr_user = session.get("username", "Admin")
+            log_history(curr_user, f"Updated book {book_id} ({title})")
+            flash(f"Book '{title}' updated successfully!", "success")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("library_view", tab="catalogue"))
+
+
+@app.route("/library/delete/<book_id>", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def delete_book_route(book_id):
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("SELECT COUNT(*) AS c FROM Book_Issues WHERE BOOK_ID = %s AND STATUS = 'Issued'", (book_id,))
+            if cur.fetchone()["c"] > 0:
+                flash("Cannot delete book: Copies of this book are currently issued to students or faculty!", "danger")
+                return redirect(url_for("library_view", tab="catalogue"))
+
+            cur.execute("DELETE FROM Books_Details WHERE BOOK_ID = %s", (book_id,))
+            con.commit()
+
+            curr_user = session.get("username", "Admin")
+            log_history(curr_user, f"Deleted book {book_id} from catalogue")
+            flash(f"Book {book_id} deleted successfully from catalogue.", "info")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("library_view", tab="catalogue"))
+
+
+@app.route("/library/issue", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def issue_book_route():
+    book_id = request.form.get("book_id", "").strip()
+    borrower_type = request.form.get("borrower_type", "Student").strip()
+    borrower_id = request.form.get("borrower_id", "").strip()
+    borrower_name = request.form.get("borrower_name", "").strip()
+    due_days_str = request.form.get("due_days", "14").strip()
+    remarks = request.form.get("remarks", "").strip() or None
+
+    try:
+        due_days = max(1, int(due_days_str))
+    except ValueError:
+        due_days = 14
+
+    if not book_id or not borrower_id or not borrower_name:
+        flash("Validation Error: Book, Borrower ID, and Name are required.", "warning")
+        return redirect(url_for("library_view", tab="issues"))
+
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("SELECT * FROM Books_Details WHERE BOOK_ID = %s", (book_id,))
+            book = cur.fetchone()
+            if not book:
+                flash(f"Error: Book ID '{book_id}' does not exist.", "danger")
+                return redirect(url_for("library_view", tab="issues"))
+
+            if book["AVAILABLE_COPIES"] <= 0:
+                flash(f"Stock Error: No copies of '{book['TITLE']}' are available. Please place a reservation instead.", "danger")
+                return redirect(url_for("library_view", tab="reservations"))
+
+            today = datetime.date.today()
+            due_date = today + datetime.timedelta(days=due_days)
+
+            # Generate issue ID
+            cur.execute("SELECT MAX(ID) AS max_id FROM Book_Issues")
+            next_num = (cur.fetchone()["max_id"] or 0) + 1
+            issue_id = f"ISS-{today.year}-{next_num:04d}"
+
+            cur.execute("""
+                INSERT INTO Book_Issues 
+                (ISSUE_ID, BOOK_ID, BORROWER_TYPE, BORROWER_ID, BORROWER_NAME, ISSUE_DATE, DUE_DATE, STATUS, REMARKS)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'Issued', %s)
+            """, (issue_id, book_id, borrower_type, borrower_id, borrower_name, today, due_date, remarks))
+
+            cur.execute("UPDATE Books_Details SET AVAILABLE_COPIES = AVAILABLE_COPIES - 1 WHERE BOOK_ID = %s", (book_id,))
+            con.commit()
+
+            curr_user = session.get("username", "Admin")
+            log_history(curr_user, f"Issued book {book_id} ({book['TITLE']}) to {borrower_type} {borrower_name} ({borrower_id})")
+            flash(f"Book '{book['TITLE']}' issued successfully to {borrower_name}! Due date: {due_date.strftime('%b %d, %Y')}.", "success")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("library_view", tab="issues"))
+
+
+@app.route("/library/return/<int:id>", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def return_book_route(id):
+    fine_collected = request.form.get("fine_collected") == "yes"
+
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("""
+                SELECT i.*, b.TITLE 
+                FROM Book_Issues i
+                LEFT JOIN Books_Details b ON i.BOOK_ID = b.BOOK_ID
+                WHERE i.ID = %s
+            """, (id,))
+            iss = cur.fetchone()
+            if not iss:
+                flash("Issue record not found.", "warning")
+                return redirect(url_for("library_view", tab="issues"))
+
+            if iss["STATUS"] == "Returned":
+                flash("Book has already been returned.", "info")
+                return redirect(url_for("library_view", tab="issues"))
+
+            today = datetime.date.today()
+            due = iss["DUE_DATE"]
+            days_overdue = (today - due).days if today > due else 0
+            fine_amount = days_overdue * 5.00 # Rs 5 per day
+
+            if days_overdue > 0:
+                fine_status = "Paid" if fine_collected else "Unpaid"
+            else:
+                fine_amount = 0.00
+                fine_status = "None"
+
+            cur.execute("""
+                UPDATE Book_Issues 
+                SET RETURN_DATE = %s,
+                    STATUS = 'Returned',
+                    FINE_AMOUNT = %s,
+                    FINE_STATUS = %s
+                WHERE ID = %s
+            """, (today, fine_amount, fine_status, id))
+
+            # Increment available copies (bounded by total copies)
+            cur.execute("""
+                UPDATE Books_Details 
+                SET AVAILABLE_COPIES = LEAST(TOTAL_COPIES, AVAILABLE_COPIES + 1)
+                WHERE BOOK_ID = %s
+            """, (iss["BOOK_ID"],))
+
+            # Check if any pending reservation exists
+            cur.execute("""
+                SELECT * FROM Book_Reservations 
+                WHERE BOOK_ID = %s AND STATUS = 'Pending' 
+                ORDER BY ID ASC LIMIT 1
+            """, (iss["BOOK_ID"],))
+            pending_res = cur.fetchone()
+            res_notice = ""
+            if pending_res:
+                cur.execute("UPDATE Book_Reservations SET STATUS = 'Ready for Pickup' WHERE ID = %s", (pending_res["ID"],))
+                res_notice = f" • Notification: Reservation #{pending_res['RESERVATION_ID']} for {pending_res['BORROWER_NAME']} is now Ready for Pickup!"
+            
+            con.commit()
+            curr_user = session.get("username", "Admin")
+            log_history(curr_user, f"Returned book {iss['BOOK_ID']} (Issue {iss['ISSUE_ID']}), fine: Rs. {fine_amount} ({fine_status})")
+            
+            fine_msg = f" Overdue fine: ₹{fine_amount:.2f} ({fine_status})." if fine_amount > 0 else " Returned on time (No fine)."
+            flash(f"Book '{iss['TITLE']}' returned successfully!{fine_msg}{res_notice}", "success")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("library_view", tab="issues"))
+
+
+@app.route("/library/fines/<int:id>", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def resolve_fine_route(id):
+    action = request.form.get("action", "pay").strip().lower() # 'pay' or 'waive'
+
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("SELECT * FROM Book_Issues WHERE ID = %s", (id,))
+            iss = cur.fetchone()
+            if not iss:
+                flash("Record not found.", "warning")
+                return redirect(url_for("library_view", tab="fines"))
+
+            new_status = "Paid" if action == "pay" else "Waived"
+            cur.execute("UPDATE Book_Issues SET FINE_STATUS = %s WHERE ID = %s", (new_status, id))
+            con.commit()
+
+            curr_user = session.get("username", "Admin")
+            log_history(curr_user, f"{new_status} fine of Rs. {iss['FINE_AMOUNT']} for Issue {iss['ISSUE_ID']} ({iss['BORROWER_NAME']})")
+            flash(f"Fine for Issue {iss['ISSUE_ID']} ({iss['BORROWER_NAME']}) marked as {new_status.upper()} successfully!", "success")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("library_view", tab="fines"))
+
+
+@app.route("/library/reserve", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def reserve_book_route():
+    book_id = request.form.get("book_id", "").strip()
+    borrower_type = request.form.get("borrower_type", "Student").strip()
+    borrower_id = request.form.get("borrower_id", "").strip()
+    borrower_name = request.form.get("borrower_name", "").strip()
+    notes = request.form.get("notes", "").strip() or None
+
+    if not book_id or not borrower_id or not borrower_name:
+        flash("Validation Error: Book ID, Borrower ID, and Name are required.", "warning")
+        return redirect(url_for("library_view", tab="reservations"))
+
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("SELECT * FROM Books_Details WHERE BOOK_ID = %s", (book_id,))
+            book = cur.fetchone()
+            if not book:
+                flash(f"Error: Book ID '{book_id}' does not exist.", "danger")
+                return redirect(url_for("library_view", tab="reservations"))
+
+            today = datetime.date.today()
+            expiry = today + datetime.timedelta(days=7)
+
+            cur.execute("SELECT MAX(ID) AS max_id FROM Book_Reservations")
+            next_num = (cur.fetchone()["max_id"] or 0) + 1
+            res_id = f"RES-{today.year}-{next_num:04d}"
+
+            status = "Ready for Pickup" if book["AVAILABLE_COPIES"] > 0 else "Pending"
+
+            cur.execute("""
+                INSERT INTO Book_Reservations 
+                (RESERVATION_ID, BOOK_ID, BORROWER_TYPE, BORROWER_ID, BORROWER_NAME, RESERVE_DATE, EXPIRY_DATE, STATUS, NOTES)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (res_id, book_id, borrower_type, borrower_id, borrower_name, today, expiry, status, notes))
+            con.commit()
+
+            curr_user = session.get("username", "Admin")
+            log_history(curr_user, f"Created reservation {res_id} for book {book_id} ({borrower_name})")
+            flash(f"Reservation placed for '{book['TITLE']}' ({borrower_name})! Status: {status}.", "success")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("library_view", tab="reservations"))
+
+
+@app.route("/library/reserve/fulfill/<int:id>", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def fulfill_reservation_route(id):
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("""
+                SELECT r.*, b.TITLE, b.AVAILABLE_COPIES 
+                FROM Book_Reservations r
+                LEFT JOIN Books_Details b ON r.BOOK_ID = b.BOOK_ID
+                WHERE r.ID = %s AND r.STATUS IN ('Pending', 'Ready for Pickup')
+            """, (id,))
+            res_item = cur.fetchone()
+            if not res_item:
+                flash("Active reservation not found.", "warning")
+                return redirect(url_for("library_view", tab="reservations"))
+
+            if res_item["AVAILABLE_COPIES"] <= 0:
+                flash(f"Cannot fulfill: No available stock for '{res_item['TITLE']}' right now.", "danger")
+                return redirect(url_for("library_view", tab="reservations"))
+
+            today = datetime.date.today()
+            due_date = today + datetime.timedelta(days=14)
+
+            cur.execute("SELECT MAX(ID) AS max_id FROM Book_Issues")
+            next_num = (cur.fetchone()["max_id"] or 0) + 1
+            issue_id = f"ISS-{today.year}-{next_num:04d}"
+
+            cur.execute("""
+                INSERT INTO Book_Issues 
+                (ISSUE_ID, BOOK_ID, BORROWER_TYPE, BORROWER_ID, BORROWER_NAME, ISSUE_DATE, DUE_DATE, STATUS, REMARKS)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'Issued', %s)
+            """, (issue_id, res_item["BOOK_ID"], res_item["BORROWER_TYPE"], res_item["BORROWER_ID"], res_item["BORROWER_NAME"], today, due_date, f"Fulfilled from {res_item['RESERVATION_ID']}"))
+
+            cur.execute("UPDATE Book_Reservations SET STATUS = 'Fulfilled' WHERE ID = %s", (id,))
+            cur.execute("UPDATE Books_Details SET AVAILABLE_COPIES = AVAILABLE_COPIES - 1 WHERE BOOK_ID = %s", (res_item["BOOK_ID"],))
+            con.commit()
+
+            curr_user = session.get("username", "Admin")
+            log_history(curr_user, f"Fulfilled reservation {res_item['RESERVATION_ID']} -> Issue {issue_id}")
+            flash(f"Reservation fulfilled! Book '{res_item['TITLE']}' issued to {res_item['BORROWER_NAME']} (Issue ID: {issue_id}, Due: {due_date.strftime('%b %d, %Y')}).", "success")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("library_view", tab="issues"))
+
+
+@app.route("/library/reserve/cancel/<int:id>", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def cancel_reservation_route(id):
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("UPDATE Book_Reservations SET STATUS = 'Cancelled' WHERE ID = %s AND STATUS IN ('Pending', 'Ready for Pickup')", (id,))
+            con.commit()
+            flash("Reservation has been cancelled.", "info")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("library_view", tab="reservations"))
 
 
 @app.route("/fees/add", methods=["POST"], endpoint="add_fee")
@@ -1860,6 +2494,2022 @@ def add_fee_route():
 
 
 # -------------------------------------------------------------------------
+
+
+# -------------------------------------------------------------------------
+# 6B. COURSEWORK, ASSIGNMENTS, STUDY MATERIALS, COURSES & ONLINE QUIZZES
+# -------------------------------------------------------------------------
+
+@app.route("/coursework")
+@login_required
+def coursework_view():
+    tab = request.args.get("tab", "assignments").strip().lower()
+    search = request.args.get("search", "").strip()
+    selected_subject = request.args.get("subject", "").strip()
+    selected_class = request.args.get("class", "").strip()
+    selected_status = request.args.get("status", "").strip()
+    take_quiz_code = request.args.get("take_quiz", "").strip()
+
+    con = get_connection()
+    all_assignments = []
+    assignments = []
+    all_materials = []
+    materials = []
+    all_submissions = []
+    submissions = []
+    courses = []
+    quizzes = []
+    quiz_questions_map = {}
+    quiz_attempts = []
+    students = []
+    teachers = []
+    subjects = set()
+    classes = ["Grade 9", "Grade 10", "Grade 11", "Grade 12"]
+
+    stats = {
+        "total_assignments": 0,
+        "active_assignments": 0,
+        "total_materials": 0,
+        "total_submissions": 0,
+        "pending_reviews": 0,
+        "total_courses": 0,
+        "total_quizzes": 0,
+        "total_attempts": 0,
+    }
+
+    if con:
+        cur = con.cursor(dictionary=True)
+        today = datetime.date.today()
+
+        try:
+            # 1. Fetch Assignments
+            cur.execute("""
+                SELECT a.*,
+                       (SELECT COUNT(*) FROM Assignment_Submissions s WHERE s.ASSIGNMENT_CODE = a.ASSIGNMENT_CODE) AS SUBMISSION_COUNT
+                FROM Assignments a
+                ORDER BY a.ID DESC
+            """)
+            all_assignments = cur.fetchall()
+            for a in all_assignments:
+                if a.get("SUBJECT"):
+                    subjects.add(a["SUBJECT"])
+                due = a.get("DUE_DATE")
+                if due:
+                    a["is_overdue"] = (today > due)
+                    a["days_left"] = (due - today).days
+                    a["due_date_fmt"] = due.strftime("%b %d, %Y")
+                else:
+                    a["is_overdue"] = False
+                    a["days_left"] = 0
+                    a["due_date_fmt"] = "-"
+                a["assigned_date_fmt"] = a["ASSIGNED_DATE"].strftime("%b %d, %Y") if a.get("ASSIGNED_DATE") else "-"
+
+            # Filter assignments
+            for a in all_assignments:
+                match_search = True
+                if search and tab == "assignments":
+                    s_lower = search.lower()
+                    match_search = (
+                        s_lower in a["ASSIGNMENT_CODE"].lower() or
+                        s_lower in a["TITLE"].lower() or
+                        s_lower in a["SUBJECT"].lower() or
+                        s_lower in (a.get("TEACHER_NAME") or "").lower()
+                    )
+                match_subj = True
+                if selected_subject and tab == "assignments":
+                    match_subj = (a.get("SUBJECT") == selected_subject)
+                match_cls = True
+                if selected_class and tab == "assignments":
+                    match_cls = (a.get("CLASS") == selected_class)
+                match_st = True
+                if selected_status and tab == "assignments":
+                    match_st = (a.get("STATUS") == selected_status)
+
+                if match_search and match_subj and match_cls and match_st:
+                    assignments.append(a)
+
+            # 2. Fetch Study Materials
+            cur.execute("SELECT * FROM Study_Materials ORDER BY ID DESC")
+            all_materials = cur.fetchall()
+            for m in all_materials:
+                if m.get("SUBJECT"):
+                    subjects.add(m["SUBJECT"])
+                m["upload_date_fmt"] = m["UPLOAD_DATE"].strftime("%b %d, %Y") if m.get("UPLOAD_DATE") else "-"
+
+            # Filter materials
+            for m in all_materials:
+                match_search = True
+                if search and tab == "materials":
+                    s_lower = search.lower()
+                    match_search = (
+                        s_lower in m["MATERIAL_CODE"].lower() or
+                        s_lower in m["TITLE"].lower() or
+                        s_lower in m["SUBJECT"].lower() or
+                        s_lower in (m.get("TOPIC") or "").lower() or
+                        s_lower in (m.get("UPLOADED_BY") or "").lower()
+                    )
+                match_subj = True
+                if selected_subject and tab == "materials":
+                    match_subj = (m.get("SUBJECT") == selected_subject)
+                match_cls = True
+                if selected_class and tab == "materials":
+                    match_cls = (m.get("CLASS") == selected_class)
+
+                if match_search and match_subj and match_cls:
+                    materials.append(m)
+
+            # 3. Fetch Submissions
+            cur.execute("""
+                SELECT s.*,
+                       a.TITLE AS ASSIGNMENT_TITLE,
+                       a.SUBJECT AS ASSIGNMENT_SUBJECT,
+                       a.MAX_MARKS,
+                       a.DUE_DATE AS ASSIGNMENT_DUE_DATE
+                FROM Assignment_Submissions s
+                LEFT JOIN Assignments a ON s.ASSIGNMENT_CODE = a.ASSIGNMENT_CODE
+                ORDER BY s.ID DESC
+            """)
+            all_submissions = cur.fetchall()
+            for s in all_submissions:
+                s["submitted_date_fmt"] = s["SUBMITTED_DATE"].strftime("%b %d, %Y") if s.get("SUBMITTED_DATE") else "-"
+                s["reviewed_date_fmt"] = s["REVIEWED_DATE"].strftime("%b %d, %Y") if s.get("REVIEWED_DATE") else "-"
+
+            # Filter submissions
+            for s in all_submissions:
+                match_search = True
+                if search and tab == "submissions":
+                    s_lower = search.lower()
+                    match_search = (
+                        s_lower in s["SUBMISSION_CODE"].lower() or
+                        s_lower in s["ASSIGNMENT_CODE"].lower() or
+                        s_lower in s["STUDENT_ROLL"].lower() or
+                        s_lower in s["STUDENT_NAME"].lower() or
+                        s_lower in (s.get("ASSIGNMENT_TITLE") or "").lower()
+                    )
+                match_st = True
+                if selected_status and tab == "submissions":
+                    match_st = (s.get("STATUS") == selected_status)
+
+                if match_search and match_st:
+                    submissions.append(s)
+
+            # 4. Fetch Learning Courses
+            cur.execute("SELECT * FROM Learning_Courses ORDER BY ID ASC")
+            courses = cur.fetchall()
+            for c in courses:
+                if c.get("SUBJECT"):
+                    subjects.add(c["SUBJECT"])
+
+            # 5. Fetch Online Quizzes
+            cur.execute("""
+                SELECT q.*,
+                       (SELECT COUNT(*) FROM Quiz_Questions qq WHERE qq.QUIZ_CODE = q.QUIZ_CODE) AS QUESTIONS_COUNT,
+                       (SELECT COUNT(*) FROM Quiz_Attempts qa WHERE qa.QUIZ_CODE = q.QUIZ_CODE) AS ATTEMPTS_COUNT
+                FROM Online_Quizzes q
+                ORDER BY q.ID ASC
+            """)
+            quizzes = cur.fetchall()
+            for q in quizzes:
+                if q.get("SUBJECT"):
+                    subjects.add(q["SUBJECT"])
+
+            # 6. Fetch Quiz Questions (map by QUIZ_CODE)
+            cur.execute("SELECT * FROM Quiz_Questions ORDER BY QUIZ_CODE ASC, QUESTION_NUMBER ASC")
+            all_questions = cur.fetchall()
+            for qn in all_questions:
+                quiz_questions_map.setdefault(qn["QUIZ_CODE"], []).append(qn)
+
+            # 7. Fetch Quiz Attempts
+            cur.execute("""
+                SELECT qa.*,
+                       q.TITLE AS QUIZ_TITLE,
+                       q.SUBJECT AS QUIZ_SUBJECT,
+                       q.PASS_PERCENTAGE
+                FROM Quiz_Attempts qa
+                LEFT JOIN Online_Quizzes q ON qa.QUIZ_CODE = q.QUIZ_CODE
+                ORDER BY qa.ID DESC
+            """)
+            quiz_attempts = cur.fetchall()
+            for qa in quiz_attempts:
+                qa["attempt_date_fmt"] = qa["ATTEMPT_DATE"].strftime("%b %d, %Y") if qa.get("ATTEMPT_DATE") else "-"
+
+            # 8. Fetch Helpers (Students & Teachers)
+            cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM Students_Details ORDER BY ROLL_NUMBER ASC")
+            students = cur.fetchall()
+            cur.execute("SELECT TEACHER_ID, NAME, SUBJECT FROM Teachers_Details ORDER BY NAME ASC")
+            teachers = cur.fetchall()
+
+            # Stats calculation
+            stats["total_assignments"] = len(all_assignments)
+            stats["active_assignments"] = sum(1 for a in all_assignments if a.get("STATUS") == "Active")
+            stats["total_materials"] = len(all_materials)
+            stats["total_submissions"] = len(all_submissions)
+            stats["pending_reviews"] = sum(1 for s in all_submissions if s.get("STATUS") != "Graded")
+            stats["total_courses"] = len(courses)
+            stats["total_quizzes"] = len(quizzes)
+            stats["total_attempts"] = len(quiz_attempts)
+
+        except Error as e:
+            flash(f"Database Query Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return render_template(
+        "coursework.html",
+        title="Coursework & LMS",
+        active_page="coursework",
+        tab=tab,
+        stats=stats,
+        assignments=assignments,
+        all_assignments=all_assignments,
+        materials=materials,
+        submissions=submissions,
+        courses=courses,
+        quizzes=quizzes,
+        quiz_questions_map=quiz_questions_map,
+        quiz_attempts=quiz_attempts,
+        students=students,
+        teachers=teachers,
+        subjects=sorted(list(subjects)),
+        classes=classes,
+        search=search,
+        selected_subject=selected_subject,
+        selected_class=selected_class,
+        selected_status=selected_status,
+        take_quiz_code=take_quiz_code
+    )
+
+
+@app.route("/coursework/assignments/add", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def add_assignment_route():
+    title = request.form.get("title", "").strip()
+    subject = request.form.get("subject", "").strip()
+    class_name = request.form.get("class_name", "").strip()
+    teacher_name = request.form.get("teacher_name", "").strip()
+    description = request.form.get("description", "").strip()
+    attachment_url = request.form.get("attachment_url", "").strip()
+    due_date = request.form.get("due_date", "").strip()
+    max_marks_raw = request.form.get("max_marks", "100").strip()
+
+    if not title or not subject or not class_name or not due_date or not description:
+        flash("Validation Error: Title, Subject, Class, Due Date, and Description are required.", "warning")
+        return redirect(url_for("coursework_view", tab="assignments"))
+
+    try:
+        max_marks = int(max_marks_raw)
+        if max_marks <= 0:
+            max_marks = 100
+    except ValueError:
+        max_marks = 100
+
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("SELECT MAX(ID) AS MAX_ID FROM Assignments")
+            row = cur.fetchone()
+            next_num = (row["MAX_ID"] or 0) + 101
+            code = f"ASN-{next_num}"
+
+            cur.execute("""
+                INSERT INTO Assignments (ASSIGNMENT_CODE, TITLE, SUBJECT, CLASS, TEACHER_NAME, DESCRIPTION, ATTACHMENT_URL, ASSIGNED_DATE, DUE_DATE, MAX_MARKS, STATUS)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, CURDATE(), %s, %s, 'Active')
+            """, (code, title, subject, class_name, teacher_name or "Faculty", description, attachment_url or None, due_date, max_marks))
+            con.commit()
+            log_history(session.get("username", "Teacher"), f"Created assignment {code}: {title}")
+            flash(f"Assignment '{title}' ({code}) published successfully!", "success")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("coursework_view", tab="assignments"))
+
+
+@app.route("/coursework/assignments/delete/<int:id>", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def delete_assignment_route(id):
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("SELECT ASSIGNMENT_CODE, TITLE FROM Assignments WHERE ID = %s", (id,))
+            row = cur.fetchone()
+            if row:
+                code = row["ASSIGNMENT_CODE"]
+                cur.execute("DELETE FROM Assignment_Submissions WHERE ASSIGNMENT_CODE = %s", (code,))
+                cur.execute("DELETE FROM Assignments WHERE ID = %s", (id,))
+                con.commit()
+                log_history(session.get("username", "Teacher"), f"Deleted assignment {code}")
+                flash(f"Assignment {code} and its submissions have been removed.", "info")
+            else:
+                flash("Assignment not found.", "warning")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("coursework_view", tab="assignments"))
+
+
+@app.route("/coursework/assignments/toggle-status/<int:id>", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def toggle_assignment_status_route(id):
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("SELECT STATUS, ASSIGNMENT_CODE FROM Assignments WHERE ID = %s", (id,))
+            row = cur.fetchone()
+            if row:
+                new_status = "Closed" if row["STATUS"] == "Active" else "Active"
+                cur.execute("UPDATE Assignments SET STATUS = %s WHERE ID = %s", (new_status, id))
+                con.commit()
+                flash(f"Assignment {row['ASSIGNMENT_CODE']} status updated to '{new_status}'.", "success")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("coursework_view", tab="assignments"))
+
+
+@app.route("/coursework/materials/add", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def add_material_route():
+    title = request.form.get("title", "").strip()
+    subject = request.form.get("subject", "").strip()
+    class_name = request.form.get("class_name", "").strip()
+    topic = request.form.get("topic", "").strip()
+    resource_type = request.form.get("resource_type", "Lecture Notes").strip()
+    resource_url = request.form.get("resource_url", "").strip()
+    content_text = request.form.get("content_text", "").strip()
+    uploaded_by = request.form.get("uploaded_by", "").strip() or session.get("username", "Faculty")
+
+    if not title or not subject or not class_name or not topic:
+        flash("Validation Error: Title, Subject, Class, and Topic are required.", "warning")
+        return redirect(url_for("coursework_view", tab="materials"))
+
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("SELECT MAX(ID) AS MAX_ID FROM Study_Materials")
+            row = cur.fetchone()
+            next_num = (row["MAX_ID"] or 0) + 201
+            code = f"MAT-{next_num}"
+
+            cur.execute("""
+                INSERT INTO Study_Materials (MATERIAL_CODE, TITLE, SUBJECT, CLASS, TOPIC, RESOURCE_TYPE, RESOURCE_URL, CONTENT_TEXT, UPLOADED_BY, UPLOAD_DATE)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURDATE())
+            """, (code, title, subject, class_name, topic, resource_type, resource_url or None, content_text or None, uploaded_by))
+            con.commit()
+            log_history(session.get("username", "Teacher"), f"Uploaded study material {code}: {title}")
+            flash(f"Study Material '{title}' ({code}) uploaded successfully!", "success")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("coursework_view", tab="materials"))
+
+
+@app.route("/coursework/materials/delete/<int:id>", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def delete_material_route(id):
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("DELETE FROM Study_Materials WHERE ID = %s", (id,))
+            con.commit()
+            flash("Study material item has been deleted.", "info")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("coursework_view", tab="materials"))
+
+
+@app.route("/coursework/submissions/submit", methods=["POST"])
+@login_required
+def submit_coursework_route():
+    assignment_code = request.form.get("assignment_code", "").strip()
+    student_roll = request.form.get("student_roll", "").strip()
+    student_name = request.form.get("student_name", "").strip()
+    student_class = request.form.get("student_class", "").strip()
+    submission_text = request.form.get("submission_text", "").strip()
+    file_url = request.form.get("file_url", "").strip()
+
+    if not assignment_code or not student_roll or not student_name or not submission_text:
+        flash("Validation Error: Assignment, Roll Number, Student Name, and Solution Content are required.", "warning")
+        return redirect(url_for("coursework_view", tab="submissions"))
+
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        today = datetime.date.today()
+        try:
+            # Check assignment due date
+            cur.execute("SELECT DUE_DATE, TITLE FROM Assignments WHERE ASSIGNMENT_CODE = %s", (assignment_code,))
+            asn = cur.fetchone()
+            if not asn:
+                flash(f"Assignment code '{assignment_code}' not found.", "warning")
+                return redirect(url_for("coursework_view", tab="submissions"))
+
+            status = "Late Submission" if (today > asn["DUE_DATE"]) else "Submitted"
+
+            cur.execute("SELECT MAX(ID) AS MAX_ID FROM Assignment_Submissions")
+            row = cur.fetchone()
+            next_num = (row["MAX_ID"] or 0) + 301
+            code = f"SUB-{next_num}"
+
+            cur.execute("""
+                INSERT INTO Assignment_Submissions (SUBMISSION_CODE, ASSIGNMENT_CODE, STUDENT_ROLL, STUDENT_NAME, STUDENT_CLASS, SUBMISSION_TEXT, FILE_URL, SUBMITTED_DATE, STATUS)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (code, assignment_code, student_roll, student_name, student_class or "Grade 10", submission_text, file_url or None, today, status))
+            con.commit()
+            log_history(student_name, f"Submitted assignment work {code} for {assignment_code}")
+            if status == "Late Submission":
+                flash(f"Assignment submitted ({code}) — Note: Recorded as Late Submission past due date.", "warning")
+            else:
+                flash(f"Your assignment work ({code}) for '{asn['TITLE']}' has been submitted on time! Excellent work.", "success")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("coursework_view", tab="submissions"))
+
+
+@app.route("/coursework/submissions/grade/<int:id>", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def grade_submission_route(id):
+    marks_raw = request.form.get("marks_obtained", "0").strip()
+    grade = request.form.get("grade", "").strip()
+    feedback = request.form.get("teacher_feedback", "").strip()
+    reviewed_by = request.form.get("reviewed_by", "").strip() or session.get("username", "Teacher")
+
+    try:
+        marks = float(marks_raw)
+    except ValueError:
+        flash("Validation Error: Marks obtained must be a valid number.", "warning")
+        return redirect(url_for("coursework_view", tab="submissions"))
+
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("SELECT SUBMISSION_CODE, STUDENT_NAME FROM Assignment_Submissions WHERE ID = %s", (id,))
+            sub = cur.fetchone()
+            if not sub:
+                flash("Submission not found.", "warning")
+                return redirect(url_for("coursework_view", tab="submissions"))
+
+            cur.execute("""
+                UPDATE Assignment_Submissions
+                SET MARKS_OBTAINED = %s,
+                    GRADE = %s,
+                    TEACHER_FEEDBACK = %s,
+                    REVIEWED_BY = %s,
+                    REVIEWED_DATE = CURDATE(),
+                    STATUS = 'Graded'
+                WHERE ID = %s
+            """, (marks, grade, feedback, reviewed_by, id))
+            con.commit()
+            log_history(session.get("username", "Teacher"), f"Graded submission {sub['SUBMISSION_CODE']} for {sub['STUDENT_NAME']} ({marks} pts, {grade})")
+            flash(f"Submission {sub['SUBMISSION_CODE']} for {sub['STUDENT_NAME']} graded: {marks} pts (Grade: {grade})!", "success")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("coursework_view", tab="submissions"))
+
+
+@app.route("/coursework/courses/add", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def add_course_route():
+    title = request.form.get("title", "").strip()
+    subject = request.form.get("subject", "").strip()
+    instructor = request.form.get("instructor", "").strip() or session.get("username", "Faculty")
+    level = request.form.get("level", "Intermediate").strip()
+    try:
+        total_lessons = int(request.form.get("total_lessons", 10) or 10)
+    except ValueError:
+        total_lessons = 10
+    try:
+        duration_weeks = int(request.form.get("duration_weeks", 12) or 12)
+    except ValueError:
+        duration_weeks = 12
+    description = request.form.get("description", "").strip()
+    syllabus = request.form.get("syllabus", "").strip()
+
+    if not title or not subject or not description:
+        flash("Validation Error: Course Title, Subject, and Description are required.", "warning")
+        return redirect(url_for("coursework_view", tab="courses"))
+
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("SELECT MAX(ID) AS MAX_ID FROM Learning_Courses")
+            row = cur.fetchone()
+            next_num = (row["MAX_ID"] or 0) + 401
+            code = f"CRS-{next_num}"
+
+            cur.execute("""
+                INSERT INTO Learning_Courses (COURSE_CODE, TITLE, SUBJECT, INSTRUCTOR, LEVEL, TOTAL_LESSONS, DURATION_WEEKS, DESCRIPTION, SYLLABUS, STATUS)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'Active')
+            """, (code, title, subject, instructor, level, total_lessons, duration_weeks, description, syllabus))
+            con.commit()
+            log_history(session.get("username", "Teacher"), f"Created course {code}: {title}")
+            flash(f"Learning Course '{title}' ({code}) launched successfully!", "success")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("coursework_view", tab="courses"))
+
+
+@app.route("/coursework/quizzes/submit", methods=["POST"])
+@login_required
+def submit_quiz_route():
+    quiz_code = request.form.get("quiz_code", "").strip()
+    student_roll = request.form.get("student_roll", "").strip()
+    student_name = request.form.get("student_name", "").strip()
+
+    if not quiz_code or not student_roll or not student_name:
+        flash("Validation Error: Quiz Code, Roll Number, and Student Name are required to take the quiz.", "warning")
+        return redirect(url_for("coursework_view", tab="quizzes"))
+
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("SELECT * FROM Online_Quizzes WHERE QUIZ_CODE = %s", (quiz_code,))
+            quiz = cur.fetchone()
+            if not quiz:
+                flash(f"Quiz '{quiz_code}' not found.", "warning")
+                return redirect(url_for("coursework_view", tab="quizzes"))
+
+            cur.execute("SELECT * FROM Quiz_Questions WHERE QUIZ_CODE = %s ORDER BY QUESTION_NUMBER ASC", (quiz_code,))
+            questions = cur.fetchall()
+
+            total_questions = len(questions)
+            score = 0
+            for q in questions:
+                q_num = q["QUESTION_NUMBER"]
+                user_ans = request.form.get(f"q_{q_num}", "").strip().upper()
+                if user_ans and user_ans == q["CORRECT_OPTION"].upper():
+                    score += 1
+
+            percentage = round((score / total_questions) * 100, 1) if total_questions > 0 else 0
+            pass_mark = quiz.get("PASS_PERCENTAGE") or 60
+            passed = bool(percentage >= pass_mark)
+
+            cur.execute("SELECT MAX(ID) AS MAX_ID FROM Quiz_Attempts")
+            row = cur.fetchone()
+            next_num = (row["MAX_ID"] or 0) + 601
+            att_code = f"ATT-{next_num}"
+
+            cur.execute("""
+                INSERT INTO Quiz_Attempts (ATTEMPT_CODE, QUIZ_CODE, STUDENT_ROLL, STUDENT_NAME, SCORE, TOTAL_QUESTIONS, PERCENTAGE, PASSED, ATTEMPT_DATE)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, CURDATE())
+            """, (att_code, quiz_code, student_roll, student_name, score, total_questions, percentage, passed))
+            con.commit()
+
+            log_history(student_name, f"Completed quiz {quiz_code} with score {score}/{total_questions} ({percentage}%)")
+            if passed:
+                flash(f"🎉 Congratulations {student_name}! You PASSED '{quiz['TITLE']}' scoring {score}/{total_questions} ({percentage}%). Passing mark: {pass_mark}%.", "success")
+            else:
+                flash(f"Quiz completed! You scored {score}/{total_questions} ({percentage}%). Passing mark is {pass_mark}%. Review the course materials and try again!", "warning")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("coursework_view", tab="quizzes"))
+
+
+
+
+# -------------------------------------------------------------------------
+# 6C. STUDENT HEALTH & DISCIPLINE MANAGEMENT (RESTRICTED ACCESS)
+# -------------------------------------------------------------------------
+
+@app.route("/health-discipline")
+@login_required
+def health_discipline_view():
+    tab = request.args.get("tab", "health").strip().lower()
+    search = request.args.get("search", "").strip()
+    selected_class = request.args.get("class", "").strip()
+    selected_blood = request.args.get("blood", "").strip()
+    selected_severity = request.args.get("severity", "").strip()
+    selected_status = request.args.get("status", "").strip()
+    selected_category = request.args.get("category", "").strip()
+
+    con = get_connection()
+    health_profiles = []
+    all_profiles = []
+    medical_visits = []
+    all_visits = []
+    discipline_incidents = []
+    all_incidents = []
+    followups = []
+    all_followups = []
+    students = []
+    teachers = []
+
+    blood_groups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
+    classes = ["Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"]
+    severities = ["Minor", "Moderate", "Major", "Critical"]
+    categories = [
+        "Disruptive Behaviour",
+        "Academic Dishonesty",
+        "Bullying / Harassment",
+        "Vandalism / Property Damage",
+        "Late Attendance / Truancy",
+        "Uniform / Dress Code Violation",
+        "Physical Altercation",
+        "Substance Abuse",
+        "Other"
+    ]
+    action_types = [
+        "Verbal Counseling",
+        "Written Warning",
+        "Parent-Teacher Meeting",
+        "Student Counselor Session",
+        "After-School Detention",
+        "Campus Community Service",
+        "Suspension (Short-term)",
+        "Behavioral Contract"
+    ]
+
+    stats = {
+        "total_profiles": 0,
+        "students_with_allergies": 0,
+        "total_visits": 0,
+        "visits_this_week": 0,
+        "active_incidents": 0,
+        "critical_incidents": 0,
+        "scheduled_followups": 0,
+        "completed_followups": 0
+    }
+
+    if con:
+        cur = con.cursor(dictionary=True)
+        today = datetime.date.today()
+        seven_days_ago = today - datetime.timedelta(days=7)
+
+        try:
+            # 1. Fetch Health Profiles
+            cur.execute("SELECT * FROM Student_Health_Profiles ORDER BY ROLL_NUMBER ASC")
+            all_profiles = cur.fetchall()
+            for p in all_profiles:
+                p["last_updated_fmt"] = p["LAST_UPDATED"].strftime("%b %d, %Y") if p.get("LAST_UPDATED") else "-"
+
+            # Filter Profiles
+            for p in all_profiles:
+                match_search = True
+                if search and tab == "health":
+                    s_lower = search.lower()
+                    match_search = (
+                        s_lower in p["ROLL_NUMBER"].lower() or
+                        s_lower in p["STUDENT_NAME"].lower() or
+                        s_lower in (p.get("ALLERGIES") or "").lower() or
+                        s_lower in (p.get("CHRONIC_CONDITIONS") or "").lower() or
+                        s_lower in (p.get("EMERGENCY_DOCTOR_NAME") or "").lower()
+                    )
+                match_class = True
+                if selected_class and tab == "health":
+                    match_class = (p.get("CLASS") == selected_class)
+                match_blood = True
+                if selected_blood and tab == "health":
+                    match_blood = (p.get("BLOOD_GROUP") == selected_blood)
+
+                if match_search and match_class and match_blood:
+                    health_profiles.append(p)
+
+            # 2. Fetch Medical Visits
+            cur.execute("SELECT * FROM Medical_Room_Visits ORDER BY ID DESC")
+            all_visits = cur.fetchall()
+            for v in all_visits:
+                v_date = v.get("VISIT_DATE")
+                v["visit_date_fmt"] = v_date.strftime("%b %d, %Y") if v_date else "-"
+                time_val = v.get("VISIT_TIME")
+                v["visit_time_fmt"] = str(time_val)[:5] if time_val else "-"
+
+            # Filter Visits
+            for v in all_visits:
+                match_search = True
+                if search and tab == "medical_visits":
+                    s_lower = search.lower()
+                    match_search = (
+                        s_lower in v["VISIT_CODE"].lower() or
+                        s_lower in v["ROLL_NUMBER"].lower() or
+                        s_lower in v["STUDENT_NAME"].lower() or
+                        s_lower in v["SYMPTOMS"].lower() or
+                        s_lower in (v.get("ATTENDING_STAFF") or "").lower() or
+                        s_lower in (v.get("OUTCOME") or "").lower()
+                    )
+                match_class = True
+                if selected_class and tab == "medical_visits":
+                    match_class = (v.get("CLASS") == selected_class)
+
+                if match_search and match_class:
+                    medical_visits.append(v)
+
+            # 3. Fetch Discipline Incidents
+            cur.execute("SELECT * FROM Discipline_Incidents ORDER BY ID DESC")
+            all_incidents = cur.fetchall()
+            for inc in all_incidents:
+                i_date = inc.get("INCIDENT_DATE")
+                inc["incident_date_fmt"] = i_date.strftime("%b %d, %Y") if i_date else "-"
+
+            # Filter Incidents
+            for inc in all_incidents:
+                match_search = True
+                if search and tab == "discipline":
+                    s_lower = search.lower()
+                    match_search = (
+                        s_lower in inc["INCIDENT_CODE"].lower() or
+                        s_lower in inc["ROLL_NUMBER"].lower() or
+                        s_lower in inc["STUDENT_NAME"].lower() or
+                        s_lower in inc["DESCRIPTION"].lower() or
+                        s_lower in (inc.get("REPORTED_BY") or "").lower() or
+                        s_lower in (inc.get("LOCATION") or "").lower()
+                    )
+                match_class = True
+                if selected_class and tab == "discipline":
+                    match_class = (inc.get("CLASS") == selected_class)
+                match_sev = True
+                if selected_severity and tab == "discipline":
+                    match_sev = (inc.get("SEVERITY") == selected_severity)
+                match_cat = True
+                if selected_category and tab == "discipline":
+                    match_cat = (inc.get("CATEGORY") == selected_category)
+                match_st = True
+                if selected_status and tab == "discipline":
+                    match_st = (inc.get("STATUS") == selected_status)
+
+                if match_search and match_class and match_sev and match_cat and match_st:
+                    discipline_incidents.append(inc)
+
+            # 4. Fetch Follow-up Interventions
+            cur.execute("""
+                SELECT f.*, i.CATEGORY AS INCIDENT_CATEGORY, i.SEVERITY AS INCIDENT_SEVERITY, i.DESCRIPTION AS INCIDENT_DESCRIPTION
+                FROM Discipline_Followups f
+                LEFT JOIN Discipline_Incidents i ON f.INCIDENT_CODE = i.INCIDENT_CODE
+                ORDER BY f.ID DESC
+            """)
+            all_followups = cur.fetchall()
+            for fol in all_followups:
+                s_date = fol.get("SCHEDULED_DATE")
+                c_date = fol.get("COMPLETION_DATE")
+                fol["scheduled_date_fmt"] = s_date.strftime("%b %d, %Y") if s_date else "-"
+                fol["completion_date_fmt"] = c_date.strftime("%b %d, %Y") if c_date else "-"
+
+            # Filter Followups
+            for fol in all_followups:
+                match_search = True
+                if search and tab == "followups":
+                    s_lower = search.lower()
+                    match_search = (
+                        s_lower in fol["FOLLOWUP_CODE"].lower() or
+                        s_lower in fol["INCIDENT_CODE"].lower() or
+                        s_lower in fol["ROLL_NUMBER"].lower() or
+                        s_lower in fol["STUDENT_NAME"].lower() or
+                        s_lower in (fol.get("ASSIGNED_TO") or "").lower() or
+                        s_lower in (fol.get("ACTION_TYPE") or "").lower()
+                    )
+                match_st = True
+                if selected_status and tab == "followups":
+                    match_st = (fol.get("STATUS") == selected_status)
+
+                if match_search and match_st:
+                    followups.append(fol)
+
+            # 5. Fetch Helpers
+            cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM Students_Details ORDER BY ROLL_NUMBER ASC")
+            students = cur.fetchall()
+            cur.execute("SELECT TEACHER_ID, NAME, SUBJECT FROM Teachers_Details ORDER BY NAME ASC")
+            teachers = cur.fetchall()
+
+            # Stats
+            stats["total_profiles"] = len(all_profiles)
+            stats["students_with_allergies"] = sum(1 for p in all_profiles if p.get("ALLERGIES") and p["ALLERGIES"].lower() != "none")
+            stats["total_visits"] = len(all_visits)
+            stats["visits_this_week"] = sum(1 for v in all_visits if v.get("VISIT_DATE") and v["VISIT_DATE"] >= seven_days_ago)
+            stats["active_incidents"] = sum(1 for inc in all_incidents if inc.get("STATUS") in ("Reported", "Under Investigation", "Action Pending", "Follow-up Scheduled"))
+            stats["critical_incidents"] = sum(1 for inc in all_incidents if inc.get("SEVERITY") in ("Major", "Critical"))
+            stats["scheduled_followups"] = sum(1 for fol in all_followups if fol.get("STATUS") in ("Scheduled", "In Progress"))
+            stats["completed_followups"] = sum(1 for fol in all_followups if fol.get("STATUS") == "Completed")
+
+        except Error as e:
+            flash(f"Database Query Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return render_template(
+        "health_discipline.html",
+        title="Health & Discipline Records",
+        active_page="health_discipline",
+        tab=tab,
+        stats=stats,
+        health_profiles=health_profiles,
+        all_profiles=all_profiles,
+        medical_visits=medical_visits,
+        discipline_incidents=discipline_incidents,
+        all_incidents=all_incidents,
+        followups=followups,
+        students=students,
+        teachers=teachers,
+        blood_groups=blood_groups,
+        classes=classes,
+        severities=severities,
+        categories=categories,
+        action_types=action_types,
+        search=search,
+        selected_class=selected_class,
+        selected_blood=selected_blood,
+        selected_severity=selected_severity,
+        selected_status=selected_status,
+        selected_category=selected_category
+    )
+
+
+@app.route("/health-discipline/health-profile/save", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def save_health_profile_route():
+    roll_number = request.form.get("roll_number", "").strip()
+    blood_group = request.form.get("blood_group", "Unknown").strip()
+    allergies = request.form.get("allergies", "None").strip()
+    chronic_conditions = request.form.get("chronic_conditions", "None").strip()
+    medications = request.form.get("medications", "None").strip()
+    doctor_name = request.form.get("emergency_doctor_name", "").strip()
+    doctor_phone = request.form.get("emergency_doctor_phone", "").strip()
+    insurance_policy = request.form.get("insurance_policy_no", "").strip()
+    special_care = request.form.get("special_care_instructions", "").strip()
+    vaccination_status = request.form.get("vaccination_status", "Up to Date").strip()
+
+    if not roll_number:
+        flash("Validation Error: Student Roll Number is required.", "warning")
+        return redirect(url_for("health_discipline_view", tab="health"))
+
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            # Check student exists
+            cur.execute("SELECT NAME, CLASS FROM Students_Details WHERE ROLL_NUMBER = %s", (roll_number,))
+            st = cur.fetchone()
+            if not st:
+                flash(f"Student with Roll #{roll_number} not found in school registry.", "warning")
+                return redirect(url_for("health_discipline_view", tab="health"))
+
+            name = st["NAME"]
+            cls = st["CLASS"]
+
+            cur.execute("""
+                INSERT INTO Student_Health_Profiles
+                (ROLL_NUMBER, STUDENT_NAME, CLASS, BLOOD_GROUP, ALLERGIES, CHRONIC_CONDITIONS, MEDICATIONS,
+                 EMERGENCY_DOCTOR_NAME, EMERGENCY_DOCTOR_PHONE, INSURANCE_POLICY_NO, SPECIAL_CARE_INSTRUCTIONS, VACCINATION_STATUS)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                    STUDENT_NAME = VALUES(STUDENT_NAME),
+                    CLASS = VALUES(CLASS),
+                    BLOOD_GROUP = VALUES(BLOOD_GROUP),
+                    ALLERGIES = VALUES(ALLERGIES),
+                    CHRONIC_CONDITIONS = VALUES(CHRONIC_CONDITIONS),
+                    MEDICATIONS = VALUES(MEDICATIONS),
+                    EMERGENCY_DOCTOR_NAME = VALUES(EMERGENCY_DOCTOR_NAME),
+                    EMERGENCY_DOCTOR_PHONE = VALUES(EMERGENCY_DOCTOR_PHONE),
+                    INSURANCE_POLICY_NO = VALUES(INSURANCE_POLICY_NO),
+                    SPECIAL_CARE_INSTRUCTIONS = VALUES(SPECIAL_CARE_INSTRUCTIONS),
+                    VACCINATION_STATUS = VALUES(VACCINATION_STATUS)
+            """, (roll_number, name, cls, blood_group, allergies, chronic_conditions, medications, doctor_name, doctor_phone, insurance_policy, special_care, vaccination_status))
+            con.commit()
+            log_history(session.get("username", "Staff"), f"Saved health profile for {name} ({roll_number})")
+            flash(f"Health profile for '{name}' (Roll #{roll_number}) saved successfully!", "success")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("health_discipline_view", tab="health"))
+
+
+@app.route("/health-discipline/medical-visit/add", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def add_medical_visit_route():
+    roll_number = request.form.get("roll_number", "").strip()
+    symptoms = request.form.get("symptoms", "").strip()
+    diagnosis = request.form.get("diagnosis_observation", "").strip()
+    treatment = request.form.get("treatment_given", "").strip()
+    attending = request.form.get("attending_staff", "").strip() or session.get("username", "Nurse Anita Roy")
+    parent_notified = request.form.get("parent_notified", "No").strip()
+    outcome = request.form.get("outcome", "Returned to Class").strip()
+    confidential_notes = request.form.get("confidential_notes", "").strip()
+
+    if not roll_number or not symptoms or not treatment:
+        flash("Validation Error: Student Roll Number, Symptoms, and Treatment Given are required.", "warning")
+        return redirect(url_for("health_discipline_view", tab="medical_visits"))
+
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("SELECT NAME, CLASS FROM Students_Details WHERE ROLL_NUMBER = %s", (roll_number,))
+            st = cur.fetchone()
+            if not st:
+                flash(f"Student with Roll #{roll_number} not found.", "warning")
+                return redirect(url_for("health_discipline_view", tab="medical_visits"))
+
+            name = st["NAME"]
+            cls = st["CLASS"]
+
+            cur.execute("SELECT MAX(ID) AS MAX_ID FROM Medical_Room_Visits")
+            row = cur.fetchone()
+            next_num = (row["MAX_ID"] or 0) + 101
+            visit_code = f"MED-{next_num}"
+
+            now_time = datetime.datetime.now().strftime("%H:%M:%S")
+
+            cur.execute("""
+                INSERT INTO Medical_Room_Visits
+                (VISIT_CODE, ROLL_NUMBER, STUDENT_NAME, CLASS, VISIT_DATE, VISIT_TIME, SYMPTOMS,
+                 DIAGNOSIS_OBSERVATION, TREATMENT_GIVEN, ATTENDING_STAFF, PARENT_NOTIFIED, OUTCOME, CONFIDENTIAL_NOTES)
+                VALUES (%s, %s, %s, %s, CURDATE(), %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (visit_code, roll_number, name, cls, now_time, symptoms, diagnosis, treatment, attending, parent_notified, outcome, confidential_notes))
+            con.commit()
+            log_history(session.get("username", "Staff"), f"Logged medical room visit {visit_code} for {name}")
+            flash(f"Medical-room visit recorded ({visit_code}) for '{name}'!", "success")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("health_discipline_view", tab="medical_visits"))
+
+
+@app.route("/health-discipline/medical-visit/delete/<int:id>", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def delete_medical_visit_route(id):
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("DELETE FROM Medical_Room_Visits WHERE ID = %s", (id,))
+            con.commit()
+            flash("Medical visit record deleted successfully.", "info")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("health_discipline_view", tab="medical_visits"))
+
+
+@app.route("/health-discipline/incident/add", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def add_discipline_incident_route():
+    roll_number = request.form.get("roll_number", "").strip()
+    incident_date = request.form.get("incident_date", "").strip()
+    category = request.form.get("category", "Disruptive Behaviour").strip()
+    severity = request.form.get("severity", "Minor").strip()
+    location = request.form.get("location", "Classroom").strip()
+    reported_by = request.form.get("reported_by", "").strip() or session.get("username", "Faculty")
+    description = request.form.get("description", "").strip()
+    witnesses = request.form.get("witnesses", "").strip()
+
+    if not roll_number or not description:
+        flash("Validation Error: Student Roll Number and Incident Description are required.", "warning")
+        return redirect(url_for("health_discipline_view", tab="discipline"))
+
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("SELECT NAME, CLASS FROM Students_Details WHERE ROLL_NUMBER = %s", (roll_number,))
+            st = cur.fetchone()
+            if not st:
+                flash(f"Student with Roll #{roll_number} not found.", "warning")
+                return redirect(url_for("health_discipline_view", tab="discipline"))
+
+            name = st["NAME"]
+            cls = st["CLASS"]
+
+            cur.execute("SELECT MAX(ID) AS MAX_ID FROM Discipline_Incidents")
+            row = cur.fetchone()
+            next_num = (row["MAX_ID"] or 0) + 201
+            inc_code = f"DIS-{next_num}"
+
+            date_val = incident_date if incident_date else datetime.date.today().strftime("%Y-%m-%d")
+
+            cur.execute("""
+                INSERT INTO Discipline_Incidents
+                (INCIDENT_CODE, ROLL_NUMBER, STUDENT_NAME, CLASS, INCIDENT_DATE, CATEGORY, SEVERITY, LOCATION, REPORTED_BY, DESCRIPTION, WITNESSES, STATUS)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Reported')
+            """, (inc_code, roll_number, name, cls, date_val, category, severity, location, reported_by, description, witnesses))
+            con.commit()
+            log_history(session.get("username", "Staff"), f"Logged behaviour incident {inc_code} for {name} ({severity})")
+            flash(f"Disciplinary incident recorded ({inc_code}) for '{name}' with severity '{severity}'.", "warning" if severity in ("Major", "Critical") else "info")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("health_discipline_view", tab="discipline"))
+
+
+@app.route("/health-discipline/incident/update-status/<int:id>", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def update_incident_status_route(id):
+    new_status = request.form.get("status", "Under Investigation").strip()
+
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("UPDATE Discipline_Incidents SET STATUS = %s WHERE ID = %s", (new_status, id))
+            con.commit()
+            flash(f"Incident status updated to '{new_status}'.", "success")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("health_discipline_view", tab="discipline"))
+
+
+@app.route("/health-discipline/incident/delete/<int:id>", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def delete_discipline_incident_route(id):
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("SELECT INCIDENT_CODE FROM Discipline_Incidents WHERE ID = %s", (id,))
+            row = cur.fetchone()
+            if row:
+                inc_code = row["INCIDENT_CODE"]
+                cur.execute("DELETE FROM Discipline_Followups WHERE INCIDENT_CODE = %s", (inc_code,))
+                cur.execute("DELETE FROM Discipline_Incidents WHERE ID = %s", (id,))
+                con.commit()
+                flash(f"Discipline incident {inc_code} and associated follow-up actions deleted.", "info")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("health_discipline_view", tab="discipline"))
+
+
+@app.route("/health-discipline/followup/add", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def add_discipline_followup_route():
+    incident_code = request.form.get("incident_code", "").strip()
+    action_type = request.form.get("action_type", "Verbal Counseling").strip()
+    assigned_to = request.form.get("assigned_to", "").strip() or session.get("username", "School Counselor")
+    scheduled_date = request.form.get("scheduled_date", "").strip()
+    outcome_notes = request.form.get("outcome_notes", "").strip()
+
+    if not incident_code or not scheduled_date:
+        flash("Validation Error: Linked Incident Code and Scheduled Date are required.", "warning")
+        return redirect(url_for("health_discipline_view", tab="followups"))
+
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("SELECT ROLL_NUMBER, STUDENT_NAME FROM Discipline_Incidents WHERE INCIDENT_CODE = %s", (incident_code,))
+            inc = cur.fetchone()
+            if not inc:
+                flash(f"Incident {incident_code} not found in incident registry.", "warning")
+                return redirect(url_for("health_discipline_view", tab="followups"))
+
+            roll = inc["ROLL_NUMBER"]
+            name = inc["STUDENT_NAME"]
+
+            cur.execute("SELECT MAX(ID) AS MAX_ID FROM Discipline_Followups")
+            row = cur.fetchone()
+            next_num = (row["MAX_ID"] or 0) + 301
+            fol_code = f"FOL-{next_num}"
+
+            cur.execute("""
+                INSERT INTO Discipline_Followups
+                (FOLLOWUP_CODE, INCIDENT_CODE, ROLL_NUMBER, STUDENT_NAME, ACTION_TYPE, ASSIGNED_TO, SCHEDULED_DATE, STATUS, OUTCOME_NOTES, PARENT_ACKNOWLEDGED)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'Scheduled', %s, FALSE)
+            """, (fol_code, incident_code, roll, name, action_type, assigned_to, scheduled_date, outcome_notes))
+
+            # Update linked incident status to Follow-up Scheduled
+            cur.execute("UPDATE Discipline_Incidents SET STATUS = 'Follow-up Scheduled' WHERE INCIDENT_CODE = %s", (incident_code,))
+            con.commit()
+
+            log_history(session.get("username", "Staff"), f"Scheduled follow-up {fol_code} ({action_type}) for incident {incident_code}")
+            flash(f"Follow-up intervention ({fol_code}) scheduled for '{name}' with {assigned_to}.", "success")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("health_discipline_view", tab="followups"))
+
+
+@app.route("/health-discipline/followup/complete/<int:id>", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def complete_discipline_followup_route(id):
+    status = request.form.get("status", "Completed").strip()
+    outcome_notes = request.form.get("outcome_notes", "").strip()
+    parent_acknowledged = bool(request.form.get("parent_acknowledged"))
+
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("SELECT FOLLOWUP_CODE, INCIDENT_CODE FROM Discipline_Followups WHERE ID = %s", (id,))
+            fol = cur.fetchone()
+            if not fol:
+                flash("Follow-up action not found.", "warning")
+                return redirect(url_for("health_discipline_view", tab="followups"))
+
+            if status == "Completed":
+                cur.execute("""
+                    UPDATE Discipline_Followups
+                    SET STATUS = %s,
+                        COMPLETION_DATE = CURDATE(),
+                        OUTCOME_NOTES = %s,
+                        PARENT_ACKNOWLEDGED = %s
+                    WHERE ID = %s
+                """, (status, outcome_notes, parent_acknowledged, id))
+                # Also resolve the linked incident
+                cur.execute("UPDATE Discipline_Incidents SET STATUS = 'Resolved' WHERE INCIDENT_CODE = %s", (fol["INCIDENT_CODE"],))
+            else:
+                cur.execute("""
+                    UPDATE Discipline_Followups
+                    SET STATUS = %s,
+                        OUTCOME_NOTES = %s,
+                        PARENT_ACKNOWLEDGED = %s
+                    WHERE ID = %s
+                """, (status, outcome_notes, parent_acknowledged, id))
+
+            con.commit()
+            log_history(session.get("username", "Staff"), f"Updated follow-up {fol['FOLLOWUP_CODE']} to {status}")
+            flash(f"Follow-up action {fol['FOLLOWUP_CODE']} updated to '{status}'!", "success")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("health_discipline_view", tab="followups"))
+
+
+
+
+# -------------------------------------------------------------------------
+# 6D. SCHOOL CALENDAR & PARENT-TEACHER MEETINGS (PTM)
+# -------------------------------------------------------------------------
+
+@app.route("/calendar-ptm")
+@login_required
+def calendar_ptm_view():
+    tab = request.args.get("tab", "events").strip().lower()
+    search = request.args.get("search", "").strip()
+    selected_category = request.args.get("category", "").strip()
+    selected_type = request.args.get("type", "").strip()
+    selected_teacher = request.args.get("teacher", "").strip()
+    selected_status = request.args.get("status", "").strip()
+
+    con = get_connection()
+    events = []
+    all_events = []
+    holidays = []
+    all_holidays = []
+    slots = []
+    all_slots = []
+    bookings = []
+    all_bookings = []
+    reminders = []
+    all_reminders = []
+    students = []
+    parents_map = {}
+    teachers = []
+
+    event_categories = ['Academic', 'Examination', 'Sports', 'Cultural', 'Meeting', 'Exhibition', 'Workshop', 'Holiday']
+    holiday_types = ['National Holiday', 'Gazetted Holiday', 'Term Break', 'Emergency Closure', 'Restricted Holiday']
+    meeting_modes = ['In-Person (Campus)', 'Virtual (Google Meet / Zoom)', 'Phone Call']
+
+    stats = {
+        "total_events": 0,
+        "upcoming_events": 0,
+        "total_holidays": 0,
+        "upcoming_holidays": 0,
+        "total_slots": 0,
+        "available_slots": 0,
+        "confirmed_bookings": 0,
+        "active_reminders": 0
+    }
+
+    if con:
+        cur = con.cursor(dictionary=True)
+        today = datetime.date.today()
+
+        try:
+            # 1. Fetch School Events
+            cur.execute("SELECT * FROM School_Events ORDER BY EVENT_DATE ASC, START_TIME ASC")
+            all_events = cur.fetchall()
+            for e in all_events:
+                e_date = e.get("EVENT_DATE")
+                e["is_upcoming"] = (e_date >= today) if e_date else False
+                e["days_left"] = (e_date - today).days if e_date else 0
+                e["event_date_fmt"] = e_date.strftime("%b %d, %Y") if e_date else "-"
+                s_time = e.get("START_TIME")
+                e["start_time_fmt"] = str(s_time)[:5] if s_time else ""
+                end_time = e.get("END_TIME")
+                e["end_time_fmt"] = str(end_time)[:5] if end_time else ""
+
+            # Filter Events
+            for e in all_events:
+                match_search = True
+                if search and tab == "events":
+                    s_lower = search.lower()
+                    match_search = (
+                        s_lower in e["EVENT_CODE"].lower() or
+                        s_lower in e["TITLE"].lower() or
+                        s_lower in (e.get("LOCATION") or "").lower() or
+                        s_lower in (e.get("ORGANIZER") or "").lower()
+                    )
+                match_cat = True
+                if selected_category and tab == "events":
+                    match_cat = (e.get("CATEGORY") == selected_category)
+                match_st = True
+                if selected_status and tab == "events":
+                    match_st = (e.get("STATUS") == selected_status)
+
+                if match_search and match_cat and match_st:
+                    events.append(e)
+
+            # 2. Fetch School Holidays
+            cur.execute("SELECT *, DATEDIFF(END_DATE, START_DATE) + 1 AS DURATION_DAYS FROM School_Holidays ORDER BY START_DATE ASC")
+            all_holidays = cur.fetchall()
+            for h in all_holidays:
+                s_date = h.get("START_DATE")
+                e_date = h.get("END_DATE")
+                h["start_date_fmt"] = s_date.strftime("%b %d, %Y") if s_date else "-"
+                h["end_date_fmt"] = e_date.strftime("%b %d, %Y") if e_date else "-"
+                h["is_active_now"] = (s_date <= today <= e_date) if (s_date and e_date) else False
+                h["days_left"] = (s_date - today).days if s_date else 0
+
+            # Filter Holidays
+            for h in all_holidays:
+                match_search = True
+                if search and tab == "holidays":
+                    s_lower = search.lower()
+                    match_search = (
+                        s_lower in h["HOLIDAY_NAME"].lower() or
+                        s_lower in (h.get("DESCRIPTION") or "").lower()
+                    )
+                match_type = True
+                if selected_type and tab == "holidays":
+                    match_type = (h.get("HOLIDAY_TYPE") == selected_type)
+
+                if match_search and match_type:
+                    holidays.append(h)
+
+            # 3. Fetch PTM Meeting Slots
+            cur.execute("""
+                SELECT s.*,
+                       (SELECT COUNT(*) FROM PTM_Bookings b WHERE b.SLOT_CODE = s.SLOT_CODE AND b.STATUS = 'Confirmed') AS BOOKED_COUNT
+                FROM PTM_Meeting_Slots s
+                ORDER BY s.MEETING_DATE ASC, s.START_TIME ASC
+            """)
+            all_slots = cur.fetchall()
+            for s in all_slots:
+                m_date = s.get("MEETING_DATE")
+                s["meeting_date_fmt"] = m_date.strftime("%b %d, %Y") if m_date else "-"
+                st_time = s.get("START_TIME")
+                en_time = s.get("END_TIME")
+                s["start_time_fmt"] = str(st_time)[:5] if st_time else ""
+                s["end_time_fmt"] = str(en_time)[:5] if en_time else ""
+                s["time_range"] = f"{s['start_time_fmt']} - {s['end_time_fmt']}"
+
+            # Filter Slots
+            for s in all_slots:
+                match_search = True
+                if search and tab == "slots":
+                    s_lower = search.lower()
+                    match_search = (
+                        s_lower in s["SLOT_CODE"].lower() or
+                        s_lower in s["TEACHER_NAME"].lower() or
+                        s_lower in s["SUBJECT"].lower() or
+                        s_lower in (s.get("ROOM_OR_LINK") or "").lower()
+                    )
+                match_teach = True
+                if selected_teacher and tab == "slots":
+                    match_teach = (s.get("TEACHER_ID") == selected_teacher or s.get("TEACHER_NAME") == selected_teacher)
+                match_st = True
+                if selected_status and tab == "slots":
+                    match_st = (s.get("STATUS") == selected_status)
+
+                if match_search and match_teach and match_st:
+                    slots.append(s)
+
+            # 4. Fetch PTM Bookings
+            cur.execute("""
+                SELECT b.*,
+                       s.TEACHER_ID, s.TEACHER_NAME, s.SUBJECT, s.MEETING_DATE, s.START_TIME, s.END_TIME, s.MEETING_MODE, s.ROOM_OR_LINK
+                FROM PTM_Bookings b
+                JOIN PTM_Meeting_Slots s ON b.SLOT_CODE = s.SLOT_CODE
+                ORDER BY s.MEETING_DATE ASC, s.START_TIME ASC
+            """)
+            all_bookings = cur.fetchall()
+            for b in all_bookings:
+                m_date = b.get("MEETING_DATE")
+                b["meeting_date_fmt"] = m_date.strftime("%b %d, %Y") if m_date else "-"
+                st_time = b.get("START_TIME")
+                en_time = b.get("END_TIME")
+                b["time_range"] = f"{str(st_time)[:5]} - {str(en_time)[:5]}"
+                b["booked_at_fmt"] = b["BOOKED_AT"].strftime("%b %d, %Y") if b.get("BOOKED_AT") else "-"
+
+            # Filter Bookings
+            for b in all_bookings:
+                match_search = True
+                if search and tab == "bookings":
+                    s_lower = search.lower()
+                    match_search = (
+                        s_lower in b["BOOKING_CODE"].lower() or
+                        s_lower in b["SLOT_CODE"].lower() or
+                        s_lower in b["STUDENT_ROLL"].lower() or
+                        s_lower in b["STUDENT_NAME"].lower() or
+                        s_lower in b["PARENT_NAME"].lower() or
+                        s_lower in b["TEACHER_NAME"].lower() or
+                        s_lower in b["DISCUSSION_TOPIC"].lower()
+                    )
+                match_st = True
+                if selected_status and tab == "bookings":
+                    match_st = (b.get("STATUS") == selected_status)
+
+                if match_search and match_st:
+                    bookings.append(b)
+
+            # 5. Fetch Calendar Reminders
+            cur.execute("SELECT * FROM Calendar_Reminders ORDER BY REMINDER_DATE ASC, ID DESC")
+            all_reminders = cur.fetchall()
+            for r in all_reminders:
+                r_date = r.get("REMINDER_DATE")
+                r["reminder_date_fmt"] = r_date.strftime("%b %d, %Y") if r_date else "-"
+
+            for r in all_reminders:
+                match_search = True
+                if search and tab == "reminders":
+                    s_lower = search.lower()
+                    match_search = (
+                        s_lower in r["REMINDER_CODE"].lower() or
+                        s_lower in r["TITLE"].lower() or
+                        s_lower in r["MESSAGE"].lower() or
+                        s_lower in (r.get("RECIPIENT_NAME") or "").lower()
+                    )
+                match_st = True
+                if selected_status and tab == "reminders":
+                    match_st = (r.get("STATUS") == selected_status)
+
+                if match_search and match_st:
+                    reminders.append(r)
+
+            # 6. Fetch Helpers (Students, Parents, Teachers)
+            cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM Students_Details ORDER BY ROLL_NUMBER ASC")
+            students = cur.fetchall()
+
+            cur.execute("SELECT ROLL_NUMBER, FATHER_NAME, PRIMARY_CONTACT, EMAIL FROM Parents_Details")
+            for p in cur.fetchall():
+                parents_map[p["ROLL_NUMBER"]] = p
+
+            cur.execute("SELECT TEACHER_ID, NAME, SUBJECT FROM Teachers_Details ORDER BY NAME ASC")
+            teachers = cur.fetchall()
+
+            # Stats calculation
+            stats["total_events"] = len(all_events)
+            stats["upcoming_events"] = sum(1 for e in all_events if e.get("EVENT_DATE") and e["EVENT_DATE"] >= today)
+            stats["total_holidays"] = len(all_holidays)
+            stats["upcoming_holidays"] = sum(1 for h in all_holidays if h.get("END_DATE") and h["END_DATE"] >= today)
+            stats["total_slots"] = len(all_slots)
+            stats["available_slots"] = sum(1 for s in all_slots if s.get("STATUS") == "Available")
+            stats["confirmed_bookings"] = sum(1 for b in all_bookings if b.get("STATUS") == "Confirmed")
+            stats["active_reminders"] = sum(1 for r in all_reminders if r.get("STATUS") == "Active")
+
+        except Error as e:
+            flash(f"Database Query Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return render_template(
+        "calendar_ptm.html",
+        title="School Calendar & Parent-Teacher Meetings",
+        active_page="calendar_ptm",
+        tab=tab,
+        stats=stats,
+        events=events,
+        all_events=all_events,
+        holidays=holidays,
+        all_holidays=all_holidays,
+        slots=slots,
+        all_slots=all_slots,
+        bookings=bookings,
+        all_bookings=all_bookings,
+        reminders=reminders,
+        all_reminders=all_reminders,
+        students=students,
+        parents_map=parents_map,
+        teachers=teachers,
+        event_categories=event_categories,
+        holiday_types=holiday_types,
+        meeting_modes=meeting_modes,
+        search=search,
+        selected_category=selected_category,
+        selected_type=selected_type,
+        selected_teacher=selected_teacher,
+        selected_status=selected_status
+    )
+
+
+@app.route("/calendar-ptm/events/add", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def add_calendar_event_route():
+    title = request.form.get("title", "").strip()
+    event_date = request.form.get("event_date", "").strip()
+    start_time = request.form.get("start_time", "09:00").strip()
+    end_time = request.form.get("end_time", "12:00").strip()
+    category = request.form.get("category", "Academic").strip()
+    location = request.form.get("location", "Main Campus").strip()
+    target_audience = request.form.get("target_audience", "All Students").strip()
+    organizer = request.form.get("organizer", "").strip() or session.get("username", "Faculty")
+    description = request.form.get("description", "").strip()
+
+    if not title or not event_date:
+        flash("Validation Error: Event Title and Date are required.", "warning")
+        return redirect(url_for("calendar_ptm_view", tab="events"))
+
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("SELECT MAX(ID) AS MAX_ID FROM School_Events")
+            row = cur.fetchone()
+            next_num = (row["MAX_ID"] or 0) + 101
+            code = f"EVT-{next_num}"
+
+            cur.execute("""
+                INSERT INTO School_Events (EVENT_CODE, TITLE, EVENT_DATE, START_TIME, END_TIME, CATEGORY, LOCATION, TARGET_AUDIENCE, ORGANIZER, DESCRIPTION, STATUS)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Scheduled')
+            """, (code, title, event_date, start_time, end_time, category, location, target_audience, organizer, description))
+            con.commit()
+            log_history(session.get("username", "Admin"), f"Scheduled school event {code}: {title}")
+            flash(f"School event '{title}' ({code}) scheduled on calendar!", "success")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("calendar_ptm_view", tab="events"))
+
+
+@app.route("/calendar-ptm/events/delete/<int:id>", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def delete_calendar_event_route(id):
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("SELECT TITLE, EVENT_CODE FROM School_Events WHERE ID = %s", (id,))
+            row = cur.fetchone()
+            if row:
+                cur.execute("DELETE FROM School_Events WHERE ID = %s", (id,))
+                con.commit()
+                flash(f"Event {row['EVENT_CODE']} ({row['TITLE']}) deleted.", "info")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("calendar_ptm_view", tab="events"))
+
+
+@app.route("/calendar-ptm/holidays/add", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def add_calendar_holiday_route():
+    holiday_name = request.form.get("holiday_name", "").strip()
+    start_date = request.form.get("start_date", "").strip()
+    end_date = request.form.get("end_date", "").strip() or start_date
+    holiday_type = request.form.get("holiday_type", "Gazetted Holiday").strip()
+    description = request.form.get("description", "").strip()
+
+    if not holiday_name or not start_date:
+        flash("Validation Error: Holiday Name and Start Date are required.", "warning")
+        return redirect(url_for("calendar_ptm_view", tab="holidays"))
+
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("""
+                INSERT INTO School_Holidays (HOLIDAY_NAME, START_DATE, END_DATE, HOLIDAY_TYPE, DESCRIPTION, IS_ACADEMIC_OFF)
+                VALUES (%s, %s, %s, %s, %s, TRUE)
+            """, (holiday_name, start_date, end_date, holiday_type, description))
+            con.commit()
+            log_history(session.get("username", "Admin"), f"Added school holiday: {holiday_name}")
+            flash(f"Holiday '{holiday_name}' added to school academic calendar!", "success")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("calendar_ptm_view", tab="holidays"))
+
+
+@app.route("/calendar-ptm/holidays/delete/<int:id>", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def delete_calendar_holiday_route(id):
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("SELECT HOLIDAY_NAME FROM School_Holidays WHERE ID = %s", (id,))
+            row = cur.fetchone()
+            if row:
+                cur.execute("DELETE FROM School_Holidays WHERE ID = %s", (id,))
+                con.commit()
+                flash(f"Holiday '{row['HOLIDAY_NAME']}' removed from calendar.", "info")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("calendar_ptm_view", tab="holidays"))
+
+
+@app.route("/calendar-ptm/slots/add", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def add_ptm_slot_route():
+    teacher_id = request.form.get("teacher_id", "").strip()
+    meeting_date = request.form.get("meeting_date", "").strip()
+    start_time = request.form.get("start_time", "10:00").strip()
+    end_time = request.form.get("end_time", "10:20").strip()
+    meeting_mode = request.form.get("meeting_mode", "In-Person (Campus)").strip()
+    room_or_link = request.form.get("room_or_link", "Staff Room Block A").strip()
+    notes = request.form.get("notes", "").strip()
+
+    if not teacher_id or not meeting_date:
+        flash("Validation Error: Teacher and Meeting Date are required.", "warning")
+        return redirect(url_for("calendar_ptm_view", tab="slots"))
+
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("SELECT NAME, SUBJECT FROM Teachers_Details WHERE TEACHER_ID = %s", (teacher_id,))
+            teacher = cur.fetchone()
+            if not teacher:
+                flash(f"Teacher with ID '{teacher_id}' not found.", "warning")
+                return redirect(url_for("calendar_ptm_view", tab="slots"))
+
+            teacher_name = teacher["NAME"]
+            subject = teacher["SUBJECT"]
+
+            cur.execute("SELECT MAX(ID) AS MAX_ID FROM PTM_Meeting_Slots")
+            row = cur.fetchone()
+            next_num = (row["MAX_ID"] or 0) + 201
+            slot_code = f"SLT-{next_num}"
+
+            cur.execute("""
+                INSERT INTO PTM_Meeting_Slots (SLOT_CODE, TEACHER_ID, TEACHER_NAME, SUBJECT, MEETING_DATE, START_TIME, END_TIME, MEETING_MODE, ROOM_OR_LINK, STATUS, NOTES)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'Available', %s)
+            """, (slot_code, teacher_id, teacher_name, subject, meeting_date, start_time, end_time, meeting_mode, room_or_link, notes))
+            con.commit()
+            log_history(session.get("username", "Teacher"), f"Created PTM slot {slot_code} for {teacher_name}")
+            flash(f"Meeting slot {slot_code} created for {teacher_name} ({subject}) on {meeting_date}!", "success")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("calendar_ptm_view", tab="slots"))
+
+
+@app.route("/calendar-ptm/slots/delete/<int:id>", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def delete_ptm_slot_route(id):
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("SELECT SLOT_CODE FROM PTM_Meeting_Slots WHERE ID = %s", (id,))
+            row = cur.fetchone()
+            if row:
+                slot_code = row["SLOT_CODE"]
+                cur.execute("DELETE FROM PTM_Bookings WHERE SLOT_CODE = %s", (slot_code,))
+                cur.execute("DELETE FROM PTM_Meeting_Slots WHERE ID = %s", (id,))
+                con.commit()
+                flash(f"Meeting slot {slot_code} deleted.", "info")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("calendar_ptm_view", tab="slots"))
+
+
+@app.route("/calendar-ptm/bookings/book", methods=["POST"])
+@login_required
+def book_ptm_slot_route():
+    slot_code = request.form.get("slot_code", "").strip().upper()
+    student_roll = request.form.get("student_roll", "").strip()
+    parent_name = request.form.get("parent_name", "").strip()
+    parent_phone = request.form.get("parent_phone", "").strip()
+    parent_email = request.form.get("parent_email", "").strip()
+    discussion_topic = request.form.get("discussion_topic", "").strip()
+
+    if not slot_code or not student_roll or not parent_name or not parent_phone:
+        flash("Validation Error: Slot Code, Student Roll Number, Parent Name, and Phone are required.", "warning")
+        return redirect(url_for("calendar_ptm_view", tab="slots"))
+
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            # Check slot is available
+            cur.execute("SELECT * FROM PTM_Meeting_Slots WHERE SLOT_CODE = %s", (slot_code,))
+            slot = cur.fetchone()
+            if not slot or slot["STATUS"] != "Available":
+                flash(f"Meeting Slot '{slot_code}' is no longer available for booking.", "warning")
+                return redirect(url_for("calendar_ptm_view", tab="slots"))
+
+            # Check student
+            cur.execute("SELECT NAME, CLASS FROM Students_Details WHERE ROLL_NUMBER = %s", (student_roll,))
+            st = cur.fetchone()
+            if not st:
+                flash(f"Student with Roll Number '{student_roll}' not found in registry.", "warning")
+                return redirect(url_for("calendar_ptm_view", tab="slots"))
+
+            student_name = st["NAME"]
+            student_class = st["CLASS"]
+
+            cur.execute("SELECT MAX(ID) AS MAX_ID FROM PTM_Bookings")
+            row = cur.fetchone()
+            next_num = (row["MAX_ID"] or 0) + 301
+            booking_code = f"BKG-{next_num}"
+
+            topic_text = discussion_topic or "General review of academic progress, coursework, and attendance."
+
+            cur.execute("""
+                INSERT INTO PTM_Bookings (BOOKING_CODE, SLOT_CODE, STUDENT_ROLL, STUDENT_NAME, STUDENT_CLASS, PARENT_NAME, PARENT_PHONE, PARENT_EMAIL, DISCUSSION_TOPIC, STATUS, REMINDER_SENT)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'Confirmed', FALSE)
+            """, (booking_code, slot_code, student_roll, student_name, student_class, parent_name, parent_phone, parent_email or None, topic_text))
+
+            # Mark slot booked
+            cur.execute("UPDATE PTM_Meeting_Slots SET STATUS = 'Booked' WHERE SLOT_CODE = %s", (slot_code,))
+
+            # Generate automated reminder
+            cur.execute("SELECT MAX(ID) AS MAX_ID FROM Calendar_Reminders")
+            row = cur.fetchone()
+            next_rem_num = (row["MAX_ID"] or 0) + 401
+            rem_code = f"REM-{next_rem_num}"
+
+            cur.execute("""
+                INSERT INTO Calendar_Reminders (REMINDER_CODE, TITLE, REMINDER_DATE, TARGET_TYPE, TARGET_ID, RECIPIENT_NAME, MESSAGE, STATUS, DELIVERY_CHANNEL)
+                VALUES (%s, %s, %s, 'Specific Student / Parent', %s, %s, %s, 'Active', 'In-App Notification')
+            """, (rem_code, f"PTM Consultation: {slot['TEACHER_NAME']} ({slot['SUBJECT']})", slot["MEETING_DATE"], student_roll, parent_name, f"Confirmed PTM conference with {slot['TEACHER_NAME']} ({slot['SUBJECT']}) on {slot['MEETING_DATE']} ({slot['START_TIME']} - {slot['END_TIME']}) in {slot['ROOM_OR_LINK']}."))
+
+            con.commit()
+            log_history(parent_name, f"Booked PTM slot {slot_code} ({booking_code}) with {slot['TEACHER_NAME']}")
+            flash(f"PTM Appointment Confirmed ({booking_code})! Scheduled with {slot['TEACHER_NAME']} on {slot['MEETING_DATE']}.", "success")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("calendar_ptm_view", tab="bookings"))
+
+
+@app.route("/calendar-ptm/bookings/cancel/<int:id>", methods=["POST"])
+@login_required
+def cancel_ptm_booking_route(id):
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("SELECT BOOKING_CODE, SLOT_CODE, PARENT_NAME FROM PTM_Bookings WHERE ID = %s", (id,))
+            bkg = cur.fetchone()
+            if bkg:
+                slot_code = bkg["SLOT_CODE"]
+                cur.execute("UPDATE PTM_Bookings SET STATUS = 'Cancelled' WHERE ID = %s", (id,))
+                cur.execute("UPDATE PTM_Meeting_Slots SET STATUS = 'Available' WHERE SLOT_CODE = %s", (slot_code,))
+                con.commit()
+                log_history(session.get("username", "User"), f"Cancelled PTM booking {bkg['BOOKING_CODE']}")
+                flash(f"Meeting booking {bkg['BOOKING_CODE']} cancelled. The slot has been reopened for other parents.", "info")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("calendar_ptm_view", tab="bookings"))
+
+
+@app.route("/calendar-ptm/bookings/notes/<int:id>", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def save_ptm_notes_route(id):
+    notes = request.form.get("teacher_feedback_notes", "").strip()
+    status = request.form.get("status", "Completed").strip()
+
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("""
+                UPDATE PTM_Bookings
+                SET TEACHER_FEEDBACK_NOTES = %s,
+                    STATUS = %s
+                WHERE ID = %s
+            """, (notes, status, id))
+            con.commit()
+            flash("Meeting consultation feedback and completion status saved.", "success")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("calendar_ptm_view", tab="bookings"))
+
+
+@app.route("/calendar-ptm/reminders/send/<int:id>", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def send_ptm_reminder_route(id):
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("""
+                UPDATE PTM_Bookings
+                SET REMINDER_SENT = TRUE,
+                    REMINDER_SENT_AT = NOW()
+                WHERE ID = %s
+            """, (id,))
+            con.commit()
+            flash("Meeting reminder notification marked as dispatched to parent!", "success")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("calendar_ptm_view", tab="bookings"))
+
+
+@app.route("/calendar-ptm/reminders/add", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def add_calendar_reminder_route():
+    title = request.form.get("title", "").strip()
+    reminder_date = request.form.get("reminder_date", "").strip()
+    target_type = request.form.get("target_type", "All School").strip()
+    recipient_name = request.form.get("recipient_name", "School Community").strip()
+    message = request.form.get("message", "").strip()
+    delivery_channel = request.form.get("delivery_channel", "In-App Notification").strip()
+
+    if not title or not reminder_date or not message:
+        flash("Validation Error: Reminder Title, Date, and Notice Body are required.", "warning")
+        return redirect(url_for("calendar_ptm_view", tab="reminders"))
+
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("SELECT MAX(ID) AS MAX_ID FROM Calendar_Reminders")
+            row = cur.fetchone()
+            next_num = (row["MAX_ID"] or 0) + 401
+            code = f"REM-{next_num}"
+
+            cur.execute("""
+                INSERT INTO Calendar_Reminders (REMINDER_CODE, TITLE, REMINDER_DATE, TARGET_TYPE, TARGET_ID, RECIPIENT_NAME, MESSAGE, STATUS, DELIVERY_CHANNEL)
+                VALUES (%s, %s, %s, %s, 'ALL', %s, %s, 'Active', %s)
+            """, (code, title, reminder_date, target_type, recipient_name, message, delivery_channel))
+            con.commit()
+            log_history(session.get("username", "Admin"), f"Broadcast reminder notice {code}: {title}")
+            flash(f"Calendar reminder notice '{title}' ({code}) published!", "success")
+        except Error as e:
+            flash(f"Database Error: {e}", "danger")
+        finally:
+            cur.close()
+            con.close()
+
+    return redirect(url_for("calendar_ptm_view", tab="reminders"))
+
+
+# =========================================================================
+# 8. STUDENT PERFORMANCE ANALYTICS & INTERVENTION MANAGEMENT ROUTES
+# =========================================================================
+
+@app.route("/performance-analytics")
+@login_required
+def performance_analytics_view():
+    tab = request.args.get("tab", "trends").lower()
+    class_filter = request.args.get("class_filter", "All")
+    term_filter = request.args.get("term_filter", "All")
+
+    from Analytics_Management_System import (
+        get_performance_kpis,
+        get_multi_term_trends,
+        get_subject_struggle_diagnostics,
+        get_class_comparative_benchmarks,
+        get_at_risk_students_registry,
+        get_academic_interventions_list
+    )
+
+    kpis = get_performance_kpis()
+    trends = get_multi_term_trends(class_filter)
+    subject_diagnostics = get_subject_struggle_diagnostics(term_filter, class_filter)
+    class_benchmarks = get_class_comparative_benchmarks(term_filter)
+    at_risk_students = get_at_risk_students_registry()
+    interventions = get_academic_interventions_list()
+
+    # Fetch auxiliary dropdown lists
+    students = []
+    teachers = []
+    con = get_connection()
+    if con:
+        cur = con.cursor(dictionary=True)
+        try:
+            cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM Students_Details ORDER BY ROLL_NUMBER ASC")
+            students = cur.fetchall()
+            cur.execute("SELECT TEACHER_ID, NAME, SUBJECT FROM Teachers_Details ORDER BY NAME ASC")
+            teachers = cur.fetchall()
+        except Error as e:
+            print("Aux data fetch error:", e)
+        finally:
+            cur.close()
+            con.close()
+
+    classes_list = ["Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"]
+    terms_list = ["Term 1 Exam", "Mid-Term Examination", "Term 2 Exam", "Final Examination"]
+
+    return render_template(
+        "performance_analytics.html",
+        active_page="performance_analytics",
+        tab=tab,
+        class_filter=class_filter,
+        term_filter=term_filter,
+        kpis=kpis,
+        trends=trends,
+        subject_diagnostics=subject_diagnostics,
+        class_benchmarks=class_benchmarks,
+        at_risk_students=at_risk_students,
+        interventions=interventions,
+        students=students,
+        teachers=teachers,
+        classes_list=classes_list,
+        terms_list=terms_list
+    )
+
+
+@app.route("/performance-analytics/intervention/add", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def add_intervention_route():
+    roll_number = request.form.get("roll_number", "").strip()
+    assigned_mentor = request.form.get("assigned_mentor", "").strip()
+    remedial_strategy = request.form.get("remedial_strategy", "").strip()
+    action_plan = request.form.get("action_plan", "").strip()
+    risk_level = request.form.get("risk_level", "Moderate").strip().capitalize()
+    parent_notified = request.form.get("parent_notified", "Yes").strip().capitalize()
+
+    if not roll_number or not assigned_mentor or not remedial_strategy:
+        flash("Student Roll Number, Assigned Mentor, and Remedial Strategy are required.", "warning")
+        return redirect(url_for("performance_analytics_view", tab="support"))
+
+    from Analytics_Management_System import create_academic_intervention
+    success, msg = create_academic_intervention(
+        roll_number, assigned_mentor, remedial_strategy, action_plan, risk_level, parent_notified
+    )
+    if success:
+        log_history(session.get("username", "Admin"), f"Created Academic Support Plan for Roll {roll_number} with Mentor {assigned_mentor}")
+        flash(msg, "success")
+    else:
+        flash(msg, "danger")
+
+    return redirect(url_for("performance_analytics_view", tab="support"))
+
+
+@app.route("/performance-analytics/intervention/update-status/<int:id>", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def update_intervention_status_route(id):
+    new_status = request.form.get("status", "").strip()
+    notes = request.form.get("notes", "").strip()
+
+    if not new_status:
+        flash("Status is required.", "warning")
+        return redirect(url_for("performance_analytics_view", tab="support"))
+
+    from Analytics_Management_System import update_intervention_status
+    success, msg = update_intervention_status(id, new_status, notes)
+    if success:
+        log_history(session.get("username", "Admin"), f"Updated Academic Support Plan #{id} status to '{new_status}'")
+        flash(msg, "success")
+    else:
+        flash(msg, "danger")
+
+    return redirect(url_for("performance_analytics_view", tab="support"))
+
+
+@app.route("/performance-analytics/intervention/delete/<int:id>", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def delete_intervention_route(id):
+    from Analytics_Management_System import delete_intervention
+    success, msg = delete_intervention(id)
+    if success:
+        log_history(session.get("username", "Admin"), f"Deleted Academic Support Plan #{id}")
+        flash(msg, "success")
+    else:
+        flash(msg, "danger")
+
+    return redirect(url_for("performance_analytics_view", tab="support"))
+
+
+@app.route("/performance-analytics/api/student-report/<roll>", methods=["GET"])
+@login_required
+def student_report_api(roll):
+    con = get_connection()
+    if not con:
+        return jsonify({"error": "Database connection failed"}), 500
+    cur = con.cursor(dictionary=True)
+    try:
+        cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM Students_Details WHERE ROLL_NUMBER = %s", (roll,))
+        stud = cur.fetchone()
+        if not stud:
+            return jsonify({"error": "Student not found"}), 404
+
+        cur.execute("""
+            SELECT EXAM_TYPE, SUBJECT, MARKS_OBTAINED, MAX_MARKS
+            FROM Marks_Details
+            WHERE ROLL_NUMBER = %s
+            ORDER BY FIELD(EXAM_TYPE, 'Term 1 Exam', 'Mid-Term Examination', 'Term 2 Exam', 'Final Examination'), SUBJECT ASC
+        """, (roll,))
+        marks = cur.fetchall()
+
+        for m in marks:
+            m["MARKS_OBTAINED"] = float(m["MARKS_OBTAINED"])
+            m["MAX_MARKS"] = float(m["MAX_MARKS"])
+            pct = round((m["MARKS_OBTAINED"] / m["MAX_MARKS"]) * 100, 1) if m["MAX_MARKS"] else 0.0
+            m["percentage"] = pct
+
+        total_marks = sum(m["percentage"] for m in marks)
+        avg_score = round(total_marks / len(marks), 1) if marks else 0.0
+        failing_count = sum(1 for m in marks if m["percentage"] < 40.0)
+
+        return jsonify({
+            "roll": stud["ROLL_NUMBER"],
+            "name": stud["NAME"],
+            "class": stud["CLASS"],
+            "overall_avg": avg_score,
+            "failing_count": failing_count,
+            "evaluations": marks
+        })
+    except Error as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cur.close()
+        con.close()
+
+
 # 7. BACKWARD COMPATIBILITY / TEMPLATE URL ALIASES
 # -------------------------------------------------------------------------
 app.add_url_rule("/students/add", endpoint="add_student", view_func=add_student_route, methods=["POST"])

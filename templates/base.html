@@ -92,6 +92,33 @@
                             <span class="link-text">Examinations</span>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a href="{{ url_for('performance_analytics_view') }}" class="nav-link {% if active_page == 'performance_analytics' %}active{% endif %}">
+                            <i class="fa-solid fa-chart-line"></i>
+                            <span class="link-text">Performance Analytics</span>
+                            <span class="nav-badge" style="background: rgba(16, 185, 129, 0.12); color: #059669;">Trends</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ url_for('coursework_view') }}" class="nav-link {% if active_page == 'coursework' %}active{% endif %}">
+                            <i class="fa-solid fa-graduation-cap"></i>
+                            <span class="link-text">Coursework & LMS</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ url_for('health_discipline_view') }}" class="nav-link {% if active_page == 'health_discipline' %}active{% endif %}">
+                            <i class="fa-solid fa-notes-medical"></i>
+                            <span class="link-text">Health & Discipline</span>
+                            <span class="nav-badge" style="background: rgba(239, 68, 68, 0.12); color: #dc2626;">Welfare</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ url_for('calendar_ptm_view') }}" class="nav-link {% if active_page == 'calendar_ptm' %}active{% endif %}">
+                            <i class="fa-solid fa-calendar-days"></i>
+                            <span class="link-text">Calendar & PTM</span>
+                            <span class="nav-badge" style="background: rgba(14, 165, 233, 0.12); color: #0284c7;">Events</span>
+                        </a>
+                    </li>
                 </ul>
 
                 {% if current_role == 'super_admin' %}

@@ -2,7 +2,7 @@
 import time
 import pyfiglet
 
-from Analytics_Management_System import plot_school_demographics
+from Analytics_Management_System import plot_school_demographics, analytics_menu, init_analytics_tables
 from utils import clear_screen, center_text, create_database, pause_and_clear
 from Student_Manegement_System import create_student_table, student_menu
 from Teacher_Management_System import create_teacher_tables, teacher_menu
@@ -13,6 +13,9 @@ from ExamMarks_Management_System import create_exam_tables, exam_menu
 from Export_Management_System import export_menu
 from Import_Management_System import import_menu
 from Parent_Management_System import create_parent_tables, parent_menu
+from Coursework_Management_System import create_coursework_tables, coursework_menu
+from Health_Discipline_Management_System import create_health_discipline_tables, health_discipline_menu
+from Calendar_PTM_Management_System import create_calendar_ptm_tables, calendar_ptm_menu
 
 # ============================== DATABASE INITIALIZATION ==================
 def init_database():
@@ -24,6 +27,10 @@ def init_database():
     create_attendance_tables()
     create_fee_tables()
     create_exam_tables()
+    create_coursework_tables()
+    create_health_discipline_tables()
+    create_calendar_ptm_tables()
+    init_analytics_tables()
 
 # ============================== WELCOME SCREEN ===========================   
 def show_welcome_screen():
@@ -56,8 +63,11 @@ def main():
         print("6. Examination & Marks Management".center(100))
         print("7. Export Reports to CSV / Excel".center(100))
         print("8. Import Bulk Data from CSV / Excel".center(100))
-        print("9. School Demographics & Analytics (Charts)".center(100))
+        print("9. Student Performance Analytics & Demographics".center(100))
         print("10. Parent & Guardian Details System".center(100))
+        print("11. Coursework, Assignments & Quizzes".center(100))
+        print("12. Student Health & Discipline Records".center(100))
+        print("13. School Calendar & Parent-Teacher Meetings".center(100))
         print("0. Exit".center(100))
         print("=" * 100)
         
@@ -78,10 +88,16 @@ def main():
             export_menu()
         elif choice == '8':
             import_menu()
-        elif choice == '9':                                              # <-- ADD THIS BLOCK
-            plot_school_demographics()
+        elif choice == '9':
+            analytics_menu()
         elif choice == '10':
             parent_menu()
+        elif choice == '11':
+            coursework_menu()
+        elif choice == '12':
+            health_discipline_menu()
+        elif choice == '13':
+            calendar_ptm_menu()
         elif choice == '0':
             clear_screen()
             screen_down = pyfiglet.figlet_format("HAVE A GREAT DAY !!!!", font='doom')

@@ -1,0 +1,1149 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard-container">
+
+    <!-- Top Page Toolbar -->
+    <div class="page-toolbar">
+        <div class="toolbar-left">
+            <h3 style="font-size: 20px; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-calendar-days" style="color: #0284c7;"></i> School Calendar &amp; Parent-Teacher Meetings
+            </h3>
+            <p style="font-size: 13px; color: var(--text-secondary);">
+                Centralized academic calendar managing official holidays, school exhibitions &amp; sports meets, teacher consultation slots, parent bookings, and automated reminder broadcasts.
+            </p>
+        </div>
+        <div class="toolbar-right" style="display: flex; gap: 8px; flex-wrap: wrap;">
+            {% if current_role in ('super_admin', 'admin') %}
+                <button type="button" class="btn-toolbar-add" data-modal-target="#addEventModal" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);">
+                    <i class="fa-solid fa-calendar-plus"></i> Schedule Event
+                </button>
+                <button type="button" class="btn-toolbar-add" data-modal-target="#addHolidayModal" style="background: linear-gradient(135deg, #059669 0%, #047857 100%);">
+                    <i class="fa-solid fa-mug-hot"></i> Add Holiday
+                </button>
+                <button type="button" class="btn-toolbar-add" data-modal-target="#addSlotModal" style="background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);">
+                    <i class="fa-solid fa-clock"></i> Create PTM Slot
+                </button>
+                <button type="button" class="btn-toolbar-add" data-modal-target="#addReminderModal" style="background: linear-gradient(135deg, #d97706 0%, #b45309 100%);">
+                    <i class="fa-solid fa-bullhorn"></i> Broadcast Notice
+                </button>
+            {% else %}
+                <button type="button" class="btn-toolbar-add" data-modal-target="#bookSlotModal" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);">
+                    <i class="fa-solid fa-calendar-check"></i> Book PTM Consultation
+                </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 1. Executive KPI Summary Cards -->
+    <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 24px;">
+        <!-- School Events -->
+        <div class="kpi-card card-blue">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper" style="background: #eff6ff; color: #2563eb;"><i class="fa-solid fa-calendar-day"></i></div>
+                <span class="kpi-pill"><i class="fa-solid fa-flag"></i> Events</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">School Events</span>
+                <h3 class="kpi-value">{{ stats.upcoming_events }} <span style="font-size: 14px; font-weight: 600; color: var(--text-muted);">/ {{ stats.total_events }}</span></h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext" style="color: #2563eb; font-weight: 700;">
+                    <i class="fa-solid fa-sparkles"></i> Upcoming on school timeline
+                </span>
+            </div>
+        </div>
+
+        <!-- Official Holidays -->
+        <div class="kpi-card card-emerald">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper" style="background: #ecfdf5; color: #059669;"><i class="fa-solid fa-mug-hot"></i></div>
+                <span class="kpi-pill"><i class="fa-solid fa-umbrella-beach"></i> Holidays</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Holidays &amp; Vacations</span>
+                <h3 class="kpi-value">{{ stats.total_holidays }}</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext" style="color: #059669; font-weight: 700;">
+                    <i class="fa-solid fa-calendar-check"></i> {{ stats.upcoming_holidays }} scheduled term breaks
+                </span>
+            </div>
+        </div>
+
+        <!-- PTM Consultation Slots -->
+        <div class="kpi-card card-purple">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper" style="background: #f5f3ff; color: #7c3aed;"><i class="fa-solid fa-clock"></i></div>
+                <span class="kpi-pill"><i class="fa-solid fa-door-open"></i> PTM Slots</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Available Slots</span>
+                <h3 class="kpi-value">{{ stats.available_slots }} <span style="font-size: 14px; font-weight: 600; color: var(--text-muted);">/ {{ stats.total_slots }}</span></h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext" style="color: #7c3aed; font-weight: 700;">
+                    <i class="fa-solid fa-handshake"></i> Open for parent booking
+                </span>
+            </div>
+        </div>
+
+        <!-- Confirmed Bookings -->
+        <div class="kpi-card card-amber">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper" style="background: #fef3c7; color: #d97706;"><i class="fa-solid fa-calendar-check"></i></div>
+                <span class="kpi-pill"><i class="fa-solid fa-user-check"></i> Bookings</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Confirmed PTMs</span>
+                <h3 class="kpi-value">{{ stats.confirmed_bookings }}</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext" style="color: #b45309;">
+                    <i class="fa-solid fa-people-arrows"></i> Parent consultations confirmed
+                </span>
+            </div>
+        </div>
+
+        <!-- Active Broadcast Reminders -->
+        <div class="kpi-card card-rose">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper" style="background: #ffe4e6; color: #e11d48;"><i class="fa-solid fa-bullhorn"></i></div>
+                <span class="kpi-pill"><i class="fa-solid fa-bell"></i> Reminders</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Active Reminders</span>
+                <h3 class="kpi-value">{{ stats.active_reminders }}</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext" style="color: #be123c;">
+                    <i class="fa-solid fa-satellite-dish"></i> In-app &amp; SMS alerts hub
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Subsystem Navigation Tabs -->
+    <div class="library-tabs-nav" style="display: flex; gap: 8px; border-bottom: 2px solid var(--border-color); margin-bottom: 20px; overflow-x: auto; padding-bottom: 2px;">
+        <a href="{{ url_for('calendar_ptm_view', tab='events') }}" class="lib-tab-pill {% if tab == 'events' %}active{% endif %}">
+            <i class="fa-solid fa-calendar-days"></i> School Events
+            <span class="tab-counter">{{ stats.upcoming_events }} upcoming</span>
+        </a>
+        <a href="{{ url_for('calendar_ptm_view', tab='holidays') }}" class="lib-tab-pill {% if tab == 'holidays' %}active{% endif %}">
+            <i class="fa-solid fa-mug-hot"></i> Holidays &amp; Vacations
+            <span class="tab-counter">{{ stats.total_holidays }}</span>
+        </a>
+        <a href="{{ url_for('calendar_ptm_view', tab='slots') }}" class="lib-tab-pill {% if tab == 'slots' %}active{% endif %}">
+            <i class="fa-solid fa-clock"></i> PTM Meeting Slots
+            <span class="tab-counter">{{ stats.available_slots }} open</span>
+        </a>
+        <a href="{{ url_for('calendar_ptm_view', tab='bookings') }}" class="lib-tab-pill {% if tab == 'bookings' %}active{% endif %}">
+            <i class="fa-solid fa-calendar-check"></i> Parent Bookings
+            <span class="tab-counter">{{ stats.confirmed_bookings }} confirmed</span>
+        </a>
+        <a href="{{ url_for('calendar_ptm_view', tab='reminders') }}" class="lib-tab-pill {% if tab == 'reminders' %}active{% endif %}">
+            <i class="fa-solid fa-bell"></i> Reminders Hub
+            <span class="tab-counter">{{ stats.active_reminders }}</span>
+        </a>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- TAB 1: SCHOOL EVENTS -->
+    <!-- ================================================================= -->
+    {% if tab == 'events' %}
+    <div class="data-table-card">
+        <div class="card-header" style="flex-wrap: wrap; gap: 12px;">
+            <div class="header-left">
+                <div class="card-badge-icon badge-blue"><i class="fa-solid fa-calendar-days"></i></div>
+                <div>
+                    <h4 class="card-title">School Events &amp; Academic Timeline</h4>
+                    <span class="card-subtitle">Exhibitions, examinations, sports tournaments, workshops, and school assemblies</span>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <form method="GET" action="{{ url_for('calendar_ptm_view') }}" class="table-search-form" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <input type="hidden" name="tab" value="events">
+                <div class="search-input-wrapper">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" name="search" value="{{ search }}" placeholder="Search event, location, organizer..." class="table-search-input">
+                </div>
+                <select name="category" class="table-filter-select">
+                    <option value="">All Categories</option>
+                    {% for cat in event_categories %}
+                        <option value="{{ cat }}" {% if selected_category == cat %}selected{% endif %}>{{ cat }}</option>
+                    {% endfor %}
+                </select>
+                <select name="status" class="table-filter-select">
+                    <option value="">All Statuses</option>
+                    <option value="Scheduled" {% if selected_status == 'Scheduled' %}selected{% endif %}>Scheduled</option>
+                    <option value="Ongoing" {% if selected_status == 'Ongoing' %}selected{% endif %}>Ongoing</option>
+                    <option value="Completed" {% if selected_status == 'Completed' %}selected{% endif %}>Completed</option>
+                </select>
+                <button type="submit" class="btn-filter"><i class="fa-solid fa-filter"></i> Filter</button>
+                {% if search or selected_category or selected_status %}
+                    <a href="{{ url_for('calendar_ptm_view', tab='events') }}" class="btn-clear"><i class="fa-solid fa-rotate-left"></i> Reset</a>
+                {% endif %}
+            </form>
+        </div>
+
+        <div style="padding: 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 18px;">
+            {% for e in events %}
+            <div style="background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: var(--shadow-xs); transition: all 0.2s ease; position: relative; overflow: hidden;"
+                 onmouseover="this.style.boxShadow='var(--shadow-md)'; this.style.borderColor='#93c5fd';"
+                 onmouseout="this.style.boxShadow='var(--shadow-xs)'; this.style.borderColor='var(--border-color)';">
+                
+                <!-- Status Top Line -->
+                <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: {% if e.CATEGORY == 'Examination' %}#e11d48{% elif e.CATEGORY == 'Sports' %}#059669{% elif e.CATEGORY == 'Meeting' %}#7c3aed{% else %}#0284c7{% endif %};"></div>
+
+                <div>
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 8px;">
+                        <span class="roll-badge" style="background: #eff6ff; color: #1e40af; border-color: #bfdbfe;">{{ e.EVENT_CODE }}</span>
+                        <div style="display: flex; gap: 6px;">
+                            <span class="class-pill">{{ e.CATEGORY }}</span>
+                            {% if e.is_upcoming %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 4px; background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0;">
+                                    In {{ e.days_left }}d
+                                </span>
+                            {% else %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 4px; background: #f1f5f9; color: #64748b;">
+                                    Past
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <h4 style="font-size: 15.5px; font-weight: 800; color: var(--navy-900); margin-bottom: 6px; line-height: 1.35;">
+                        {{ e.TITLE }}
+                    </h4>
+
+                    <div style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; font-size: 12px; color: var(--text-muted);">
+                        <div><i class="fa-regular fa-calendar-days" style="color: #0284c7; width: 16px;"></i> <strong>{{ e.event_date_fmt }}</strong> {% if e.start_time_fmt %}({{ e.start_time_fmt }} - {{ e.end_time_fmt }}){% endif %}</div>
+                        <div><i class="fa-solid fa-location-dot" style="color: #e11d48; width: 16px;"></i> {{ e.LOCATION }}</div>
+                        <div><i class="fa-solid fa-users" style="color: #059669; width: 16px;"></i> Audience: <span style="font-weight: 600; color: #334155;">{{ e.TARGET_AUDIENCE }}</span></div>
+                    </div>
+
+                    {% if e.DESCRIPTION %}
+                    <p style="font-size: 12.5px; color: var(--text-secondary); line-height: 1.5; background: #f8fafc; padding: 10px 12px; border-radius: var(--radius-sm); margin-bottom: 14px;">
+                        {{ e.DESCRIPTION }}
+                    </p>
+                    {% endif %}
+                </div>
+
+                <div style="border-top: 1px solid #f1f5f9; padding-top: 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                    <span style="font-size: 11.5px; color: var(--text-muted);">
+                        <i class="fa-solid fa-user-tie"></i> {{ e.ORGANIZER }}
+                    </span>
+
+                    {% if current_role in ('super_admin', 'admin') %}
+                    <form method="POST" action="{{ url_for('delete_calendar_event_route', id=e.ID) }}" style="display: inline;" onsubmit="return confirm('Delete event {{ e.EVENT_CODE }} ({{ e.TITLE }})?');">
+                        <button type="submit" class="page-btn" title="Delete Event" style="background: #fff1f2; color: #e11d48; border-color: #fecdd3;">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <div style="grid-column: 1 / -1; text-align: center; padding: 48px; background: #f8fafc; border-radius: var(--radius-md); border: 1px dashed var(--border-color);">
+                <i class="fa-solid fa-calendar-xmark" style="font-size: 38px; color: #94a3b8; margin-bottom: 12px;"></i>
+                <h4 style="font-size: 16px; font-weight: 800; color: var(--navy-900); margin-bottom: 4px;">No School Events Found</h4>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">Try adjusting your search criteria or schedule a new event.</p>
+                {% if current_role in ('super_admin', 'admin') %}
+                    <button type="button" class="btn-toolbar-add" data-modal-target="#addEventModal">
+                        <i class="fa-solid fa-plus"></i> Schedule School Event
+                    </button>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+
+    <!-- ================================================================= -->
+    <!-- TAB 2: HOLIDAYS & VACATIONS -->
+    <!-- ================================================================= -->
+    {% if tab == 'holidays' %}
+    <div class="data-table-card">
+        <div class="card-header" style="flex-wrap: wrap; gap: 12px;">
+            <div class="header-left">
+                <div class="card-badge-icon badge-emerald"><i class="fa-solid fa-mug-hot"></i></div>
+                <div>
+                    <h4 class="card-title">Official School Holidays &amp; Term Breaks</h4>
+                    <span class="card-subtitle">Gazetted national holidays, vacation periods, and institutional campus closures</span>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <form method="GET" action="{{ url_for('calendar_ptm_view') }}" class="table-search-form" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <input type="hidden" name="tab" value="holidays">
+                <div class="search-input-wrapper">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" name="search" value="{{ search }}" placeholder="Search holiday name..." class="table-search-input">
+                </div>
+                <select name="type" class="table-filter-select">
+                    <option value="">All Holiday Types</option>
+                    {% for ht in holiday_types %}
+                        <option value="{{ ht }}" {% if selected_type == ht %}selected{% endif %}>{{ ht }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn-filter"><i class="fa-solid fa-filter"></i> Filter</button>
+                {% if search or selected_type %}
+                    <a href="{{ url_for('calendar_ptm_view', tab='holidays') }}" class="btn-clear"><i class="fa-solid fa-rotate-left"></i> Reset</a>
+                {% endif %}
+            </form>
+        </div>
+
+        <div class="table-responsive">
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>Holiday / Break Name</th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
+                        <th>Duration</th>
+                        <th>Classification</th>
+                        <th>Circular Notes</th>
+                        <th>Timeline Status</th>
+                        {% if current_role in ('super_admin', 'admin') %}
+                            <th style="text-align: right;">Action</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for h in holidays %}
+                    <tr>
+                        <td>
+                            <strong style="font-size: 13.5px; color: var(--navy-900); display: flex; align-items: center; gap: 6px;">
+                                <i class="fa-solid fa-umbrella-beach" style="color: #059669;"></i> {{ h.HOLIDAY_NAME }}
+                            </strong>
+                        </td>
+                        <td><span style="font-weight: 700; color: #334155;">{{ h.start_date_fmt }}</span></td>
+                        <td><span style="font-weight: 700; color: #334155;">{{ h.end_date_fmt }}</span></td>
+                        <td>
+                            <span style="font-weight: 800; font-size: 12px; background: #ecfdf5; color: #047857; padding: 2px 8px; border-radius: 4px; border: 1px solid #a7f3d0;">
+                                {{ h.DURATION_DAYS }} Day(s)
+                            </span>
+                        </td>
+                        <td>
+                            <span class="class-pill">{{ h.HOLIDAY_TYPE }}</span>
+                        </td>
+                        <td style="max-width: 250px;">
+                            <span style="font-size: 12px; color: var(--text-secondary);">{{ h.DESCRIPTION or 'Campus administrative offices closed' }}</span>
+                        </td>
+                        <td>
+                            {% if h.is_active_now %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; display: inline-flex; align-items: center; gap: 4px;">
+                                    <span class="pulse-dot" style="background: #059669;"></span> Active Today
+                                </span>
+                            {% elif h.days_left > 0 %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe;">
+                                    In {{ h.days_left }} Days
+                                </span>
+                            {% else %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; background: #f1f5f9; color: #64748b;">
+                                    Passed
+                                </span>
+                            {% endif %}
+                        </td>
+                        {% if current_role in ('super_admin', 'admin') %}
+                        <td style="text-align: right; white-space: nowrap;">
+                            <form method="POST" action="{{ url_for('delete_calendar_holiday_route', id=h.ID) }}" style="display: inline;" onsubmit="return confirm('Remove holiday {{ h.HOLIDAY_NAME }}?');">
+                                <button type="submit" class="page-btn" title="Remove Holiday" style="background: #fff1f2; color: #e11d48; border-color: #fecdd3;">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </form>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 36px; color: var(--text-muted);">
+                            <i class="fa-solid fa-mug-hot" style="font-size: 28px; margin-bottom: 8px; display: block; color: #94a3b8;"></i>
+                            No holidays scheduled matching your filters.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+
+    <!-- ================================================================= -->
+    <!-- TAB 3: PTM MEETING SLOTS -->
+    <!-- ================================================================= -->
+    {% if tab == 'slots' %}
+    <div class="data-table-card">
+        <div class="card-header" style="flex-wrap: wrap; gap: 12px;">
+            <div class="header-left">
+                <div class="card-badge-icon badge-purple"><i class="fa-solid fa-clock"></i></div>
+                <div>
+                    <h4 class="card-title">Parent-Teacher Conference (PTM) Meeting Slots</h4>
+                    <span class="card-subtitle">Consultation appointments created by faculty for individual academic reviews</span>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <form method="GET" action="{{ url_for('calendar_ptm_view') }}" class="table-search-form" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <input type="hidden" name="tab" value="slots">
+                <div class="search-input-wrapper">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" name="search" value="{{ search }}" placeholder="Search teacher, slot code, room..." class="table-search-input">
+                </div>
+                <select name="teacher" class="table-filter-select">
+                    <option value="">All Faculty</option>
+                    {% for t in teachers %}
+                        <option value="{{ t.TEACHER_ID }}" {% if selected_teacher == t.TEACHER_ID %}selected{% endif %}>{{ t.NAME }} ({{ t.SUBJECT }})</option>
+                    {% endfor %}
+                </select>
+                <select name="status" class="table-filter-select">
+                    <option value="">All Slot Statuses</option>
+                    <option value="Available" {% if selected_status == 'Available' %}selected{% endif %}>Available Only</option>
+                    <option value="Booked" {% if selected_status == 'Booked' %}selected{% endif %}>Booked</option>
+                </select>
+                <button type="submit" class="btn-filter"><i class="fa-solid fa-filter"></i> Filter</button>
+                {% if search or selected_teacher or selected_status %}
+                    <a href="{{ url_for('calendar_ptm_view', tab='slots') }}" class="btn-clear"><i class="fa-solid fa-rotate-left"></i> Reset</a>
+                {% endif %}
+            </form>
+        </div>
+
+        <div style="padding: 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 18px;">
+            {% for s in slots %}
+            <div style="background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: var(--shadow-xs); transition: all 0.2s ease;"
+                 onmouseover="this.style.boxShadow='var(--shadow-md)'; this.style.borderColor='#c4b5fd';"
+                 onmouseout="this.style.boxShadow='var(--shadow-xs)'; this.style.borderColor='var(--border-color)';">
+                
+                <div>
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <span class="roll-badge" style="background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe;">{{ s.SLOT_CODE }}</span>
+                        {% if s.STATUS == 'Available' %}
+                            <span style="font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 4px; background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0;">
+                                <i class="fa-solid fa-circle-check"></i> Available
+                            </span>
+                        {% else %}
+                            <span style="font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 4px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca;">
+                                <i class="fa-solid fa-lock"></i> Booked
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <div class="student-name-cell" style="margin-bottom: 12px;">
+                        <div class="mini-avatar" style="background: #7c3aed;">{{ s.TEACHER_NAME[0] | upper }}</div>
+                        <div>
+                            <div class="student-name">{{ s.TEACHER_NAME }}</div>
+                            <div style="font-size: 11px; color: var(--text-muted);"><strong style="color: #6d28d9;">{{ s.SUBJECT }}</strong> &bull; {{ s.TEACHER_ID }}</div>
+                        </div>
+                    </div>
+
+                    <div style="background: #f8fafc; border: 1px solid #f1f5f9; padding: 10px 12px; border-radius: var(--radius-sm); margin-bottom: 12px; font-size: 12px; display: flex; flex-direction: column; gap: 5px;">
+                        <div><i class="fa-regular fa-calendar-days" style="color: #2563eb; width: 16px;"></i> <strong>{{ s.meeting_date_fmt }}</strong></div>
+                        <div><i class="fa-regular fa-clock" style="color: #059669; width: 16px;"></i> <strong>{{ s.time_range }}</strong></div>
+                        <div>
+                            {% if 'Virtual' in s.MEETING_MODE %}
+                                <i class="fa-solid fa-video" style="color: #7c3aed; width: 16px;"></i> <span style="font-weight: 600; color: #6d28d9;">Virtual Conference</span>
+                            {% else %}
+                                <i class="fa-solid fa-door-open" style="color: #d97706; width: 16px;"></i> <span style="font-weight: 600; color: #334155;">{{ s.ROOM_OR_LINK }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {% if s.NOTES %}
+                    <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
+                        {{ s.NOTES }}
+                    </p>
+                    {% endif %}
+                </div>
+
+                <div style="border-top: 1px solid #f1f5f9; padding-top: 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                    <div>
+                        {% if s.STATUS == 'Available' %}
+                            <button type="button" class="btn-toolbar-add" onclick="openBookModalForSlot('{{ s.SLOT_CODE }}', '{{ s.TEACHER_NAME | replace('\'', '\\\'') }}', '{{ s.SUBJECT }}', '{{ s.meeting_date_fmt }}', '{{ s.time_range }}')" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); padding: 6px 14px; font-size: 12px;">
+                                <i class="fa-solid fa-handshake"></i> Book Appointment
+                            </button>
+                        {% else %}
+                            <span style="font-size: 12px; color: var(--text-muted); font-weight: 700;">
+                                <i class="fa-solid fa-user-check"></i> Reserved
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    {% if current_role in ('super_admin', 'admin') %}
+                    <form method="POST" action="{{ url_for('delete_ptm_slot_route', id=s.ID) }}" style="display: inline;" onsubmit="return confirm('Delete slot {{ s.SLOT_CODE }}?');">
+                        <button type="submit" class="page-btn" title="Delete Slot" style="background: #fff1f2; color: #e11d48; border-color: #fecdd3;">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <div style="grid-column: 1 / -1; text-align: center; padding: 48px; background: #f8fafc; border-radius: var(--radius-md); border: 1px dashed var(--border-color);">
+                <i class="fa-solid fa-clock" style="font-size: 38px; color: #94a3b8; margin-bottom: 12px;"></i>
+                <h4 style="font-size: 16px; font-weight: 800; color: var(--navy-900); margin-bottom: 4px;">No Meeting Slots Available</h4>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">Teachers can publish availability slots for upcoming parent consultations.</p>
+                {% if current_role in ('super_admin', 'admin') %}
+                    <button type="button" class="btn-toolbar-add" data-modal-target="#addSlotModal">
+                        <i class="fa-solid fa-plus"></i> Create PTM Meeting Slot
+                    </button>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+
+    <!-- ================================================================= -->
+    <!-- TAB 4: PARENT BOOKINGS -->
+    <!-- ================================================================= -->
+    {% if tab == 'bookings' %}
+    <div class="data-table-card">
+        <div class="card-header" style="flex-wrap: wrap; gap: 12px;">
+            <div class="header-left">
+                <div class="card-badge-icon badge-amber"><i class="fa-solid fa-calendar-check"></i></div>
+                <div>
+                    <h4 class="card-title">Confirmed Parent Bookings &amp; Consultations</h4>
+                    <span class="card-subtitle">Scheduled appointments, parent discussion topics, reminder dispatch logs, and teacher conference feedback</span>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <form method="GET" action="{{ url_for('calendar_ptm_view') }}" class="table-search-form" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <input type="hidden" name="tab" value="bookings">
+                <div class="search-input-wrapper">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" name="search" value="{{ search }}" placeholder="Search by student, parent, code..." class="table-search-input">
+                </div>
+                <select name="status" class="table-filter-select">
+                    <option value="">All Booking Statuses</option>
+                    <option value="Confirmed" {% if selected_status == 'Confirmed' %}selected{% endif %}>Confirmed</option>
+                    <option value="Completed" {% if selected_status == 'Completed' %}selected{% endif %}>Completed</option>
+                    <option value="Cancelled" {% if selected_status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                </select>
+                <button type="submit" class="btn-filter"><i class="fa-solid fa-filter"></i> Filter</button>
+                {% if search or selected_status %}
+                    <a href="{{ url_for('calendar_ptm_view', tab='bookings') }}" class="btn-clear"><i class="fa-solid fa-rotate-left"></i> Reset</a>
+                {% endif %}
+            </form>
+        </div>
+
+        <div class="table-responsive">
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>Booking #</th>
+                        <th>Student Details</th>
+                        <th>Parent / Guardian</th>
+                        <th>Faculty Member</th>
+                        <th>Date &amp; Time Range</th>
+                        <th>Mode / Room</th>
+                        <th>Agenda Topic</th>
+                        <th>Reminder</th>
+                        <th>Status</th>
+                        <th style="text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in bookings %}
+                    <tr>
+                        <td>
+                            <span class="roll-badge" style="background: #fffbeb; color: #b45309; border-color: #fde68a;">{{ b.BOOKING_CODE }}</span>
+                            <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Slot: {{ b.SLOT_CODE }}</div>
+                        </td>
+                        <td>
+                            <div class="student-name-cell">
+                                <div class="mini-avatar" style="background: #0284c7;">{{ b.STUDENT_NAME[0] | upper }}</div>
+                                <div>
+                                    <div class="student-name">{{ b.STUDENT_NAME }}</div>
+                                    <div style="font-size: 11px; color: var(--text-muted);">Roll: <strong>{{ b.STUDENT_ROLL }}</strong> &bull; {{ b.STUDENT_CLASS }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div style="font-weight: 700; color: var(--navy-900); font-size: 12.5px;">{{ b.PARENT_NAME }}</div>
+                            <div style="font-size: 11px; color: var(--text-muted);"><i class="fa-solid fa-phone" style="font-size: 10px;"></i> {{ b.PARENT_PHONE }}</div>
+                        </td>
+                        <td>
+                            <div style="font-weight: 700; color: var(--navy-900); font-size: 12.5px;">{{ b.TEACHER_NAME }}</div>
+                            <div style="font-size: 11px; color: #6d28d9; font-weight: 600;">{{ b.SUBJECT }}</div>
+                        </td>
+                        <td>
+                            <div style="font-weight: 700; color: var(--navy-900); font-size: 12px;">{{ b.meeting_date_fmt }}</div>
+                            <div style="font-size: 11px; color: #059669; font-weight: 700;"><i class="fa-regular fa-clock"></i> {{ b.time_range }}</div>
+                        </td>
+                        <td>
+                            {% if 'Virtual' in b.MEETING_MODE %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 4px; background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; display: inline-flex; align-items: center; gap: 4px;">
+                                    <i class="fa-solid fa-video"></i> Online
+                                </span>
+                            {% else %}
+                                <span style="font-size: 11px; font-weight: 700; color: #334155;">{{ b.ROOM_OR_LINK }}</span>
+                            {% endif %}
+                        </td>
+                        <td style="max-width: 220px;">
+                            <span style="font-size: 12px; color: var(--text-secondary); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;" title="{{ b.DISCUSSION_TOPIC }}">
+                                {{ b.DISCUSSION_TOPIC }}
+                            </span>
+                            {% if b.TEACHER_FEEDBACK_NOTES %}
+                                <div style="font-size: 11px; color: #059669; font-weight: 700; margin-top: 3px;">
+                                    <i class="fa-solid fa-comment-check"></i> Notes: {{ b.TEACHER_FEEDBACK_NOTES }}
+                                </div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if b.REMINDER_SENT %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 4px; background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0;" title="Reminder dispatched">
+                                    <i class="fa-solid fa-check"></i> Sent
+                                </span>
+                            {% else %}
+                                {% if current_role in ('super_admin', 'admin') and b.STATUS == 'Confirmed' %}
+                                    <form method="POST" action="{{ url_for('send_ptm_reminder_route', id=b.ID) }}" style="display: inline;">
+                                        <button type="submit" class="page-btn" title="Send Reminder Alert" style="background: #fffbeb; color: #b45309; border-color: #fde68a; font-size: 11px; padding: 2px 8px;">
+                                            <i class="fa-solid fa-bell"></i> Send
+                                        </button>
+                                    </form>
+                                {% else %}
+                                    <span style="font-size: 11px; color: var(--text-muted);">Pending</span>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if b.STATUS == 'Confirmed' %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0;">
+                                    Confirmed
+                                </span>
+                            {% elif b.STATUS == 'Completed' %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe;">
+                                    Completed
+                                </span>
+                            {% else %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; background: #f1f5f9; color: #64748b;">
+                                    {{ b.STATUS }}
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: right; white-space: nowrap;">
+                            {% if current_role in ('super_admin', 'admin') %}
+                                <button type="button" class="page-btn" onclick="openSaveNotesModal({{ b.ID }}, '{{ b.BOOKING_CODE }}', '{{ b.STUDENT_NAME | replace('\'', '\\\'') }}', '{{ b.PARENT_NAME | replace('\'', '\\\'') }}', '{{ b.TEACHER_FEEDBACK_NOTES | replace('\'', '\\\'') | replace('\n', ' ') }}', '{{ b.STATUS }}')" style="background: #ecfdf5; color: #059669; border-color: #a7f3d0; font-weight: 800;">
+                                    <i class="fa-solid fa-pen-to-square"></i> Notes
+                                </button>
+                            {% endif %}
+
+                            {% if b.STATUS == 'Confirmed' %}
+                                <form method="POST" action="{{ url_for('cancel_ptm_booking_route', id=b.ID) }}" style="display: inline;" onsubmit="return confirm('Cancel booking {{ b.BOOKING_CODE }}? The slot will be reopened.');">
+                                    <button type="submit" class="page-btn" title="Cancel Booking" style="background: #fff1f2; color: #e11d48; border-color: #fecdd3;">
+                                        <i class="fa-solid fa-ban"></i> Cancel
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="10" style="text-align: center; padding: 36px; color: var(--text-muted);">
+                            <i class="fa-solid fa-calendar-check" style="font-size: 28px; margin-bottom: 8px; display: block; color: #94a3b8;"></i>
+                            No parent consultation bookings found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+
+    <!-- ================================================================= -->
+    <!-- TAB 5: REMINDERS HUB -->
+    <!-- ================================================================= -->
+    {% if tab == 'reminders' %}
+    <div class="data-table-card">
+        <div class="card-header" style="flex-wrap: wrap; gap: 12px;">
+            <div class="header-left">
+                <div class="card-badge-icon badge-rose"><i class="fa-solid fa-bullhorn"></i></div>
+                <div>
+                    <h4 class="card-title">Calendar &amp; PTM Reminders Hub</h4>
+                    <span class="card-subtitle">Automated notification broadcasts for upcoming parent meetings, exam periods, and vacation notices</span>
+                </div>
+            </div>
+
+            {% if current_role in ('super_admin', 'admin') %}
+            <button type="button" class="btn-toolbar-add" data-modal-target="#addReminderModal" style="background: linear-gradient(135deg, #d97706 0%, #b45309 100%);">
+                <i class="fa-solid fa-plus-circle"></i> Create Reminder Notice
+            </button>
+            {% endif %}
+        </div>
+
+        <div class="table-responsive">
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>Reminder #</th>
+                        <th>Notice Headline</th>
+                        <th>Alert Date</th>
+                        <th>Target Audience</th>
+                        <th>Recipient</th>
+                        <th>Notice Message Body</th>
+                        <th>Delivery Channel</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in reminders %}
+                    <tr>
+                        <td><span class="roll-badge" style="background: #fff1f2; color: #be123c; border-color: #fecdd3;">{{ r.REMINDER_CODE }}</span></td>
+                        <td>
+                            <strong style="color: var(--navy-900); font-size: 13px;">{{ r.TITLE }}</strong>
+                        </td>
+                        <td>
+                            <span style="font-size: 12px; font-weight: 700; color: #0284c7;">{{ r.reminder_date_fmt }}</span>
+                        </td>
+                        <td>
+                            <span class="class-pill">{{ r.TARGET_TYPE }}</span>
+                        </td>
+                        <td>
+                            <span style="font-size: 12px; color: #334155; font-weight: 600;">{{ r.RECIPIENT_NAME or 'All Members' }}</span>
+                        </td>
+                        <td style="max-width: 320px;">
+                            <span style="font-size: 12.5px; color: var(--text-secondary); line-height: 1.45;">{{ r.MESSAGE }}</span>
+                        </td>
+                        <td>
+                            {% if 'SMS' in r.DELIVERY_CHANNEL %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 4px; background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0;">
+                                    <i class="fa-solid fa-comment-sms"></i> SMS Alert
+                                </span>
+                            {% elif 'Email' in r.DELIVERY_CHANNEL %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 4px; background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe;">
+                                    <i class="fa-solid fa-envelope"></i> Email Notice
+                                </span>
+                            {% else %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 4px; background: #fdf2f8; color: #be123c; border: 1px solid #fecdd3;">
+                                    <i class="fa-solid fa-bell"></i> In-App
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0;">
+                                Active
+                            </span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 36px; color: var(--text-muted);">
+                            <i class="fa-solid fa-bell-slash" style="font-size: 28px; margin-bottom: 8px; display: block; color: #94a3b8;"></i>
+                            No calendar reminders dispatched.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+
+<!-- ================================================================= -->
+<!-- MODAL 1: SCHEDULE SCHOOL EVENT -->
+<!-- ================================================================= -->
+<div class="modal-overlay" id="addEventModal">
+    <div class="modal-dialog" style="max-width: 620px;">
+        <div class="modal-header">
+            <h4 class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-calendar-plus" style="color: #0284c7;"></i> Schedule Campus Event
+            </h4>
+            <button type="button" class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('add_calendar_event_route') }}">
+            <div class="modal-body" style="padding: 20px; max-height: 75vh; overflow-y: auto;">
+                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Event Title *</label>
+                        <input type="text" name="title" required placeholder="e.g. Annual Inter-School Science Fair" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Event Date *</label>
+                        <input type="date" name="event_date" required class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Event Category *</label>
+                        <select name="category" class="form-select">
+                            {% for cat in event_categories %}
+                                <option value="{{ cat }}">{{ cat }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Start Time</label>
+                        <input type="time" name="start_time" value="09:00" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">End Time</label>
+                        <input type="time" name="end_time" value="12:00" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Campus Location</label>
+                        <input type="text" name="location" placeholder="e.g. Main Auditorium, Sports Ground" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Target Audience</label>
+                        <select name="target_audience" class="form-select">
+                            <option value="All Students">All Students</option>
+                            <option value="Parents & Teachers">Parents &amp; Teachers</option>
+                            <option value="High School (Grades 10-12)">High School (Grades 10-12)</option>
+                            <option value="Middle School (Grades 6-9)">Middle School (Grades 6-9)</option>
+                            <option value="Faculty Only">Faculty Only</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Organizing Department / Lead</label>
+                        <input type="text" name="organizer" value="{{ session.get('username', 'Faculty Council') }}" class="form-control">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Event Overview &amp; Instructions</label>
+                        <textarea name="description" rows="2" placeholder="Detail the schedule, student requirements, or chief guests..." class="form-control"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 14px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 8px;">
+                <button type="button" class="page-btn" data-modal-close>Cancel</button>
+                <button type="submit" class="btn-toolbar-add" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);">
+                    <i class="fa-solid fa-check"></i> Publish Event
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- ================================================================= -->
+<!-- MODAL 2: ADD SCHOOL HOLIDAY -->
+<!-- ================================================================= -->
+<div class="modal-overlay" id="addHolidayModal">
+    <div class="modal-dialog" style="max-width: 580px;">
+        <div class="modal-header">
+            <h4 class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-mug-hot" style="color: #059669;"></i> Add Official Holiday / Term Break
+            </h4>
+            <button type="button" class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('add_calendar_holiday_route') }}">
+            <div class="modal-body" style="padding: 20px;">
+                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Holiday / Vacation Name *</label>
+                        <input type="text" name="holiday_name" required placeholder="e.g. Winter Term Vacation" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Start Date *</label>
+                        <input type="date" name="start_date" required class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">End Date (Inclusive) *</label>
+                        <input type="date" name="end_date" required class="form-control">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Holiday Classification</label>
+                        <select name="holiday_type" class="form-select">
+                            {% for ht in holiday_types %}
+                                <option value="{{ ht }}">{{ ht }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Circular / Administrative Description</label>
+                        <textarea name="description" rows="2" placeholder="e.g. Campus and offices closed; online coursework remains accessible..." class="form-control"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 14px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 8px;">
+                <button type="button" class="page-btn" data-modal-close>Cancel</button>
+                <button type="submit" class="btn-toolbar-add" style="background: linear-gradient(135deg, #059669 0%, #047857 100%);">
+                    <i class="fa-solid fa-check"></i> Add Holiday
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- ================================================================= -->
+<!-- MODAL 3: CREATE PTM MEETING SLOT -->
+<!-- ================================================================= -->
+<div class="modal-overlay" id="addSlotModal">
+    <div class="modal-dialog" style="max-width: 600px;">
+        <div class="modal-header">
+            <h4 class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-clock" style="color: #7c3aed;"></i> Create PTM Meeting Consultation Slot
+            </h4>
+            <button type="button" class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('add_ptm_slot_route') }}">
+            <div class="modal-body" style="padding: 20px; max-height: 75vh; overflow-y: auto;">
+                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Faculty Member *</label>
+                        <select name="teacher_id" required class="form-select">
+                            <option value="">Select Faculty Member</option>
+                            {% for t in teachers %}
+                                <option value="{{ t.TEACHER_ID }}">{{ t.NAME }} ({{ t.SUBJECT }}) — {{ t.TEACHER_ID }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Meeting Date *</label>
+                        <input type="date" name="meeting_date" required class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Start Time *</label>
+                        <input type="time" name="start_time" value="10:00" required class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">End Time *</label>
+                        <input type="time" name="end_time" value="10:20" required class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Meeting Mode</label>
+                        <select name="meeting_mode" class="form-select">
+                            {% for mm in meeting_modes %}
+                                <option value="{{ mm }}">{{ mm }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Room / Conference URL</label>
+                        <input type="text" name="room_or_link" value="Room 101 - Math Wing" placeholder="e.g. Room 204 or https://meet.google.com/..." class="form-control">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Teacher Consultation Notes</label>
+                        <input type="text" name="notes" placeholder="e.g. Priority consultation for calculus &amp; mechanics preparation" class="form-control">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 14px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 8px;">
+                <button type="button" class="page-btn" data-modal-close>Cancel</button>
+                <button type="submit" class="btn-toolbar-add" style="background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);">
+                    <i class="fa-solid fa-check"></i> Create Meeting Slot
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- ================================================================= -->
+<!-- MODAL 4: BOOK PTM MEETING SLOT (PARENTS) -->
+<!-- ================================================================= -->
+<div class="modal-overlay" id="bookSlotModal">
+    <div class="modal-dialog" style="max-width: 620px;">
+        <div class="modal-header">
+            <h4 class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-calendar-check" style="color: #0284c7;"></i> Book Parent-Teacher Consultation
+            </h4>
+            <button type="button" class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('book_ptm_slot_route') }}">
+            <div class="modal-body" style="padding: 20px; max-height: 75vh; overflow-y: auto;">
+                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Select Available Slot *</label>
+                        <select name="slot_code" id="bookSlotSelect" required class="form-select">
+                            <option value="">Select Meeting Slot</option>
+                            {% for s in all_slots %}
+                                {% if s.STATUS == 'Available' %}
+                                    <option value="{{ s.SLOT_CODE }}">{{ s.SLOT_CODE }} — {{ s.TEACHER_NAME }} ({{ s.SUBJECT }}) &bull; {{ s.meeting_date_fmt }} ({{ s.time_range }})</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Student Roll Number *</label>
+                        <select name="student_roll" id="bookStudentRollSelect" required class="form-select" onchange="autoFillParentForBooking(this)">
+                            <option value="">Select Student</option>
+                            {% for st in students %}
+                                <option value="{{ st.ROLL_NUMBER }}">{{ st.ROLL_NUMBER }} — {{ st.NAME }} ({{ st.CLASS }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Parent / Guardian Full Name *</label>
+                        <input type="text" name="parent_name" id="bookParentName" required placeholder="e.g. Sunil Sharma" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Contact Phone Number *</label>
+                        <input type="text" name="parent_phone" id="bookParentPhone" required placeholder="e.g. 9876543201" class="form-control">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Parent Email Address</label>
+                        <input type="email" name="parent_email" id="bookParentEmail" placeholder="e.g. parent@example.com" class="form-control">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Discussion Agenda / Key Topics *</label>
+                        <textarea name="discussion_topic" rows="3" required placeholder="Specify what you would like to discuss (e.g. mid-term exam performance, homework routine, classroom participation)..." class="form-control"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 14px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 8px;">
+                <button type="button" class="page-btn" data-modal-close>Cancel</button>
+                <button type="submit" class="btn-toolbar-add" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);">
+                    <i class="fa-solid fa-check"></i> Confirm Appointment
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- ================================================================= -->
+<!-- MODAL 5: TEACHER POST-CONFERENCE FEEDBACK NOTES -->
+<!-- ================================================================= -->
+<div class="modal-overlay" id="saveNotesModal">
+    <div class="modal-dialog" style="max-width: 520px;">
+        <div class="modal-header">
+            <h4 class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-comment-dots" style="color: #059669;"></i> Conference Notes &amp; Outcome
+            </h4>
+            <button type="button" class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <form method="POST" id="saveNotesForm" action="">
+            <div class="modal-body" style="padding: 20px;">
+                <div style="background: #f8fafc; border: 1px solid #f1f5f9; padding: 12px; border-radius: var(--radius-sm); margin-bottom: 14px;">
+                    <div style="font-size: 13px; font-weight: 800; color: var(--navy-900);" id="notesModalStudent">Student</div>
+                    <div style="font-size: 12px; color: var(--text-muted);" id="notesModalParent">Parent</div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 14px;">
+                    <label class="form-label">Consultation Status</label>
+                    <select name="status" id="notesModalStatus" class="form-select">
+                        <option value="Completed">Completed (Successfully Held)</option>
+                        <option value="Confirmed">Confirmed (Upcoming)</option>
+                        <option value="No-Show">No-Show / Rescheduled</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Teacher Conference Notes &amp; Agreed Actions</label>
+                    <textarea name="teacher_feedback_notes" id="notesModalFeedback" rows="4" required placeholder="Summarize key topics discussed with parents, agreed action items, or study plan adjustments..." class="form-control"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 14px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 8px;">
+                <button type="button" class="page-btn" data-modal-close>Cancel</button>
+                <button type="submit" class="btn-toolbar-add" style="background: linear-gradient(135deg, #059669 0%, #047857 100%);">
+                    <i class="fa-solid fa-check-double"></i> Save Meeting Notes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- ================================================================= -->
+<!-- MODAL 6: BROADCAST CALENDAR REMINDER -->
+<!-- ================================================================= -->
+<div class="modal-overlay" id="addReminderModal">
+    <div class="modal-dialog" style="max-width: 580px;">
+        <div class="modal-header">
+            <h4 class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-bullhorn" style="color: #d97706;"></i> Broadcast Reminder Notice
+            </h4>
+            <button type="button" class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('add_calendar_reminder_route') }}">
+            <div class="modal-body" style="padding: 20px;">
+                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Notice Headline *</label>
+                        <input type="text" name="title" required placeholder="e.g. Mid-Term Examination Timing Circular" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Alert Trigger Date *</label>
+                        <input type="date" name="reminder_date" required class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Delivery Channel</label>
+                        <select name="delivery_channel" class="form-select">
+                            <option value="In-App Notification">In-App Notification</option>
+                            <option value="SMS Alert">SMS Alert</option>
+                            <option value="Email Notice">Email Notice</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Target Recipient Group</label>
+                        <select name="target_type" class="form-select">
+                            <option value="All School">All School Community</option>
+                            <option value="All Parents">All Parents</option>
+                            <option value="Faculty">Faculty &amp; Staff</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Notice Body *</label>
+                        <textarea name="message" rows="3" required placeholder="Broadcast instructions or reminders..." class="form-control"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 14px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 8px;">
+                <button type="button" class="page-btn" data-modal-close>Cancel</button>
+                <button type="submit" class="btn-toolbar-add" style="background: linear-gradient(135deg, #d97706 0%, #b45309 100%);">
+                    <i class="fa-solid fa-paper-plane"></i> Publish Reminder
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- Client-Side Scripts -->
+<script>
+    const PARENTS_MAP = {{ parents_map | tojson | safe }};
+
+    function autoFillParentForBooking(select) {
+        const roll = select.value;
+        const parent = PARENTS_MAP[roll];
+        if (parent) {
+            document.getElementById('bookParentName').value = parent.FATHER_NAME || 'Parent';
+            document.getElementById('bookParentPhone').value = parent.PRIMARY_CONTACT || '';
+            document.getElementById('bookParentEmail').value = parent.EMAIL || '';
+        }
+    }
+
+    function openBookModalForSlot(slotCode, teacherName, subject, dateFmt, timeRange) {
+        const sel = document.getElementById('bookSlotSelect');
+        if (sel) {
+            sel.value = slotCode;
+        }
+        document.getElementById('bookSlotModal').classList.add('active');
+    }
+
+    function openSaveNotesModal(id, bookingCode, studentName, parentName, notes, status) {
+        const form = document.getElementById('saveNotesForm');
+        form.action = `/calendar-ptm/bookings/notes/${id}`;
+        document.getElementById('notesModalStudent').textContent = `Student: ${studentName} (${bookingCode})`;
+        document.getElementById('notesModalParent').textContent = `Parent: ${parentName}`;
+        document.getElementById('notesModalFeedback').value = notes || '';
+        document.getElementById('notesModalStatus').value = status || 'Completed';
+
+        document.getElementById('saveNotesModal').classList.add('active');
+    }
+
+    // Global Modal Listeners
+    document.querySelectorAll('[data-modal-close]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
+        });
+    });
+
+    document.querySelectorAll('[data-modal-target]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const target = btn.getAttribute('data-modal-target');
+            const modal = document.querySelector(target);
+            if (modal) modal.classList.add('active');
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,1188 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard-container">
+
+    <!-- Top Page Toolbar -->
+    <div class="page-toolbar">
+        <div class="toolbar-left">
+            <h3 style="font-size: 20px; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-notes-medical" style="color: #e11d48;"></i> Student Health &amp; Discipline Records
+            </h3>
+            <p style="font-size: 13px; color: var(--text-secondary);">
+                Restricted-access clinical infirmary logs, student medical profiles, behaviour incident reporting, and counselor follow-up interventions.
+            </p>
+        </div>
+        <div class="toolbar-right" style="display: flex; gap: 8px; flex-wrap: wrap;">
+            {% if current_role in ('super_admin', 'admin') %}
+                <button type="button" class="btn-toolbar-add" data-modal-target="#addVisitModal" style="background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);">
+                    <i class="fa-solid fa-kit-medical"></i> Record Medical Visit
+                </button>
+                <button type="button" class="btn-toolbar-add" data-modal-target="#addIncidentModal" style="background: linear-gradient(135deg, #d97706 0%, #b45309 100%);">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Report Incident
+                </button>
+                <button type="button" class="btn-toolbar-add" data-modal-target="#saveHealthProfileModal" style="background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);">
+                    <i class="fa-solid fa-heart-pulse"></i> Update Health Profile
+                </button>
+                <button type="button" class="btn-toolbar-add" data-modal-target="#scheduleFollowupModal" style="background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);">
+                    <i class="fa-solid fa-user-check"></i> Schedule Follow-up
+                </button>
+            {% else %}
+                <span style="font-size: 12px; font-weight: 700; color: #64748b; background: #f1f5f9; padding: 6px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-lock" style="color: #64748b;"></i> Restricted Medical &amp; Conduct Access
+                </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 1. Executive KPI Summary Cards -->
+    <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); margin-bottom: 24px;">
+        <!-- Health Profiles on Record -->
+        <div class="kpi-card card-emerald">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper" style="background: #ecfdf5; color: #059669;"><i class="fa-solid fa-heart-pulse"></i></div>
+                <span class="kpi-pill"><i class="fa-solid fa-shield-halved"></i> Profiles</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Health Profiles on File</span>
+                <h3 class="kpi-value">{{ stats.total_profiles }}</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext" style="color: #059669; font-weight: 700;">
+                    <i class="fa-solid fa-seedling"></i> {{ stats.students_with_allergies }} with noted allergies / asthma
+                </span>
+            </div>
+        </div>
+
+        <!-- Medical-Room Visits -->
+        <div class="kpi-card card-rose">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper" style="background: #ffe4e6; color: #e11d48;"><i class="fa-solid fa-bed-pulse"></i></div>
+                <span class="kpi-pill"><i class="fa-solid fa-stethoscope"></i> Infirmary</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Medical-Room Visits</span>
+                <h3 class="kpi-value">{{ stats.total_visits }}</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext" style="color: #be123c;">
+                    <i class="fa-solid fa-clock-rotate-left"></i> {{ stats.visits_this_week }} visits in past 7 days
+                </span>
+            </div>
+        </div>
+
+        <!-- Active Behaviour Cases -->
+        <div class="kpi-card card-amber">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper" style="background: #fef3c7; color: #d97706;"><i class="fa-solid fa-scale-balanced"></i></div>
+                <span class="kpi-pill"><i class="fa-solid fa-circle-exclamation"></i> Disciplinary</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Active Discipline Cases</span>
+                <h3 class="kpi-value">{{ stats.active_incidents }}</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext" style="color: {% if stats.critical_incidents > 0 %}#b91c1c{% else %}#b45309{% endif %}; font-weight: 700;">
+                    <i class="fa-solid fa-triangle-exclamation"></i> {{ stats.critical_incidents }} major / critical severity
+                </span>
+            </div>
+        </div>
+
+        <!-- Follow-ups & Interventions -->
+        <div class="kpi-card card-purple">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper" style="background: #f5f3ff; color: #7c3aed;"><i class="fa-solid fa-hands-holding-child"></i></div>
+                <span class="kpi-pill"><i class="fa-solid fa-calendar-check"></i> Interventions</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Follow-up Interventions</span>
+                <h3 class="kpi-value">{{ stats.scheduled_followups }} <span style="font-size: 14px; font-weight: 600; color: var(--text-muted);">open</span></h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext" style="color: #6d28d9;">
+                    <i class="fa-solid fa-check-double"></i> {{ stats.completed_followups }} completed &amp; resolved
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Subsystem Navigation Tabs -->
+    <div class="library-tabs-nav" style="display: flex; gap: 8px; border-bottom: 2px solid var(--border-color); margin-bottom: 20px; overflow-x: auto; padding-bottom: 2px;">
+        <a href="{{ url_for('health_discipline_view', tab='health') }}" class="lib-tab-pill {% if tab == 'health' %}active{% endif %}">
+            <i class="fa-solid fa-heart-pulse"></i> Health Profiles
+            <span class="tab-counter">{{ stats.total_profiles }}</span>
+        </a>
+        <a href="{{ url_for('health_discipline_view', tab='medical_visits') }}" class="lib-tab-pill {% if tab == 'medical_visits' %}active{% endif %}">
+            <i class="fa-solid fa-kit-medical"></i> Medical-Room Visits
+            <span class="tab-counter">{{ stats.total_visits }}</span>
+        </a>
+        <a href="{{ url_for('health_discipline_view', tab='discipline') }}" class="lib-tab-pill {% if tab == 'discipline' %}active{% endif %}">
+            <i class="fa-solid fa-triangle-exclamation"></i> Behaviour Incidents
+            {% if stats.active_incidents > 0 %}
+                <span class="tab-counter alert-counter">{{ stats.active_incidents }} open</span>
+            {% else %}
+                <span class="tab-counter">0</span>
+            {% endif %}
+        </a>
+        <a href="{{ url_for('health_discipline_view', tab='followups') }}" class="lib-tab-pill {% if tab == 'followups' %}active{% endif %}">
+            <i class="fa-solid fa-user-check"></i> Interventions &amp; Follow-ups
+            <span class="tab-counter">{{ stats.scheduled_followups }} scheduled</span>
+        </a>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- TAB 1: HEALTH PROFILES -->
+    <!-- ================================================================= -->
+    {% if tab == 'health' %}
+    <div class="data-table-card">
+        <div class="card-header" style="flex-wrap: wrap; gap: 12px;">
+            <div class="header-left">
+                <div class="card-badge-icon badge-emerald"><i class="fa-solid fa-heart-pulse"></i></div>
+                <div>
+                    <h4 class="card-title">Student Health &amp; Emergency Medical Profiles</h4>
+                    <span class="card-subtitle">Restricted clinical registry covering blood groups, allergies, chronic ailments, and emergency physicians</span>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <form method="GET" action="{{ url_for('health_discipline_view') }}" class="table-search-form" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <input type="hidden" name="tab" value="health">
+                <div class="search-input-wrapper">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" name="search" value="{{ search }}" placeholder="Search by name, roll, allergy..." class="table-search-input">
+                </div>
+                <select name="class" class="table-filter-select">
+                    <option value="">All Classes</option>
+                    {% for cls in classes %}
+                        <option value="{{ cls }}" {% if selected_class == cls %}selected{% endif %}>{{ cls }}</option>
+                    {% endfor %}
+                </select>
+                <select name="blood" class="table-filter-select">
+                    <option value="">All Blood Groups</option>
+                    {% for bg in blood_groups %}
+                        <option value="{{ bg }}" {% if selected_blood == bg %}selected{% endif %}>{{ bg }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn-filter"><i class="fa-solid fa-filter"></i> Filter</button>
+                {% if search or selected_class or selected_blood %}
+                    <a href="{{ url_for('health_discipline_view', tab='health') }}" class="btn-clear"><i class="fa-solid fa-rotate-left"></i> Reset</a>
+                {% endif %}
+            </form>
+        </div>
+
+        <div class="table-responsive">
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>Student</th>
+                        <th>Class</th>
+                        <th>Blood Group</th>
+                        <th>Known Allergies</th>
+                        <th>Chronic Conditions</th>
+                        <th>Current Medications</th>
+                        <th>Emergency Physician</th>
+                        <th>Special Care Notes</th>
+                        {% if current_role in ('super_admin', 'admin') %}
+                            <th style="text-align: right;">Action</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in health_profiles %}
+                    <tr>
+                        <td>
+                            <div class="student-name-cell">
+                                <div class="mini-avatar" style="background: #0d9488;">{{ p.STUDENT_NAME[0] | upper }}</div>
+                                <div>
+                                    <div class="student-name">{{ p.STUDENT_NAME }}</div>
+                                    <div style="font-size: 11px; color: var(--text-muted);"><span class="roll-badge">Roll: {{ p.ROLL_NUMBER }}</span></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="class-pill">{{ p.CLASS }}</span></td>
+                        <td>
+                            <span style="font-weight: 800; font-size: 12px; padding: 2px 8px; border-radius: 4px; background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;">
+                                <i class="fa-solid fa-droplet"></i> {{ p.BLOOD_GROUP or 'Unknown' }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if p.ALLERGIES and p.ALLERGIES.lower() != 'none' %}
+                                <span style="font-size: 11.5px; font-weight: 700; color: #b91c1c; background: #fef2f2; padding: 3px 8px; border-radius: 4px; border: 1px solid #fee2e2; display: inline-flex; align-items: center; gap: 4px;">
+                                    <i class="fa-solid fa-triangle-exclamation"></i> {{ p.ALLERGIES }}
+                                </span>
+                            {% else %}
+                                <span style="font-size: 12px; color: var(--text-muted);">None Reported</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if p.CHRONIC_CONDITIONS and p.CHRONIC_CONDITIONS.lower() != 'none' %}
+                                <span style="font-size: 12px; font-weight: 700; color: #c2410c; background: #fff7ed; padding: 3px 8px; border-radius: 4px; border: 1px solid #ffedd5;">
+                                    {{ p.CHRONIC_CONDITIONS }}
+                                </span>
+                            {% else %}
+                                <span style="font-size: 12px; color: var(--text-muted);">None</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span style="font-size: 12px; color: var(--text-secondary);">{{ p.MEDICATIONS or 'None' }}</span>
+                        </td>
+                        <td>
+                            <div style="font-size: 12px; font-weight: 700; color: var(--navy-900);">{{ p.EMERGENCY_DOCTOR_NAME or '-' }}</div>
+                            {% if p.EMERGENCY_DOCTOR_PHONE %}
+                                <div style="font-size: 11px; color: var(--text-muted);"><i class="fa-solid fa-phone" style="font-size: 10px;"></i> {{ p.EMERGENCY_DOCTOR_PHONE }}</div>
+                            {% endif %}
+                        </td>
+                        <td style="max-width: 220px;">
+                            <span style="font-size: 12px; color: var(--text-secondary); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;" title="{{ p.SPECIAL_CARE_INSTRUCTIONS }}">
+                                {{ p.SPECIAL_CARE_INSTRUCTIONS or 'Standard campus care' }}
+                            </span>
+                        </td>
+                        {% if current_role in ('super_admin', 'admin') %}
+                        <td style="text-align: right; white-space: nowrap;">
+                            <button type="button" class="page-btn" onclick="openEditHealthProfileModal('{{ p.ROLL_NUMBER }}', '{{ p.STUDENT_NAME | replace('\'', '\\\'') }}', '{{ p.CLASS }}', '{{ p.BLOOD_GROUP }}', '{{ p.ALLERGIES | replace('\'', '\\\'') }}', '{{ p.CHRONIC_CONDITIONS | replace('\'', '\\\'') }}', '{{ p.MEDICATIONS | replace('\'', '\\\'') }}', '{{ p.EMERGENCY_DOCTOR_NAME | replace('\'', '\\\'') }}', '{{ p.EMERGENCY_DOCTOR_PHONE }}', '{{ p.INSURANCE_POLICY_NO }}', '{{ p.SPECIAL_CARE_INSTRUCTIONS | replace('\'', '\\\'') }}', '{{ p.VACCINATION_STATUS }}')">
+                                <i class="fa-solid fa-pen-to-square"></i> Edit
+                            </button>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" style="text-align: center; padding: 36px; color: var(--text-muted);">
+                            <i class="fa-solid fa-heart-pulse" style="font-size: 28px; margin-bottom: 8px; display: block; color: #94a3b8;"></i>
+                            No student health profiles found matching your search.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+
+    <!-- ================================================================= -->
+    <!-- TAB 2: MEDICAL-ROOM VISITS -->
+    <!-- ================================================================= -->
+    {% if tab == 'medical_visits' %}
+    <div class="data-table-card">
+        <div class="card-header" style="flex-wrap: wrap; gap: 12px;">
+            <div class="header-left">
+                <div class="card-badge-icon badge-rose"><i class="fa-solid fa-kit-medical"></i></div>
+                <div>
+                    <h4 class="card-title">Restricted Medical-Room &amp; Clinic Visits Log</h4>
+                    <span class="card-subtitle">Real-time infirmary log of student illness complaints, clinical treatments, and discharge outcomes</span>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <form method="GET" action="{{ url_for('health_discipline_view') }}" class="table-search-form" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <input type="hidden" name="tab" value="medical_visits">
+                <div class="search-input-wrapper">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" name="search" value="{{ search }}" placeholder="Search by student, visit code, symptoms..." class="table-search-input">
+                </div>
+                <select name="class" class="table-filter-select">
+                    <option value="">All Classes</option>
+                    {% for cls in classes %}
+                        <option value="{{ cls }}" {% if selected_class == cls %}selected{% endif %}>{{ cls }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn-filter"><i class="fa-solid fa-filter"></i> Filter</button>
+                {% if search or selected_class %}
+                    <a href="{{ url_for('health_discipline_view', tab='medical_visits') }}" class="btn-clear"><i class="fa-solid fa-rotate-left"></i> Reset</a>
+                {% endif %}
+            </form>
+        </div>
+
+        <div class="table-responsive">
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>Visit #</th>
+                        <th>Student Patient</th>
+                        <th>Class</th>
+                        <th>Date &amp; Time</th>
+                        <th>Reported Symptoms</th>
+                        <th>Diagnosis &amp; Observation</th>
+                        <th>Treatment Given</th>
+                        <th>Attending Staff</th>
+                        <th>Parent Notified</th>
+                        <th>Outcome</th>
+                        {% if current_role in ('super_admin', 'admin') %}
+                            <th style="text-align: right;">Action</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for v in medical_visits %}
+                    <tr>
+                        <td><span class="roll-badge" style="background: #fff1f2; color: #be123c; border-color: #fecdd3;">{{ v.VISIT_CODE }}</span></td>
+                        <td>
+                            <div class="student-name-cell">
+                                <div class="mini-avatar" style="background: #e11d48;">{{ v.STUDENT_NAME[0] | upper }}</div>
+                                <div>
+                                    <div class="student-name">{{ v.STUDENT_NAME }}</div>
+                                    <div style="font-size: 11px; color: var(--text-muted);"><span class="roll-badge">Roll: {{ v.ROLL_NUMBER }}</span></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="class-pill">{{ v.CLASS }}</span></td>
+                        <td>
+                            <div style="font-weight: 700; color: var(--navy-900); font-size: 12px;">{{ v.visit_date_fmt }}</div>
+                            <div style="font-size: 11px; color: var(--text-muted);"><i class="fa-regular fa-clock"></i> {{ v.visit_time_fmt }}</div>
+                        </td>
+                        <td style="max-width: 180px;">
+                            <span style="font-size: 12px; color: var(--text-primary); font-weight: 600;">{{ v.SYMPTOMS }}</span>
+                        </td>
+                        <td style="max-width: 180px;">
+                            <span style="font-size: 12px; color: var(--text-secondary);">{{ v.DIAGNOSIS_OBSERVATION or '-' }}</span>
+                        </td>
+                        <td style="max-width: 200px;">
+                            <span style="font-size: 12px; color: #047857; font-weight: 600; background: #ecfdf5; padding: 2px 6px; border-radius: 4px; display: inline-block;">
+                                {{ v.TREATMENT_GIVEN }}
+                            </span>
+                        </td>
+                        <td>
+                            <div style="font-size: 12px; font-weight: 700; color: var(--navy-900);">{{ v.ATTENDING_STAFF }}</div>
+                        </td>
+                        <td>
+                            {% if v.PARENT_NOTIFIED == 'Yes' %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 4px; background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0;">
+                                    <i class="fa-solid fa-check"></i> Notified
+                                </span>
+                            {% elif v.PARENT_NOTIFIED == 'Attempted / No Answer' %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 4px; background: #fffbeb; color: #d97706; border: 1px solid #fde68a;">
+                                    <i class="fa-solid fa-phone-missed"></i> Attempted
+                                </span>
+                            {% else %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 4px; background: #f1f5f9; color: #64748b;">
+                                    No
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if v.OUTCOME == 'Returned to Class' %}
+                                <span style="font-size: 11.5px; font-weight: 800; padding: 3px 8px; border-radius: 4px; background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0;">
+                                    <i class="fa-solid fa-person-walking-arrow-right"></i> Class
+                                </span>
+                            {% elif v.OUTCOME == 'Sent Home with Parent' %}
+                                <span style="font-size: 11.5px; font-weight: 800; padding: 3px 8px; border-radius: 4px; background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3;">
+                                    <i class="fa-solid fa-house-medical"></i> Sent Home
+                                </span>
+                            {% elif v.OUTCOME == 'Referred to Hospital' %}
+                                <span style="font-size: 11.5px; font-weight: 800; padding: 3px 8px; border-radius: 4px; background: #fef2f2; color: #dc2626; border: 1px solid #f87171;">
+                                    <i class="fa-solid fa-truck-medical"></i> Hospital
+                                </span>
+                            {% else %}
+                                <span style="font-size: 11.5px; font-weight: 800; padding: 3px 8px; border-radius: 4px; background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe;">
+                                    <i class="fa-solid fa-bed"></i> Medical Bay
+                                </span>
+                            {% endif %}
+                        </td>
+                        {% if current_role in ('super_admin', 'admin') %}
+                        <td style="text-align: right; white-space: nowrap;">
+                            <form method="POST" action="{{ url_for('delete_medical_visit_route', id=v.ID) }}" style="display: inline;" onsubmit="return confirm('Delete medical visit record {{ v.VISIT_CODE }}?');">
+                                <button type="submit" class="page-btn" title="Delete Record" style="background: #fff1f2; color: #e11d48; border-color: #fecdd3;">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </form>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="11" style="text-align: center; padding: 36px; color: var(--text-muted);">
+                            <i class="fa-solid fa-kit-medical" style="font-size: 28px; margin-bottom: 8px; display: block; color: #94a3b8;"></i>
+                            No medical visits logged yet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+
+    <!-- ================================================================= -->
+    <!-- TAB 3: BEHAVIOUR INCIDENTS -->
+    <!-- ================================================================= -->
+    {% if tab == 'discipline' %}
+    <div class="data-table-card">
+        <div class="card-header" style="flex-wrap: wrap; gap: 12px;">
+            <div class="header-left">
+                <div class="card-badge-icon badge-amber"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                <div>
+                    <h4 class="card-title">Student Behaviour &amp; Discipline Infraction Log</h4>
+                    <span class="card-subtitle">Confidential tracking of student conduct issues, severity levels, witness statements, and investigation statuses</span>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <form method="GET" action="{{ url_for('health_discipline_view') }}" class="table-search-form" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <input type="hidden" name="tab" value="discipline">
+                <div class="search-input-wrapper">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" name="search" value="{{ search }}" placeholder="Search by student, code, description..." class="table-search-input">
+                </div>
+                <select name="severity" class="table-filter-select">
+                    <option value="">All Severities</option>
+                    {% for sev in severities %}
+                        <option value="{{ sev }}" {% if selected_severity == sev %}selected{% endif %}>{{ sev }}</option>
+                    {% endfor %}
+                </select>
+                <select name="status" class="table-filter-select">
+                    <option value="">All Statuses</option>
+                    <option value="Reported" {% if selected_status == 'Reported' %}selected{% endif %}>Reported</option>
+                    <option value="Under Investigation" {% if selected_status == 'Under Investigation' %}selected{% endif %}>Under Investigation</option>
+                    <option value="Follow-up Scheduled" {% if selected_status == 'Follow-up Scheduled' %}selected{% endif %}>Follow-up Scheduled</option>
+                    <option value="Resolved" {% if selected_status == 'Resolved' %}selected{% endif %}>Resolved</option>
+                </select>
+                <button type="submit" class="btn-filter"><i class="fa-solid fa-filter"></i> Filter</button>
+                {% if search or selected_severity or selected_status %}
+                    <a href="{{ url_for('health_discipline_view', tab='discipline') }}" class="btn-clear"><i class="fa-solid fa-rotate-left"></i> Reset</a>
+                {% endif %}
+            </form>
+        </div>
+
+        <div class="table-responsive">
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>Incident #</th>
+                        <th>Student Involved</th>
+                        <th>Class</th>
+                        <th>Date &amp; Location</th>
+                        <th>Infraction Category</th>
+                        <th>Severity</th>
+                        <th>Account of Incident</th>
+                        <th>Reported By</th>
+                        <th>Status</th>
+                        {% if current_role in ('super_admin', 'admin') %}
+                            <th style="text-align: right;">Action</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for inc in discipline_incidents %}
+                    <tr>
+                        <td><span class="roll-badge" style="background: #fffbeb; color: #b45309; border-color: #fde68a;">{{ inc.INCIDENT_CODE }}</span></td>
+                        <td>
+                            <div class="student-name-cell">
+                                <div class="mini-avatar" style="background: #d97706;">{{ inc.STUDENT_NAME[0] | upper }}</div>
+                                <div>
+                                    <div class="student-name">{{ inc.STUDENT_NAME }}</div>
+                                    <div style="font-size: 11px; color: var(--text-muted);"><span class="roll-badge">Roll: {{ inc.ROLL_NUMBER }}</span></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="class-pill">{{ inc.CLASS }}</span></td>
+                        <td>
+                            <div style="font-size: 12px; font-weight: 700; color: var(--navy-900);">{{ inc.incident_date_fmt }}</div>
+                            <div style="font-size: 11px; color: var(--text-muted);"><i class="fa-solid fa-location-dot"></i> {{ inc.LOCATION }}</div>
+                        </td>
+                        <td>
+                            <span style="font-size: 12px; font-weight: 700; color: #334155;">{{ inc.CATEGORY }}</span>
+                        </td>
+                        <td>
+                            {% if inc.SEVERITY == 'Critical' %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; background: #fef2f2; color: #dc2626; border: 1px solid #f87171; display: inline-flex; align-items: center; gap: 4px;">
+                                    <span class="pulse-dot" style="background: #dc2626;"></span> Critical
+                                </span>
+                            {% elif inc.SEVERITY == 'Major' %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3;">
+                                    Major
+                                </span>
+                            {% elif inc.SEVERITY == 'Moderate' %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; background: #fffbeb; color: #d97706; border: 1px solid #fde68a;">
+                                    Moderate
+                                </span>
+                            {% else %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe;">
+                                    Minor
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td style="max-width: 250px;">
+                            <span style="font-size: 12px; color: var(--text-secondary); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;" title="{{ inc.DESCRIPTION }}">
+                                {{ inc.DESCRIPTION }}
+                            </span>
+                            {% if inc.WITNESSES and inc.WITNESSES.lower() != 'none' %}
+                                <div style="font-size: 10.5px; color: var(--text-muted); margin-top: 3px;"><i class="fa-solid fa-users-viewfinder"></i> Witnesses: {{ inc.WITNESSES }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span style="font-size: 11.5px; font-weight: 700; color: #475569;">{{ inc.REPORTED_BY }}</span>
+                        </td>
+                        <td>
+                            {% if inc.STATUS == 'Resolved' %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; display: inline-flex; align-items: center; gap: 4px;">
+                                    <i class="fa-solid fa-circle-check"></i> Resolved
+                                </span>
+                            {% elif inc.STATUS == 'Follow-up Scheduled' %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; background: #f5f3ff; color: #7c3aed; border: 1px solid #ddd6fe; display: inline-flex; align-items: center; gap: 4px;">
+                                    <i class="fa-solid fa-calendar-check"></i> Scheduled
+                                </span>
+                            {% elif inc.STATUS == 'Under Investigation' %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; background: #fffbeb; color: #d97706; border: 1px solid #fde68a; display: inline-flex; align-items: center; gap: 4px;">
+                                    <i class="fa-solid fa-magnifying-glass"></i> Investigating
+                                </span>
+                            {% else %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1;">
+                                    Reported
+                                </span>
+                            {% endif %}
+                        </td>
+                        {% if current_role in ('super_admin', 'admin') %}
+                        <td style="text-align: right; white-space: nowrap;">
+                            <!-- Schedule Follow-up button -->
+                            <button type="button" class="page-btn" onclick="openScheduleFollowupForIncident('{{ inc.INCIDENT_CODE }}', '{{ inc.ROLL_NUMBER }}', '{{ inc.STUDENT_NAME | replace('\'', '\\\'') }}')" style="background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe; font-weight: 800;">
+                                <i class="fa-solid fa-user-plus"></i> Follow-up
+                            </button>
+
+                            <!-- Update status button -->
+                            <button type="button" class="page-btn" onclick="openUpdateStatusModal({{ inc.ID }}, '{{ inc.INCIDENT_CODE }}', '{{ inc.STATUS }}')">
+                                <i class="fa-solid fa-sliders"></i>
+                            </button>
+
+                            <!-- Delete -->
+                            <form method="POST" action="{{ url_for('delete_discipline_incident_route', id=inc.ID) }}" style="display: inline;" onsubmit="return confirm('Delete incident {{ inc.INCIDENT_CODE }} and linked follow-ups?');">
+                                <button type="submit" class="page-btn" title="Delete" style="background: #fff1f2; color: #e11d48; border-color: #fecdd3;">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </form>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="10" style="text-align: center; padding: 36px; color: var(--text-muted);">
+                            <i class="fa-solid fa-scale-balanced" style="font-size: 28px; margin-bottom: 8px; display: block; color: #94a3b8;"></i>
+                            No disciplinary incidents recorded matching the filters.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+
+    <!-- ================================================================= -->
+    <!-- TAB 4: INTERVENTIONS & FOLLOW-UP ACTIONS -->
+    <!-- ================================================================= -->
+    {% if tab == 'followups' %}
+    <div class="data-table-card">
+        <div class="card-header" style="flex-wrap: wrap; gap: 12px;">
+            <div class="header-left">
+                <div class="card-badge-icon badge-purple"><i class="fa-solid fa-hands-holding-child"></i></div>
+                <div>
+                    <h4 class="card-title">Disciplinary Follow-ups, Counseling &amp; Action Plans</h4>
+                    <span class="card-subtitle">Comprehensive tracking of counseling sessions, parent conferences, detentions, and behavioral undertakings</span>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <form method="GET" action="{{ url_for('health_discipline_view') }}" class="table-search-form" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <input type="hidden" name="tab" value="followups">
+                <div class="search-input-wrapper">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" name="search" value="{{ search }}" placeholder="Search by student, incident code, counselor..." class="table-search-input">
+                </div>
+                <select name="status" class="table-filter-select">
+                    <option value="">All Statuses</option>
+                    <option value="Scheduled" {% if selected_status == 'Scheduled' %}selected{% endif %}>Scheduled</option>
+                    <option value="In Progress" {% if selected_status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                    <option value="Completed" {% if selected_status == 'Completed' %}selected{% endif %}>Completed</option>
+                </select>
+                <button type="submit" class="btn-filter"><i class="fa-solid fa-filter"></i> Filter</button>
+                {% if search or selected_status %}
+                    <a href="{{ url_for('health_discipline_view', tab='followups') }}" class="btn-clear"><i class="fa-solid fa-rotate-left"></i> Reset</a>
+                {% endif %}
+            </form>
+        </div>
+
+        <div class="table-responsive">
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>Follow-up #</th>
+                        <th>Incident #</th>
+                        <th>Student</th>
+                        <th>Action / Intervention Type</th>
+                        <th>Assigned Staff / Counselor</th>
+                        <th>Scheduled Date</th>
+                        <th>Status</th>
+                        <th>Outcome &amp; Counselor Remarks</th>
+                        <th>Parent Ack.</th>
+                        {% if current_role in ('super_admin', 'admin') %}
+                            <th style="text-align: right;">Action</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fol in followups %}
+                    <tr>
+                        <td><span class="roll-badge" style="background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe;">{{ fol.FOLLOWUP_CODE }}</span></td>
+                        <td>
+                            <span class="roll-badge" style="background: #fffbeb; color: #b45309; border-color: #fde68a;">{{ fol.INCIDENT_CODE }}</span>
+                            {% if fol.INCIDENT_CATEGORY %}
+                                <div style="font-size: 10.5px; color: var(--text-muted); margin-top: 2px;">{{ fol.INCIDENT_CATEGORY }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="student-name-cell">
+                                <div class="mini-avatar" style="background: #7c3aed;">{{ fol.STUDENT_NAME[0] | upper }}</div>
+                                <div>
+                                    <div class="student-name">{{ fol.STUDENT_NAME }}</div>
+                                    <div style="font-size: 11px; color: var(--text-muted);"><span class="roll-badge">Roll: {{ fol.ROLL_NUMBER }}</span></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <strong style="color: var(--navy-900); font-size: 12.5px;">{{ fol.ACTION_TYPE }}</strong>
+                        </td>
+                        <td>
+                            <span style="font-size: 12px; font-weight: 700; color: #334155;">{{ fol.ASSIGNED_TO }}</span>
+                        </td>
+                        <td>
+                            <div style="font-size: 12px; font-weight: 700; color: var(--navy-900);">{{ fol.scheduled_date_fmt }}</div>
+                            {% if fol.COMPLETION_DATE %}
+                                <div style="font-size: 10.5px; color: #059669;"><i class="fa-solid fa-check"></i> Done: {{ fol.completion_date_fmt }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if fol.STATUS == 'Completed' %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; display: inline-flex; align-items: center; gap: 4px;">
+                                    <i class="fa-solid fa-circle-check"></i> Completed
+                                </span>
+                            {% elif fol.STATUS == 'In Progress' %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; background: #fffbeb; color: #d97706; border: 1px solid #fde68a; display: inline-flex; align-items: center; gap: 4px;">
+                                    <i class="fa-solid fa-spinner"></i> In Progress
+                                </span>
+                            {% else %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; display: inline-flex; align-items: center; gap: 4px;">
+                                    <i class="fa-regular fa-clock"></i> Scheduled
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td style="max-width: 240px;">
+                            {% if fol.OUTCOME_NOTES %}
+                                <span style="font-size: 12px; color: var(--text-secondary); line-height: 1.4; display: block;">
+                                    {{ fol.OUTCOME_NOTES }}
+                                </span>
+                            {% else %}
+                                <span style="font-size: 12px; color: var(--text-muted); font-style: italic;">Pending session completion</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: center;">
+                            {% if fol.PARENT_ACKNOWLEDGED %}
+                                <span style="color: #059669; font-size: 14px;" title="Parent Acknowledged"><i class="fa-solid fa-circle-check"></i></span>
+                            {% else %}
+                                <span style="color: #94a3b8; font-size: 14px;" title="Pending Parental Sign-off"><i class="fa-regular fa-circle"></i></span>
+                            {% endif %}
+                        </td>
+                        {% if current_role in ('super_admin', 'admin') %}
+                        <td style="text-align: right; white-space: nowrap;">
+                            <button type="button" class="page-btn" onclick="openCompleteFollowupModal({{ fol.ID }}, '{{ fol.FOLLOWUP_CODE }}', '{{ fol.STUDENT_NAME | replace('\'', '\\\'') }}', '{{ fol.ACTION_TYPE }}', '{{ fol.STATUS }}', '{{ fol.OUTCOME_NOTES | replace('\'', '\\\'') | replace('\n', ' ') }}', {{ 1 if fol.PARENT_ACKNOWLEDGED else 0 }})" style="background: #ecfdf5; color: #059669; border-color: #a7f3d0; font-weight: 800;">
+                                <i class="fa-solid fa-clipboard-check"></i> Complete / Update
+                            </button>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="10" style="text-align: center; padding: 36px; color: var(--text-muted);">
+                            <i class="fa-solid fa-hands-holding-child" style="font-size: 28px; margin-bottom: 8px; display: block; color: #94a3b8;"></i>
+                            No follow-up interventions scheduled yet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+
+<!-- ================================================================= -->
+<!-- MODAL 1: ADD / UPDATE STUDENT HEALTH PROFILE -->
+<!-- ================================================================= -->
+<div class="modal-overlay" id="saveHealthProfileModal">
+    <div class="modal-dialog" style="max-width: 650px;">
+        <div class="modal-header">
+            <h4 class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-heart-pulse" style="color: #0d9488;"></i> Save Student Health &amp; Emergency Profile
+            </h4>
+            <button type="button" class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('save_health_profile_route') }}">
+            <div class="modal-body" style="padding: 20px; max-height: 75vh; overflow-y: auto;">
+                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Student Roll Number *</label>
+                        <select name="roll_number" id="healthRollSelect" required class="form-select" onchange="autoFillStudentInHealth(this)">
+                            <option value="">Select Enrolled Student</option>
+                            {% for st in students %}
+                                <option value="{{ st.ROLL_NUMBER }}" data-name="{{ st.NAME }}" data-class="{{ st.CLASS }}">{{ st.ROLL_NUMBER }} — {{ st.NAME }} ({{ st.CLASS }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Blood Group *</label>
+                        <select name="blood_group" id="healthBloodSelect" class="form-select">
+                            <option value="A+">A+</option>
+                            <option value="A-">A-</option>
+                            <option value="B+">B+</option>
+                            <option value="B-">B-</option>
+                            <option value="AB+">AB+</option>
+                            <option value="AB-">AB-</option>
+                            <option value="O+">O+</option>
+                            <option value="O-">O-</option>
+                            <option value="Unknown">Unknown</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Vaccination Record Status</label>
+                        <select name="vaccination_status" id="healthVaccineSelect" class="form-select">
+                            <option value="Up to Date">Up to Date</option>
+                            <option value="Partially Vaccinated">Partially Vaccinated</option>
+                            <option value="Pending Records">Pending Records</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Allergies (Food, Meds, Pollen)</label>
+                        <input type="text" name="allergies" id="healthAllergiesInput" placeholder="e.g. Peanuts, Penicillin (or None)" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Chronic Conditions</label>
+                        <input type="text" name="chronic_conditions" id="healthChronicInput" placeholder="e.g. Asthma, Type 1 Diabetes (or None)" class="form-control">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Routine / Prescribed Medications</label>
+                        <input type="text" name="medications" id="healthMedsInput" placeholder="e.g. Salbutamol Inhaler (PRN)" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Emergency Doctor / Clinic Name</label>
+                        <input type="text" name="emergency_doctor_name" id="healthDocNameInput" placeholder="e.g. Dr. S. K. Kapoor" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Doctor Emergency Contact #</label>
+                        <input type="text" name="emergency_doctor_phone" id="healthDocPhoneInput" placeholder="e.g. 9876543210" class="form-control">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Medical Insurance Policy Number</label>
+                        <input type="text" name="insurance_policy_no" id="healthInsuranceInput" placeholder="e.g. HDFC-ERGO-99231" class="form-control">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Special Care / Physical Activity Instructions</label>
+                        <textarea name="special_care_instructions" id="healthSpecialCareInput" rows="2" placeholder="e.g. Allow glucose snack if dizzy, keep inhaler in infirmary, front bench seating..." class="form-control"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 14px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 8px;">
+                <button type="button" class="page-btn" data-modal-close>Cancel</button>
+                <button type="submit" class="btn-toolbar-add" style="background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);">
+                    <i class="fa-solid fa-shield-check"></i> Save Health Profile
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- ================================================================= -->
+<!-- MODAL 2: RECORD MEDICAL-ROOM VISIT -->
+<!-- ================================================================= -->
+<div class="modal-overlay" id="addVisitModal">
+    <div class="modal-dialog" style="max-width: 640px;">
+        <div class="modal-header">
+            <h4 class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-kit-medical" style="color: #e11d48;"></i> Record Medical-Room (Infirmary) Visit
+            </h4>
+            <button type="button" class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('add_medical_visit_route') }}">
+            <div class="modal-body" style="padding: 20px; max-height: 75vh; overflow-y: auto;">
+                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Student Roll Number *</label>
+                        <select name="roll_number" required class="form-select">
+                            <option value="">Select Student</option>
+                            {% for st in students %}
+                                <option value="{{ st.ROLL_NUMBER }}">{{ st.ROLL_NUMBER }} — {{ st.NAME }} ({{ st.CLASS }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Observed Symptoms / Complaint *</label>
+                        <input type="text" name="symptoms" required placeholder="e.g. High fever (101.4°F), sudden dizziness, sprained wrist..." class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Preliminary Diagnosis / Observation</label>
+                        <input type="text" name="diagnosis_observation" placeholder="e.g. Mild dehydration, acute migraine" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Attending Nurse / Staff</label>
+                        <input type="text" name="attending_staff" value="{{ session.get('username', 'Nurse Anita Roy') }}" class="form-control">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Clinical Treatment Administered *</label>
+                        <textarea name="treatment_given" rows="2" required placeholder="e.g. Paracetamol 500mg administered, ice pack applied for 20 mins, oral rehydration solution provided..." class="form-control"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Parent Notified?</label>
+                        <select name="parent_notified" class="form-select">
+                            <option value="Yes">Yes (Phone Contacted)</option>
+                            <option value="No" selected>No (Minor / Handled in Bay)</option>
+                            <option value="Attempted / No Answer">Attempted / No Answer</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Visit Outcome *</label>
+                        <select name="outcome" class="form-select">
+                            <option value="Returned to Class">Returned to Class</option>
+                            <option value="Sent Home with Parent">Sent Home with Parent</option>
+                            <option value="Referred to Hospital">Referred to Hospital</option>
+                            <option value="Admitted to Medical Bay">Admitted to Medical Bay</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Confidential Staff Notes (Restricted)</label>
+                        <textarea name="confidential_notes" rows="2" placeholder="Private observations, physician follow-up required, parent feedback..." class="form-control"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 14px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 8px;">
+                <button type="button" class="page-btn" data-modal-close>Cancel</button>
+                <button type="submit" class="btn-toolbar-add" style="background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);">
+                    <i class="fa-solid fa-check"></i> Log Medical Visit
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- ================================================================= -->
+<!-- MODAL 3: REPORT BEHAVIOUR / DISCIPLINE INCIDENT -->
+<!-- ================================================================= -->
+<div class="modal-overlay" id="addIncidentModal">
+    <div class="modal-dialog" style="max-width: 640px;">
+        <div class="modal-header">
+            <h4 class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-triangle-exclamation" style="color: #d97706;"></i> Report Behaviour / Discipline Incident
+            </h4>
+            <button type="button" class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('add_discipline_incident_route') }}">
+            <div class="modal-body" style="padding: 20px; max-height: 75vh; overflow-y: auto;">
+                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                    <div class="form-group">
+                        <label class="form-label">Student Involved *</label>
+                        <select name="roll_number" required class="form-select">
+                            <option value="">Select Student</option>
+                            {% for st in students %}
+                                <option value="{{ st.ROLL_NUMBER }}">{{ st.ROLL_NUMBER }} — {{ st.NAME }} ({{ st.CLASS }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Incident Date *</label>
+                        <input type="date" name="incident_date" value="{{ None | default('', true) }}" required class="form-control" id="incidentDateInput">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Infraction Category *</label>
+                        <select name="category" class="form-select">
+                            {% for cat in categories %}
+                                <option value="{{ cat }}">{{ cat }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Severity Level *</label>
+                        <select name="severity" class="form-select">
+                            <option value="Minor">Minor (First offense, classroom talk)</option>
+                            <option value="Moderate" selected>Moderate (Repeated truancy, disruptions)</option>
+                            <option value="Major">Major (Cheating, harassment, vandalism)</option>
+                            <option value="Critical">Critical (Physical violence, safety threat)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Campus Location</label>
+                        <input type="text" name="location" placeholder="e.g. Science Lab 2, Corridor, Playground" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Reporting Staff Member</label>
+                        <input type="text" name="reported_by" value="{{ session.get('username', 'Faculty') }}" class="form-control">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Objective Description of Incident *</label>
+                        <textarea name="description" rows="3" required placeholder="Provide clear, objective account of what transpired, actions observed, and statements made..." class="form-control"></textarea>
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Witnesses (Students / Staff)</label>
+                        <input type="text" name="witnesses" placeholder="e.g. Lab Assistant Sharma, Aarav Sharma" class="form-control">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 14px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 8px;">
+                <button type="button" class="page-btn" data-modal-close>Cancel</button>
+                <button type="submit" class="btn-toolbar-add" style="background: linear-gradient(135deg, #d97706 0%, #b45309 100%);">
+                    <i class="fa-solid fa-flag"></i> Submit Incident Report
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- ================================================================= -->
+<!-- MODAL 4: SCHEDULE DISCIPLINARY FOLLOW-UP -->
+<!-- ================================================================= -->
+<div class="modal-overlay" id="scheduleFollowupModal">
+    <div class="modal-dialog" style="max-width: 600px;">
+        <div class="modal-header">
+            <h4 class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-hands-holding-child" style="color: #7c3aed;"></i> Schedule Follow-up Intervention / Counseling
+            </h4>
+            <button type="button" class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('add_discipline_followup_route') }}">
+            <div class="modal-body" style="padding: 20px; max-height: 75vh; overflow-y: auto;">
+                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Linked Incident Code *</label>
+                        <select name="incident_code" id="followupIncidentCodeSelect" required class="form-select">
+                            <option value="">Select Incident Record</option>
+                            {% for inc in all_incidents %}
+                                <option value="{{ inc.INCIDENT_CODE }}">{{ inc.INCIDENT_CODE }} — {{ inc.STUDENT_NAME }} ({{ inc.CATEGORY }} - {{ inc.SEVERITY }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Action / Intervention Type *</label>
+                        <select name="action_type" class="form-select">
+                            {% for act in action_types %}
+                                <option value="{{ act }}">{{ act }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Assigned Staff / Counselor *</label>
+                        <input type="text" name="assigned_to" value="School Counselor Mrs. Shalini" required class="form-control">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Scheduled Date *</label>
+                        <input type="date" name="scheduled_date" required class="form-control" id="followupScheduledDateInput">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Intervention Objectives &amp; Preliminary Notes</label>
+                        <textarea name="outcome_notes" rows="2" placeholder="e.g. Conduct restorative counseling session; discuss attendance root causes; review behavioral undertaking..." class="form-control"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 14px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 8px;">
+                <button type="button" class="page-btn" data-modal-close>Cancel</button>
+                <button type="submit" class="btn-toolbar-add" style="background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);">
+                    <i class="fa-solid fa-calendar-check"></i> Schedule Intervention
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- ================================================================= -->
+<!-- MODAL 5: COMPLETE FOLLOW-UP ACTION -->
+<!-- ================================================================= -->
+<div class="modal-overlay" id="completeFollowupModal">
+    <div class="modal-dialog" style="max-width: 540px;">
+        <div class="modal-header">
+            <h4 class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-clipboard-check" style="color: #059669;"></i> Complete Disciplinary Follow-up
+            </h4>
+            <button type="button" class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <form method="POST" id="completeFollowupForm" action="">
+            <div class="modal-body" style="padding: 20px;">
+                <div style="background: #f8fafc; border: 1px solid #f1f5f9; padding: 12px; border-radius: var(--radius-sm); margin-bottom: 16px;">
+                    <div style="font-size: 13px; font-weight: 800; color: var(--navy-900);" id="completeModalStudent">Student</div>
+                    <div style="font-size: 12px; color: var(--text-muted);" id="completeModalAction">Action Type</div>
+                </div>
+
+                <div class="form-grid" style="display: flex; flex-direction: column; gap: 14px;">
+                    <div class="form-group">
+                        <label class="form-label">Intervention Status *</label>
+                        <select name="status" id="completeModalStatus" class="form-select">
+                            <option value="Completed">Completed (Resolution Achieved)</option>
+                            <option value="In Progress">In Progress (Further Sessions Required)</option>
+                            <option value="Escalated">Escalated to Principal</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Resolution Details &amp; Outcome Notes *</label>
+                        <textarea name="outcome_notes" id="completeModalNotes" rows="3" required placeholder="Detail the student's reflection, signed behavioral agreement, or parent meeting outcome..." class="form-control"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--navy-900); cursor: pointer;">
+                            <input type="checkbox" name="parent_acknowledged" id="completeModalParentAck" style="width: 16px; height: 16px; accent-color: #059669;">
+                            <span>Parent Formally Acknowledged &amp; Signed Undertaking</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 14px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 8px;">
+                <button type="button" class="page-btn" data-modal-close>Cancel</button>
+                <button type="submit" class="btn-toolbar-add" style="background: linear-gradient(135deg, #059669 0%, #047857 100%);">
+                    <i class="fa-solid fa-check-double"></i> Save Outcome
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- ================================================================= -->
+<!-- MODAL 6: UPDATE INCIDENT STATUS MODAL -->
+<!-- ================================================================= -->
+<div class="modal-overlay" id="updateIncidentStatusModal">
+    <div class="modal-dialog" style="max-width: 450px;">
+        <div class="modal-header">
+            <h4 class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-sliders" style="color: #d97706;"></i> Update Incident Status
+            </h4>
+            <button type="button" class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <form method="POST" id="updateIncidentStatusForm" action="">
+            <div class="modal-body" style="padding: 20px;">
+                <div style="font-size: 13px; font-weight: 700; color: var(--navy-900); margin-bottom: 12px;" id="updateStatusModalCode">Incident</div>
+                <div class="form-group">
+                    <label class="form-label">New Status</label>
+                    <select name="status" id="updateStatusSelect" class="form-select">
+                        <option value="Reported">Reported</option>
+                        <option value="Under Investigation">Under Investigation</option>
+                        <option value="Action Pending">Action Pending</option>
+                        <option value="Follow-up Scheduled">Follow-up Scheduled</option>
+                        <option value="Resolved">Resolved</option>
+                        <option value="Closed">Closed</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 14px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 8px;">
+                <button type="button" class="page-btn" data-modal-close>Cancel</button>
+                <button type="submit" class="btn-toolbar-add" style="background: linear-gradient(135deg, #d97706 0%, #b45309 100%);">
+                    <i class="fa-solid fa-check"></i> Update Status
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- Client-side helper scripts -->
+<script>
+    const ALL_PROFILES = {{ all_profiles | tojson | safe }};
+
+    function autoFillStudentInHealth(select) {
+        const roll = select.value;
+        const profile = ALL_PROFILES.find(p => String(p.ROLL_NUMBER) === String(roll));
+        if (profile) {
+            document.getElementById('healthBloodSelect').value = profile.BLOOD_GROUP || 'Unknown';
+            document.getElementById('healthVaccineSelect').value = profile.VACCINATION_STATUS || 'Up to Date';
+            document.getElementById('healthAllergiesInput').value = profile.ALLERGIES || 'None';
+            document.getElementById('healthChronicInput').value = profile.CHRONIC_CONDITIONS || 'None';
+            document.getElementById('healthMedsInput').value = profile.MEDICATIONS || 'None';
+            document.getElementById('healthDocNameInput').value = profile.EMERGENCY_DOCTOR_NAME || '';
+            document.getElementById('healthDocPhoneInput').value = profile.EMERGENCY_DOCTOR_PHONE || '';
+            document.getElementById('healthInsuranceInput').value = profile.INSURANCE_POLICY_NO || '';
+            document.getElementById('healthSpecialCareInput').value = profile.SPECIAL_CARE_INSTRUCTIONS || '';
+        } else {
+            document.getElementById('healthBloodSelect').value = 'Unknown';
+            document.getElementById('healthVaccineSelect').value = 'Up to Date';
+            document.getElementById('healthAllergiesInput').value = 'None';
+            document.getElementById('healthChronicInput').value = 'None';
+            document.getElementById('healthMedsInput').value = 'None';
+            document.getElementById('healthDocNameInput').value = '';
+            document.getElementById('healthDocPhoneInput').value = '';
+            document.getElementById('healthInsuranceInput').value = '';
+            document.getElementById('healthSpecialCareInput').value = '';
+        }
+    }
+
+    function openEditHealthProfileModal(roll, name, className, blood, allergies, chronic, meds, docName, docPhone, insurance, care, vaccine) {
+        const sel = document.getElementById('healthRollSelect');
+        sel.value = roll;
+        document.getElementById('healthBloodSelect').value = blood || 'Unknown';
+        document.getElementById('healthVaccineSelect').value = vaccine || 'Up to Date';
+        document.getElementById('healthAllergiesInput').value = allergies || 'None';
+        document.getElementById('healthChronicInput').value = chronic || 'None';
+        document.getElementById('healthMedsInput').value = meds || 'None';
+        document.getElementById('healthDocNameInput').value = docName || '';
+        document.getElementById('healthDocPhoneInput').value = docPhone || '';
+        document.getElementById('healthInsuranceInput').value = insurance || '';
+        document.getElementById('healthSpecialCareInput').value = care || '';
+
+        document.getElementById('saveHealthProfileModal').classList.add('active');
+    }
+
+    function openScheduleFollowupForIncident(incidentCode, roll, name) {
+        const sel = document.getElementById('followupIncidentCodeSelect');
+        if (sel) {
+            sel.value = incidentCode;
+        }
+        document.getElementById('scheduleFollowupModal').classList.add('active');
+    }
+
+    function openCompleteFollowupModal(id, code, name, actionType, status, notes, ack) {
+        const form = document.getElementById('completeFollowupForm');
+        form.action = `/health-discipline/followup/complete/${id}`;
+        document.getElementById('completeModalStudent').textContent = `${name} — Follow-up ${code}`;
+        document.getElementById('completeModalAction').textContent = `Intervention: ${actionType}`;
+        document.getElementById('completeModalStatus').value = status || 'Completed';
+        document.getElementById('completeModalNotes').value = notes || '';
+        document.getElementById('completeModalParentAck').checked = (ack === 1 || ack === true);
+
+        document.getElementById('completeFollowupModal').classList.add('active');
+    }
+
+    function openUpdateStatusModal(id, code, status) {
+        const form = document.getElementById('updateIncidentStatusForm');
+        form.action = `/health-discipline/incident/update-status/${id}`;
+        document.getElementById('updateStatusModalCode').textContent = `Incident ${code}`;
+        document.getElementById('updateStatusSelect').value = status;
+
+        document.getElementById('updateIncidentStatusModal').classList.add('active');
+    }
+
+    // Set default dates to today / tomorrow
+    window.addEventListener('DOMContentLoaded', () => {
+        const today = new Date().toISOString().split('T')[0];
+        const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+
+        const incDate = document.getElementById('incidentDateInput');
+        if (incDate && !incDate.value) incDate.value = today;
+
+        const folDate = document.getElementById('followupScheduledDateInput');
+        if (folDate && !folDate.value) folDate.value = tomorrow;
+    });
+
+    // Global Modal Listeners
+    document.querySelectorAll('[data-modal-close]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
+        });
+    });
+
+    document.querySelectorAll('[data-modal-target]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const target = btn.getAttribute('data-modal-target');
+            const modal = document.querySelector(target);
+            if (modal) modal.classList.add('active');
+        });
+    });
+</script>
+{% endblock %}

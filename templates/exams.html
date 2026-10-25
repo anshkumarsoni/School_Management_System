@@ -10,6 +10,9 @@
             <p style="font-size: 13px; color: var(--text-muted);">Student test evaluations, subject scoring & performance analytics</p>
         </div>
         <div class="toolbar-right">
+            <a href="{{ url_for('performance_analytics_view') }}" class="btn-toolbar-filter" style="text-decoration: none; display: inline-flex; align-items: center; gap: 8px; margin-right: 8px;">
+                <i class="fa-solid fa-chart-line" style="color: #10b981;"></i> Performance Analytics
+            </a>
             {% if current_role in ('super_admin', 'admin') %}
                 <button type="button" class="btn-toolbar-add" data-modal-target="#addExamModal">
                     <i class="fa-solid fa-plus-circle"></i> Enter Exam Marks

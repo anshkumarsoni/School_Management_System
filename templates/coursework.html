@@ -1,0 +1,1376 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard-container">
+
+    <!-- Top Page Toolbar -->
+    <div class="page-toolbar">
+        <div class="toolbar-left">
+            <h3 style="font-size: 20px; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-graduation-cap" style="color: #2563eb;"></i> Coursework &amp; E-Learning Portal
+            </h3>
+            <p style="font-size: 13px; color: var(--text-secondary);">
+                Centralized academic hub for assignment publishing, student submissions, teacher grading, lecture notes, syllabus courses, and interactive online quizzes.
+            </p>
+        </div>
+        <div class="toolbar-right" style="display: flex; gap: 8px; flex-wrap: wrap;">
+            {% if current_role in ('super_admin', 'admin') %}
+                <button type="button" class="btn-toolbar-add" data-modal-target="#addAssignmentModal" style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);">
+                    <i class="fa-solid fa-file-circle-plus"></i> Create Assignment
+                </button>
+                <button type="button" class="btn-toolbar-add" data-modal-target="#addMaterialModal" style="background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Upload Material
+                </button>
+                <button type="button" class="btn-toolbar-add" data-modal-target="#addCourseModal" style="background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);">
+                    <i class="fa-solid fa-book-bookmark"></i> Launch Course
+                </button>
+            {% else %}
+                <button type="button" class="btn-toolbar-add" data-modal-target="#submitWorkModal" style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);">
+                    <i class="fa-solid fa-paper-plane"></i> Submit Work
+                </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 1. Executive KPI Summary Cards -->
+    <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 24px;">
+        <!-- Total Assignments -->
+        <div class="kpi-card card-blue">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper" style="background: #eff6ff; color: #2563eb;"><i class="fa-solid fa-list-check"></i></div>
+                <span class="kpi-pill"><i class="fa-solid fa-circle-check"></i> Assignments</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Active Assignments</span>
+                <h3 class="kpi-value">{{ stats.active_assignments }} <span style="font-size: 14px; font-weight: 600; color: var(--text-muted);">/ {{ stats.total_assignments }}</span></h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext"><i class="fa-regular fa-clock"></i> Course tasks in progress</span>
+            </div>
+        </div>
+
+        <!-- Student Submissions -->
+        <div class="kpi-card card-emerald">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper" style="background: #ecfdf5; color: #059669;"><i class="fa-solid fa-inbox"></i></div>
+                <span class="kpi-pill"><i class="fa-solid fa-clipboard-check"></i> Submissions</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Student Submissions</span>
+                <h3 class="kpi-value">{{ stats.total_submissions }}</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext" style="color: {% if stats.pending_reviews > 0 %}#d97706{% else %}#059669{% endif %}; font-weight: 700;">
+                    <i class="fa-solid fa-hourglass-half"></i> {{ stats.pending_reviews }} pending review
+                </span>
+            </div>
+        </div>
+
+        <!-- Study Materials -->
+        <div class="kpi-card card-amber">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper" style="background: #fef3c7; color: #d97706;"><i class="fa-solid fa-book-open"></i></div>
+                <span class="kpi-pill"><i class="fa-solid fa-folder-open"></i> Materials</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Study Materials</span>
+                <h3 class="kpi-value">{{ stats.total_materials }}</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext"><i class="fa-solid fa-file-lines"></i> Notes, guides &amp; worksheets</span>
+            </div>
+        </div>
+
+        <!-- Learning Courses -->
+        <div class="kpi-card card-purple">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper" style="background: #f5f3ff; color: #7c3aed;"><i class="fa-solid fa-chalkboard"></i></div>
+                <span class="kpi-pill"><i class="fa-solid fa-graduation-cap"></i> E-Learn</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Learning Courses</span>
+                <h3 class="kpi-value">{{ stats.total_courses }}</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext"><i class="fa-solid fa-layer-group"></i> Multi-week syllabi</span>
+            </div>
+        </div>
+
+        <!-- Online Quizzes -->
+        <div class="kpi-card card-rose">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper" style="background: #ffe4e6; color: #e11d48;"><i class="fa-solid fa-stopwatch"></i></div>
+                <span class="kpi-pill"><i class="fa-solid fa-bolt"></i> Interactive</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Online Quizzes</span>
+                <h3 class="kpi-value">{{ stats.total_quizzes }}</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext" style="color: #be123c;"><i class="fa-solid fa-user-check"></i> {{ stats.total_attempts }} completed tests</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Subsystem Navigation Tabs -->
+    <div class="library-tabs-nav" style="display: flex; gap: 8px; border-bottom: 2px solid var(--border-color); margin-bottom: 20px; overflow-x: auto; padding-bottom: 2px;">
+        <a href="{{ url_for('coursework_view', tab='assignments') }}" class="lib-tab-pill {% if tab == 'assignments' %}active{% endif %}">
+            <i class="fa-solid fa-list-check"></i> Assignments
+            <span class="tab-counter">{{ stats.active_assignments }} active</span>
+        </a>
+        <a href="{{ url_for('coursework_view', tab='submissions') }}" class="lib-tab-pill {% if tab == 'submissions' %}active{% endif %}">
+            <i class="fa-solid fa-inbox"></i> Submissions &amp; Grading
+            {% if stats.pending_reviews > 0 %}
+                <span class="tab-counter alert-counter">{{ stats.pending_reviews }} to grade</span>
+            {% else %}
+                <span class="tab-counter">{{ stats.total_submissions }}</span>
+            {% endif %}
+        </a>
+        <a href="{{ url_for('coursework_view', tab='materials') }}" class="lib-tab-pill {% if tab == 'materials' %}active{% endif %}">
+            <i class="fa-solid fa-book-open"></i> Study Materials
+            <span class="tab-counter">{{ stats.total_materials }}</span>
+        </a>
+        <a href="{{ url_for('coursework_view', tab='courses') }}" class="lib-tab-pill {% if tab == 'courses' %}active{% endif %}">
+            <i class="fa-solid fa-chalkboard"></i> Learning Courses
+            <span class="tab-counter">{{ stats.total_courses }}</span>
+        </a>
+        <a href="{{ url_for('coursework_view', tab='quizzes') }}" class="lib-tab-pill {% if tab == 'quizzes' %}active{% endif %}">
+            <i class="fa-solid fa-stopwatch"></i> Online Quizzes
+            <span class="tab-counter">{{ stats.total_quizzes }} tests</span>
+        </a>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- TAB 1: ASSIGNMENTS -->
+    <!-- ================================================================= -->
+    {% if tab == 'assignments' %}
+    <div class="data-table-card">
+        <div class="card-header" style="flex-wrap: wrap; gap: 12px;">
+            <div class="header-left">
+                <div class="card-badge-icon badge-blue"><i class="fa-solid fa-list-check"></i></div>
+                <div>
+                    <h4 class="card-title">Academic Assignments &amp; Homework</h4>
+                    <span class="card-subtitle">Showing {{ assignments | length }} of {{ stats.total_assignments }} assignments</span>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <form method="GET" action="{{ url_for('coursework_view') }}" class="table-search-form" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <input type="hidden" name="tab" value="assignments">
+                <div class="search-input-wrapper">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" name="search" value="{{ search }}" placeholder="Search assignment, code, topic..." class="table-search-input">
+                </div>
+                <select name="subject" class="table-filter-select">
+                    <option value="">All Subjects</option>
+                    {% for subj in subjects %}
+                        <option value="{{ subj }}" {% if selected_subject == subj %}selected{% endif %}>{{ subj }}</option>
+                    {% endfor %}
+                </select>
+                <select name="class" class="table-filter-select">
+                    <option value="">All Classes</option>
+                    {% for cls in classes %}
+                        <option value="{{ cls }}" {% if selected_class == cls %}selected{% endif %}>{{ cls }}</option>
+                    {% endfor %}
+                </select>
+                <select name="status" class="table-filter-select">
+                    <option value="">All Statuses</option>
+                    <option value="Active" {% if selected_status == 'Active' %}selected{% endif %}>Active Only</option>
+                    <option value="Closed" {% if selected_status == 'Closed' %}selected{% endif %}>Closed</option>
+                </select>
+                <button type="submit" class="btn-filter"><i class="fa-solid fa-filter"></i> Filter</button>
+                {% if search or selected_subject or selected_class or selected_status %}
+                    <a href="{{ url_for('coursework_view', tab='assignments') }}" class="btn-clear"><i class="fa-solid fa-rotate-left"></i> Reset</a>
+                {% endif %}
+            </form>
+        </div>
+
+        <!-- Assignment Cards Grid -->
+        <div style="padding: 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 18px;">
+            {% for a in assignments %}
+            <div style="background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px; display: flex; flex-direction: column; justify-content: space-between; transition: all 0.2s ease; box-shadow: var(--shadow-xs); position: relative; overflow: hidden;"
+                 onmouseover="this.style.boxShadow='var(--shadow-md)'; this.style.borderColor='#93c5fd';"
+                 onmouseout="this.style.boxShadow='var(--shadow-xs)'; this.style.borderColor='var(--border-color)';">
+                
+                <!-- Status bar top -->
+                <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: {% if a.STATUS == 'Active' %}{% if a.is_overdue %}#ef4444{% else %}#2563eb{% endif %}{% else %}#94a3b8{% endif %};"></div>
+
+                <div>
+                    <!-- Meta Pills -->
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 8px;">
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                            <span class="roll-badge" style="background: #eff6ff; color: #1e40af; border-color: #bfdbfe;">{{ a.ASSIGNMENT_CODE }}</span>
+                            <span class="class-pill">{{ a.CLASS }}</span>
+                        </div>
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                            <span style="font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 4px; background: #f1f5f9; color: #334155;">
+                                <i class="fa-solid fa-award" style="color: #d97706;"></i> {{ a.MAX_MARKS }} Pts
+                            </span>
+                            {% if a.STATUS == 'Active' %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 4px; background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0;">
+                                    Active
+                                </span>
+                            {% else %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 4px; background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1;">
+                                    Closed
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Title -->
+                    <h4 style="font-size: 15px; font-weight: 800; color: var(--navy-900); margin-bottom: 6px; line-height: 1.35;">
+                        {{ a.TITLE }}
+                    </h4>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-chalkboard-user" style="color: #2563eb;"></i> {{ a.TEACHER_NAME }} &bull; <strong style="color: var(--navy-700);">{{ a.SUBJECT }}</strong>
+                    </div>
+
+                    <!-- Description -->
+                    <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 14px; background: #f8fafc; padding: 10px 12px; border-radius: var(--radius-sm); border-left: 3px solid #cbd5e1;">
+                        {{ a.DESCRIPTION }}
+                    </p>
+
+                    <!-- Due date pill & Reference attachment -->
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; font-size: 12px; flex-wrap: wrap; gap: 6px;">
+                        <div>
+                            {% if a.is_overdue %}
+                                <span style="color: #e11d48; font-weight: 700; background: #ffe4e6; padding: 3px 8px; border-radius: 4px;">
+                                    <i class="fa-solid fa-triangle-exclamation"></i> Overdue (Due: {{ a.due_date_fmt }})
+                                </span>
+                            {% elif a.days_left <= 7 %}
+                                <span style="color: #d97706; font-weight: 700; background: #fffbeb; padding: 3px 8px; border-radius: 4px;">
+                                    <i class="fa-regular fa-clock"></i> Due in {{ a.days_left }} days ({{ a.due_date_fmt }})
+                                </span>
+                            {% else %}
+                                <span style="color: #2563eb; font-weight: 700; background: #eff6ff; padding: 3px 8px; border-radius: 4px;">
+                                    <i class="fa-regular fa-calendar"></i> Due: {{ a.due_date_fmt }}
+                                </span>
+                            {% endif %}
+                        </div>
+
+                        {% if a.ATTACHMENT_URL %}
+                            <a href="{{ a.ATTACHMENT_URL }}" target="_blank" rel="noopener noreferrer" style="color: #0284c7; font-weight: 700; text-decoration: none; display: flex; align-items: center; gap: 4px;">
+                                <i class="fa-solid fa-paperclip"></i> Reference Docs
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Footer & Action buttons -->
+                <div style="border-top: 1px solid #f1f5f9; padding-top: 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                    <span style="font-size: 12px; font-weight: 700; color: #475569;">
+                        <i class="fa-solid fa-paper-plane" style="color: #059669;"></i> {{ a.SUBMISSION_COUNT }} submissions
+                    </span>
+
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <!-- Submit Work Button -->
+                        <button type="button" class="page-btn" onclick="openSubmitModal('{{ a.ASSIGNMENT_CODE }}', '{{ a.TITLE | replace('\'', '\\\'') }}', '{{ a.CLASS }}')" style="background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; font-weight: 800;">
+                            <i class="fa-solid fa-upload"></i> Submit Work
+                        </button>
+
+                        {% if current_role in ('super_admin', 'admin') %}
+                            <!-- Toggle Active/Closed -->
+                            <form method="POST" action="{{ url_for('toggle_assignment_status_route', id=a.ID) }}" style="display: inline;">
+                                <button type="submit" class="page-btn" title="Toggle Status" style="background: #f8fafc; color: #475569;">
+                                    <i class="fa-solid fa-power-off"></i>
+                                </button>
+                            </form>
+
+                            <!-- Delete -->
+                            <form method="POST" action="{{ url_for('delete_assignment_route', id=a.ID) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete assignment {{ a.ASSIGNMENT_CODE }} and all student submissions?');">
+                                <button type="submit" class="page-btn" title="Delete Assignment" style="background: #fff1f2; color: #e11d48; border-color: #fecdd3;">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div style="grid-column: 1 / -1; text-align: center; padding: 48px; background: #f8fafc; border-radius: var(--radius-md); border: 1px dashed var(--border-color);">
+                <i class="fa-solid fa-folder-open" style="font-size: 38px; color: #94a3b8; margin-bottom: 12px;"></i>
+                <h4 style="font-size: 16px; font-weight: 800; color: var(--navy-900); margin-bottom: 4px;">No Assignments Found</h4>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">Try adjusting your search criteria or create a new assignment.</p>
+                {% if current_role in ('super_admin', 'admin') %}
+                    <button type="button" class="btn-toolbar-add" data-modal-target="#addAssignmentModal">
+                        <i class="fa-solid fa-plus"></i> Create Assignment
+                    </button>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+
+    <!-- ================================================================= -->
+    <!-- TAB 2: SUBMISSIONS & TEACHER REVIEW -->
+    <!-- ================================================================= -->
+    {% if tab == 'submissions' %}
+    <div class="data-table-card">
+        <div class="card-header" style="flex-wrap: wrap; gap: 12px;">
+            <div class="header-left">
+                <div class="card-badge-icon badge-emerald"><i class="fa-solid fa-inbox"></i></div>
+                <div>
+                    <h4 class="card-title">Student Submissions &amp; Teacher Grading</h4>
+                    <span class="card-subtitle">Manage homework turn-ins, evaluate answers, award marks, and provide feedback</span>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <form method="GET" action="{{ url_for('coursework_view') }}" class="table-search-form" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <input type="hidden" name="tab" value="submissions">
+                <div class="search-input-wrapper">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" name="search" value="{{ search }}" placeholder="Search by student, roll, or code..." class="table-search-input">
+                </div>
+                <select name="status" class="table-filter-select">
+                    <option value="">All Review Statuses</option>
+                    <option value="Submitted" {% if selected_status == 'Submitted' %}selected{% endif %}>Submitted (On Time)</option>
+                    <option value="Late Submission" {% if selected_status == 'Late Submission' %}selected{% endif %}>Late Submission</option>
+                    <option value="Graded" {% if selected_status == 'Graded' %}selected{% endif %}>Graded</option>
+                </select>
+                <button type="submit" class="btn-filter"><i class="fa-solid fa-filter"></i> Filter</button>
+                {% if search or selected_status %}
+                    <a href="{{ url_for('coursework_view', tab='submissions') }}" class="btn-clear"><i class="fa-solid fa-rotate-left"></i> Reset</a>
+                {% endif %}
+            </form>
+        </div>
+
+        <div class="table-responsive">
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Student Details</th>
+                        <th>Assignment</th>
+                        <th>Turn-in Date</th>
+                        <th>Status</th>
+                        <th>Marks / Grade</th>
+                        <th>Teacher Feedback</th>
+                        <th style="text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in submissions %}
+                    <tr>
+                        <td>
+                            <span class="roll-badge" style="background: #f1f5f9; color: #334155; border-color: #cbd5e1;">{{ s.SUBMISSION_CODE }}</span>
+                        </td>
+                        <td>
+                            <div class="student-name-cell">
+                                <div class="mini-avatar" style="background: #0d9488;">{{ s.STUDENT_NAME[0] | upper }}</div>
+                                <div>
+                                    <div class="student-name">{{ s.STUDENT_NAME }}</div>
+                                    <div style="font-size: 11px; color: var(--text-muted);">Roll: <strong>{{ s.STUDENT_ROLL }}</strong> &bull; {{ s.STUDENT_CLASS }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div style="font-weight: 700; color: var(--navy-900); font-size: 13px;">{{ s.ASSIGNMENT_TITLE or s.ASSIGNMENT_CODE }}</div>
+                            <div style="font-size: 11px; color: var(--text-muted);"><span class="roll-badge">{{ s.ASSIGNMENT_CODE }}</span> &bull; Max: {{ s.MAX_MARKS or 100 }} Pts</div>
+                        </td>
+                        <td>
+                            <div style="font-size: 12px; font-weight: 700; color: var(--text-secondary);">{{ s.submitted_date_fmt }}</div>
+                        </td>
+                        <td>
+                            {% if s.STATUS == 'Graded' %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; display: inline-flex; align-items: center; gap: 4px;">
+                                    <i class="fa-solid fa-circle-check"></i> Graded
+                                </span>
+                            {% elif s.STATUS == 'Late Submission' %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3; display: inline-flex; align-items: center; gap: 4px;">
+                                    <i class="fa-solid fa-clock"></i> Late
+                                </span>
+                            {% else %}
+                                <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; display: inline-flex; align-items: center; gap: 4px;">
+                                    <i class="fa-solid fa-hourglass"></i> Pending Review
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if s.STATUS == 'Graded' %}
+                                <div style="font-weight: 800; color: #059669; font-size: 13px;">
+                                    {{ s.MARKS_OBTAINED }} <span style="font-size: 11px; color: var(--text-muted);">/ {{ s.MAX_MARKS or 100 }}</span>
+                                    {% if s.GRADE %}
+                                        <span style="font-size: 11px; font-weight: 800; padding: 1px 6px; border-radius: 4px; background: #dcfce7; color: #166534; margin-left: 4px;">{{ s.GRADE }}</span>
+                                    {% endif %}
+                                </div>
+                            {% else %}
+                                <span style="font-size: 12px; color: var(--text-muted); font-style: italic;">Not evaluated yet</span>
+                            {% endif %}
+                        </td>
+                        <td style="max-width: 240px;">
+                            {% if s.TEACHER_FEEDBACK %}
+                                <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.4; background: #f8fafc; padding: 6px 8px; border-radius: 4px; border-left: 2px solid #059669;">
+                                    &ldquo;{{ s.TEACHER_FEEDBACK }}&rdquo;
+                                    {% if s.REVIEWED_BY %}
+                                        <div style="font-size: 10px; color: var(--text-muted); margin-top: 3px;">— {{ s.REVIEWED_BY }} ({{ s.reviewed_date_fmt }})</div>
+                                    {% endif %}
+                                </div>
+                            {% else %}
+                                <span style="font-size: 12px; color: var(--text-muted);">-</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: right; white-space: nowrap;">
+                            <!-- View Submission Content / Link -->
+                            <button type="button" class="page-btn" onclick="openViewSubmissionModal('{{ s.SUBMISSION_CODE }}', '{{ s.STUDENT_NAME | replace('\'', '\\\'') }}', '{{ s.ASSIGNMENT_TITLE | replace('\'', '\\\'') }}', '{{ s.SUBMISSION_TEXT | replace('\'', '\\\'') | replace('\n', ' ') }}', '{{ s.FILE_URL or '' }}')" title="View Solution Text">
+                                <i class="fa-solid fa-eye"></i> View Work
+                            </button>
+
+                            {% if current_role in ('super_admin', 'admin') %}
+                                <button type="button" class="page-btn" onclick="openGradeModal({{ s.ID }}, '{{ s.SUBMISSION_CODE }}', '{{ s.STUDENT_NAME | replace('\'', '\\\'') }}', '{{ s.ASSIGNMENT_TITLE | replace('\'', '\\\'') }}', {{ s.MAX_MARKS or 100 }}, '{{ s.MARKS_OBTAINED or 0 }}', '{{ s.GRADE or '' }}', '{{ s.TEACHER_FEEDBACK | replace('\'', '\\\'') | replace('\n', ' ') }}')" style="background: #ecfdf5; color: #059669; border-color: #a7f3d0; font-weight: 800;">
+                                    <i class="fa-solid fa-marker"></i> Grade
+                                </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 36px; color: var(--text-muted);">
+                            <i class="fa-solid fa-inbox" style="font-size: 28px; margin-bottom: 8px; display: block; color: #94a3b8;"></i>
+                            No student submissions found matching your filters.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+
+    <!-- ================================================================= -->
+    <!-- TAB 3: STUDY MATERIALS -->
+    <!-- ================================================================= -->
+    {% if tab == 'materials' %}
+    <div class="data-table-card">
+        <div class="card-header" style="flex-wrap: wrap; gap: 12px;">
+            <div class="header-left">
+                <div class="card-badge-icon badge-amber"><i class="fa-solid fa-book-open"></i></div>
+                <div>
+                    <h4 class="card-title">Study Materials, Lecture Notes &amp; Video Guides</h4>
+                    <span class="card-subtitle">Showing {{ materials | length }} verified academic learning assets</span>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <form method="GET" action="{{ url_for('coursework_view') }}" class="table-search-form" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <input type="hidden" name="tab" value="materials">
+                <div class="search-input-wrapper">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" name="search" value="{{ search }}" placeholder="Search by topic, title, teacher..." class="table-search-input">
+                </div>
+                <select name="subject" class="table-filter-select">
+                    <option value="">All Subjects</option>
+                    {% for subj in subjects %}
+                        <option value="{{ subj }}" {% if selected_subject == subj %}selected{% endif %}>{{ subj }}</option>
+                    {% endfor %}
+                </select>
+                <select name="class" class="table-filter-select">
+                    <option value="">All Classes</option>
+                    {% for cls in classes %}
+                        <option value="{{ cls }}" {% if selected_class == cls %}selected{% endif %}>{{ cls }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn-filter"><i class="fa-solid fa-filter"></i> Filter</button>
+                {% if search or selected_subject or selected_class %}
+                    <a href="{{ url_for('coursework_view', tab='materials') }}" class="btn-clear"><i class="fa-solid fa-rotate-left"></i> Reset</a>
+                {% endif %}
+            </form>
+        </div>
+
+        <div style="padding: 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 18px;">
+            {% for m in materials %}
+            <div style="background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px; display: flex; flex-direction: column; justify-content: space-between; transition: all 0.2s ease; box-shadow: var(--shadow-xs);"
+                 onmouseover="this.style.boxShadow='var(--shadow-md)'; this.style.borderColor='#fde68a';"
+                 onmouseout="this.style.boxShadow='var(--shadow-xs)'; this.style.borderColor='var(--border-color)';">
+                
+                <div>
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 6px;">
+                        <span class="roll-badge" style="background: #fffbeb; color: #b45309; border-color: #fde68a;">{{ m.MATERIAL_CODE }}</span>
+                        <div style="display: flex; gap: 6px;">
+                            <span class="class-pill">{{ m.CLASS }}</span>
+                            <span style="font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 4px; background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0;">
+                                {{ m.RESOURCE_TYPE }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <h4 style="font-size: 15px; font-weight: 800; color: var(--navy-900); margin-bottom: 6px; line-height: 1.35;">
+                        {{ m.TITLE }}
+                    </h4>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
+                        <strong style="color: var(--navy-700);">{{ m.SUBJECT }}</strong> &bull; Topic: <span style="font-weight: 600; color: var(--text-secondary);">{{ m.TOPIC }}</span>
+                    </div>
+
+                    {% if m.CONTENT_TEXT %}
+                    <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.45; margin-bottom: 14px; background: #f8fafc; padding: 10px 12px; border-radius: var(--radius-sm);">
+                        {{ m.CONTENT_TEXT }}
+                    </p>
+                    {% endif %}
+                </div>
+
+                <div style="border-top: 1px solid #f1f5f9; padding-top: 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                    <div style="font-size: 11.5px; color: var(--text-muted);">
+                        <i class="fa-solid fa-user-pen" style="color: #d97706;"></i> {{ m.UPLOADED_BY }}<br>
+                        <span>{{ m.upload_date_fmt }}</span>
+                    </div>
+
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        {% if m.RESOURCE_URL %}
+                        <a href="{{ m.RESOURCE_URL }}" target="_blank" rel="noopener noreferrer" class="page-btn" style="background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; font-weight: 800;">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Notes
+                        </a>
+                        {% endif %}
+
+                        {% if current_role in ('super_admin', 'admin') %}
+                        <form method="POST" action="{{ url_for('delete_material_route', id=m.ID) }}" style="display: inline;" onsubmit="return confirm('Delete study material {{ m.MATERIAL_CODE }}?');">
+                            <button type="submit" class="page-btn" title="Delete" style="background: #fff1f2; color: #e11d48; border-color: #fecdd3;">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div style="grid-column: 1 / -1; text-align: center; padding: 48px; background: #f8fafc; border-radius: var(--radius-md); border: 1px dashed var(--border-color);">
+                <i class="fa-solid fa-book-open" style="font-size: 38px; color: #94a3b8; margin-bottom: 12px;"></i>
+                <h4 style="font-size: 16px; font-weight: 800; color: var(--navy-900); margin-bottom: 4px;">No Study Materials Uploaded Yet</h4>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">Teachers can upload syllabus handouts, guides, and formula sheets.</p>
+                {% if current_role in ('super_admin', 'admin') %}
+                    <button type="button" class="btn-toolbar-add" data-modal-target="#addMaterialModal">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Upload Study Material
+                    </button>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+
+    <!-- ================================================================= -->
+    <!-- TAB 4: LEARNING COURSES -->
+    <!-- ================================================================= -->
+    {% if tab == 'courses' %}
+    <div class="data-table-card">
+        <div class="card-header" style="flex-wrap: wrap; gap: 12px;">
+            <div class="header-left">
+                <div class="card-badge-icon badge-purple"><i class="fa-solid fa-chalkboard"></i></div>
+                <div>
+                    <h4 class="card-title">E-Learning Course Catalog &amp; Syllabi</h4>
+                    <span class="card-subtitle">Comprehensive structured curriculum courses, modules, and learning paths</span>
+                </div>
+            </div>
+
+            {% if current_role in ('super_admin', 'admin') %}
+            <button type="button" class="btn-toolbar-add" data-modal-target="#addCourseModal" style="background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);">
+                <i class="fa-solid fa-plus-circle"></i> Launch New Course
+            </button>
+            {% endif %}
+        </div>
+
+        <div style="padding: 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px;">
+            {% for c in courses %}
+            <div style="background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-lg); overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; box-shadow: var(--shadow-sm); transition: all 0.2s ease;"
+                 onmouseover="this.style.boxShadow='var(--shadow-md)'; this.style.transform='translateY(-2px)';"
+                 onmouseout="this.style.boxShadow='var(--shadow-sm)'; this.style.transform='none';">
+                
+                <!-- Course Card Banner -->
+                <div style="background: linear-gradient(135deg, #1e1b4b 0%, #312e81 60%, #4338ca 100%); padding: 20px 22px; color: #ffffff; position: relative;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span class="roll-badge" style="background: rgba(255, 255, 255, 0.15); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.25);">{{ c.COURSE_CODE }}</span>
+                        <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(4px);">
+                            {{ c.LEVEL }}
+                        </span>
+                    </div>
+                    <h3 style="font-size: 17px; font-weight: 800; margin-bottom: 6px; line-height: 1.3;">{{ c.TITLE }}</h3>
+                    <div style="font-size: 12px; opacity: 0.85; display: flex; align-items: center; gap: 8px;">
+                        <span><i class="fa-solid fa-graduation-cap"></i> {{ c.SUBJECT }}</span> &bull; 
+                        <span><i class="fa-solid fa-user-tie"></i> {{ c.INSTRUCTOR }}</span>
+                    </div>
+                </div>
+
+                <!-- Course Body -->
+                <div style="padding: 18px;">
+                    <div style="display: flex; gap: 14px; margin-bottom: 14px; background: #f8fafc; padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid #f1f5f9;">
+                        <div style="font-size: 12px; color: var(--text-secondary);">
+                            <i class="fa-solid fa-book-open" style="color: #7c3aed;"></i> <strong>{{ c.TOTAL_LESSONS }}</strong> Lessons
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary);">
+                            <i class="fa-solid fa-calendar-check" style="color: #059669;"></i> <strong>{{ c.DURATION_WEEKS }}</strong> Weeks
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary);">
+                            <i class="fa-solid fa-circle-check" style="color: #2563eb;"></i> <strong>{{ c.STATUS }}</strong>
+                        </div>
+                    </div>
+
+                    <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 14px;">
+                        {{ c.DESCRIPTION }}
+                    </p>
+
+                    <!-- Syllabus Accordion -->
+                    {% if c.SYLLABUS %}
+                    <details style="background: #fdf4ff; border: 1px solid #f5d0fe; border-radius: var(--radius-sm); padding: 10px 12px; font-size: 12.5px; color: #581c87; margin-bottom: 10px;">
+                        <summary style="font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 6px; user-select: none;">
+                            <i class="fa-solid fa-list-ol"></i> View Complete Syllabus Modules
+                        </summary>
+                        <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #f5d0fe; font-size: 12px; line-height: 1.6; color: #3b0764; white-space: pre-line;">
+                            {{ c.SYLLABUS }}
+                        </div>
+                    </details>
+                    {% endif %}
+                </div>
+
+                <!-- Course Footer -->
+                <div style="padding: 14px 18px; background: #f8fafc; border-top: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between;">
+                    <span style="font-size: 12px; font-weight: 700; color: #059669;">
+                        <i class="fa-solid fa-circle-dot" style="font-size: 8px;"></i> Open Curriculum
+                    </span>
+                    <a href="{{ url_for('coursework_view', tab='quizzes') }}" class="page-btn" style="background: #7c3aed; color: #ffffff; border-color: #7c3aed; font-weight: 800;">
+                        <i class="fa-solid fa-bolt"></i> Practice Quizzes
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+
+    <!-- ================================================================= -->
+    <!-- TAB 5: ONLINE QUIZZES PLAYER & ATTEMPTS -->
+    <!-- ================================================================= -->
+    {% if tab == 'quizzes' %}
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+
+        <!-- Active Online Quizzes Grid -->
+        <div class="data-table-card">
+            <div class="card-header">
+                <div class="header-left">
+                    <div class="card-badge-icon badge-rose"><i class="fa-solid fa-stopwatch"></i></div>
+                    <div>
+                        <h4 class="card-title">Interactive Online Quizzes &amp; Skill Tests</h4>
+                        <span class="card-subtitle">Take real-time multiple-choice quizzes with automated grading and instant feedback</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="padding: 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 18px;">
+                {% for q in quizzes %}
+                <div style="background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: var(--shadow-xs); transition: all 0.2s ease;"
+                     onmouseover="this.style.boxShadow='var(--shadow-md)'; this.style.borderColor='#fda4af';"
+                     onmouseout="this.style.boxShadow='var(--shadow-xs)'; this.style.borderColor='var(--border-color)';">
+                    
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <span class="roll-badge" style="background: #ffe4e6; color: #9f1239; border-color: #fecdd3;">{{ q.QUIZ_CODE }}</span>
+                            <span class="class-pill">{{ q.CLASS }}</span>
+                        </div>
+
+                        <h4 style="font-size: 15px; font-weight: 800; color: var(--navy-900); margin-bottom: 6px;">{{ q.TITLE }}</h4>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
+                            <strong style="color: var(--navy-700);">{{ q.SUBJECT }}</strong> &bull; By {{ q.CREATED_BY }}
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; background: #fff1f2; padding: 10px; border-radius: var(--radius-sm); border: 1px solid #ffe4e6;">
+                            <div style="text-align: center;">
+                                <div style="font-size: 11px; color: #9f1239; font-weight: 700;">QUESTIONS</div>
+                                <div style="font-size: 14px; font-weight: 800; color: #881337;">{{ q.QUESTIONS_COUNT }}</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 11px; color: #9f1239; font-weight: 700;">TIME</div>
+                                <div style="font-size: 14px; font-weight: 800; color: #881337;">{{ q.TIME_MINUTES }}m</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 11px; color: #9f1239; font-weight: 700;">PASS MARK</div>
+                                <div style="font-size: 14px; font-weight: 800; color: #881337;">{{ q.PASS_PERCENTAGE }}%</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid #f1f5f9; padding-top: 12px;">
+                        <span style="font-size: 12px; color: var(--text-muted);">
+                            <i class="fa-solid fa-users"></i> {{ q.ATTEMPTS_COUNT }} student attempts
+                        </span>
+
+                        <button type="button" class="btn-toolbar-add" onclick="launchQuizRunner('{{ q.QUIZ_CODE }}')" style="background: linear-gradient(135deg, #e11d48 0%, #be123c 100%); padding: 7px 16px; font-size: 12.5px;">
+                            <i class="fa-solid fa-play"></i> Take Quiz Now
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Recent Quiz Attempts & Leaderboard -->
+        <div class="data-table-card">
+            <div class="card-header">
+                <div class="header-left">
+                    <div class="card-badge-icon badge-blue"><i class="fa-solid fa-chart-simple"></i></div>
+                    <div>
+                        <h4 class="card-title">Recent Quiz Attempts &amp; Assessment Results</h4>
+                        <span class="card-subtitle">Real-time log of test attempts, percentages, and outcomes</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="modern-table">
+                    <thead>
+                        <tr>
+                            <th>Attempt ID</th>
+                            <th>Student</th>
+                            <th>Quiz Subject &amp; Title</th>
+                            <th>Score</th>
+                            <th>Percentage</th>
+                            <th>Outcome</th>
+                            <th>Attempt Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for qa in quiz_attempts %}
+                        <tr>
+                            <td><span class="roll-badge">{{ qa.ATTEMPT_CODE }}</span></td>
+                            <td>
+                                <div class="student-name-cell">
+                                    <div class="mini-avatar" style="background: #2563eb;">{{ qa.STUDENT_NAME[0] | upper }}</div>
+                                    <div>
+                                        <div class="student-name">{{ qa.STUDENT_NAME }}</div>
+                                        <div style="font-size: 11px; color: var(--text-muted);">Roll: <strong>{{ qa.STUDENT_ROLL }}</strong></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div style="font-weight: 700; color: var(--navy-900);">{{ qa.QUIZ_TITLE or qa.QUIZ_CODE }}</div>
+                                <div style="font-size: 11px; color: var(--text-muted);"><span class="roll-badge">{{ qa.QUIZ_CODE }}</span> &bull; {{ qa.QUIZ_SUBJECT }}</div>
+                            </td>
+                            <td>
+                                <strong style="font-size: 14px; color: var(--navy-900);">{{ qa.SCORE }}</strong> <span style="font-size: 12px; color: var(--text-muted);">/ {{ qa.TOTAL_QUESTIONS }}</span>
+                            </td>
+                            <td>
+                                <strong style="font-size: 13px; color: {% if qa.PASSED %}#059669{% else %}#e11d48{% endif %};">{{ qa.PERCENTAGE }}%</strong>
+                            </td>
+                            <td>
+                                {% if qa.PASSED %}
+                                    <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; display: inline-flex; align-items: center; gap: 4px;">
+                                        <i class="fa-solid fa-circle-check"></i> Passed
+                                    </span>
+                                {% else %}
+                                    <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3; display: inline-flex; align-items: center; gap: 4px;">
+                                        <i class="fa-solid fa-circle-xmark"></i> Needs Retake
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span style="font-size: 12px; color: var(--text-secondary);">{{ qa.attempt_date_fmt }}</span>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 30px; color: var(--text-muted);">
+                                No quiz attempts recorded yet. Be the first to take a quiz!
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+    {% endif %}
+
+</div>
+
+
+<!-- ================================================================= -->
+<!-- MODAL 1: ADD ASSIGNMENT MODAL (TEACHER / PRINCIPAL) -->
+<!-- ================================================================= -->
+<div class="modal-overlay" id="addAssignmentModal">
+    <div class="modal-dialog" style="max-width: 620px;">
+        <div class="modal-header">
+            <h4 class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-file-circle-plus" style="color: #2563eb;"></i> Publish Academic Assignment
+            </h4>
+            <button type="button" class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('add_assignment_route') }}">
+            <div class="modal-body" style="padding: 20px; max-height: 75vh; overflow-y: auto;">
+                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Assignment Title *</label>
+                        <input type="text" name="title" required placeholder="e.g. Electromagnetic Induction Lab Report" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Subject *</label>
+                        <select name="subject" required class="form-select">
+                            <option value="">Select Subject</option>
+                            {% for subj in subjects %}
+                                <option value="{{ subj }}">{{ subj }}</option>
+                            {% endfor %}
+                            <option value="Physics">Physics</option>
+                            <option value="Chemistry">Chemistry</option>
+                            <option value="Mathematics">Mathematics</option>
+                            <option value="Computer Science">Computer Science</option>
+                            <option value="Biology">Biology</option>
+                            <option value="English">English</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Target Class *</label>
+                        <select name="class_name" required class="form-select">
+                            <option value="Grade 10">Grade 10</option>
+                            <option value="Grade 9">Grade 9</option>
+                            <option value="Grade 11">Grade 11</option>
+                            <option value="Grade 12">Grade 12</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Teacher In-Charge</label>
+                        <select name="teacher_name" class="form-select">
+                            <option value="{{ session.get('username', 'Faculty') }}">{{ session.get('username', 'Faculty') }} (Logged-in)</option>
+                            {% for t in teachers %}
+                                <option value="{{ t.NAME }}">{{ t.NAME }} ({{ t.SUBJECT }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Submission Due Date *</label>
+                        <input type="date" name="due_date" required class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Maximum Marks (Pts)</label>
+                        <input type="number" name="max_marks" value="50" min="5" max="500" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Reference Material / Resource URL</label>
+                        <input type="url" name="attachment_url" placeholder="https://example.com/handout.pdf" class="form-control">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Assignment Instructions &amp; Description *</label>
+                        <textarea name="description" rows="3" required placeholder="Specify assignment questions, objectives, derivation steps, or criteria..." class="form-control"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 14px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 8px;">
+                <button type="button" class="page-btn" data-modal-close>Cancel</button>
+                <button type="submit" class="btn-toolbar-add" style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);">
+                    <i class="fa-solid fa-check"></i> Publish Assignment
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- ================================================================= -->
+<!-- MODAL 2: UPLOAD STUDY MATERIAL MODAL -->
+<!-- ================================================================= -->
+<div class="modal-overlay" id="addMaterialModal">
+    <div class="modal-dialog" style="max-width: 600px;">
+        <div class="modal-header">
+            <h4 class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-cloud-arrow-up" style="color: #0d9488;"></i> Upload Academic Study Material
+            </h4>
+            <button type="button" class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('add_material_route') }}">
+            <div class="modal-body" style="padding: 20px; max-height: 75vh; overflow-y: auto;">
+                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Material Title *</label>
+                        <input type="text" name="title" required placeholder="e.g. Organic Reaction Mechanisms Cheat Sheet" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Subject *</label>
+                        <select name="subject" required class="form-select">
+                            <option value="Physics">Physics</option>
+                            <option value="Chemistry">Chemistry</option>
+                            <option value="Mathematics">Mathematics</option>
+                            <option value="Computer Science">Computer Science</option>
+                            <option value="Biology">Biology</option>
+                            <option value="English">English</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Class *</label>
+                        <select name="class_name" required class="form-select">
+                            <option value="Grade 10">Grade 10</option>
+                            <option value="Grade 9">Grade 9</option>
+                            <option value="Grade 11">Grade 11</option>
+                            <option value="Grade 12">Grade 12</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Topic / Unit *</label>
+                        <input type="text" name="topic" required placeholder="e.g. Chemical Bonding, Arrays" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Resource Format</label>
+                        <select name="resource_type" class="form-select">
+                            <option value="Lecture Notes">Lecture Notes</option>
+                            <option value="Worksheet">Practice Worksheet</option>
+                            <option value="Reference Guide">Reference Guide</option>
+                            <option value="Video Lecture">Video Lecture</option>
+                            <option value="Syllabus">Syllabus Outline</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Web / Drive Resource URL</label>
+                        <input type="url" name="resource_url" placeholder="https://drive.google.com/... or https://openstax.org/..." class="form-control">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Notes &amp; Topic Highlights</label>
+                        <textarea name="content_text" rows="3" placeholder="Key concepts, formula highlights, or instructions for students..." class="form-control"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 14px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 8px;">
+                <button type="button" class="page-btn" data-modal-close>Cancel</button>
+                <button type="submit" class="btn-toolbar-add" style="background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Upload Material
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- ================================================================= -->
+<!-- MODAL 3: STUDENT SUBMIT WORK MODAL -->
+<!-- ================================================================= -->
+<div class="modal-overlay" id="submitWorkModal">
+    <div class="modal-dialog" style="max-width: 600px;">
+        <div class="modal-header">
+            <h4 class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-paper-plane" style="color: #2563eb;"></i> Submit Assignment Work
+            </h4>
+            <button type="button" class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('submit_coursework_route') }}">
+            <div class="modal-body" style="padding: 20px; max-height: 75vh; overflow-y: auto;">
+                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Target Assignment *</label>
+                        <select name="assignment_code" id="submitAssignmentCode" required class="form-select">
+                            <option value="">Select Assignment</option>
+                            {% for a in all_assignments %}
+                                <option value="{{ a.ASSIGNMENT_CODE }}">{{ a.ASSIGNMENT_CODE }} — {{ a.TITLE }} ({{ a.CLASS }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Student Roll Number *</label>
+                        <input type="text" name="student_roll" id="submitStudentRoll" required placeholder="e.g. 101" list="studentsRollList" onchange="autoFillStudent(this)" class="form-control">
+                        <datalist id="studentsRollList">
+                            {% for st in students %}
+                                <option value="{{ st.ROLL_NUMBER }}">{{ st.NAME }} ({{ st.CLASS }})</option>
+                            {% endfor %}
+                        </datalist>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Student Full Name *</label>
+                        <input type="text" name="student_name" id="submitStudentName" required placeholder="e.g. Aarav Sharma" class="form-control">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Student Class</label>
+                        <input type="text" name="student_class" id="submitStudentClass" value="Grade 10" class="form-control">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Project / File / Drive URL</label>
+                        <input type="url" name="file_url" placeholder="https://github.com/my-repo or https://drive.google.com/..." class="form-control">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Student Written Solution / Explanation *</label>
+                        <textarea name="submission_text" rows="4" required placeholder="Paste your answers, mathematical derivation, code solution, or summary here..." class="form-control"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 14px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 8px;">
+                <button type="button" class="page-btn" data-modal-close>Cancel</button>
+                <button type="submit" class="btn-toolbar-add" style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);">
+                    <i class="fa-solid fa-paper-plane"></i> Submit Work
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- ================================================================= -->
+<!-- MODAL 4: TEACHER GRADE SUBMISSION MODAL -->
+<!-- ================================================================= -->
+<div class="modal-overlay" id="gradeSubmissionModal">
+    <div class="modal-dialog" style="max-width: 540px;">
+        <div class="modal-header">
+            <h4 class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-marker" style="color: #059669;"></i> Grade &amp; Review Submission
+            </h4>
+            <button type="button" class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <form method="POST" id="gradeSubmissionForm" action="">
+            <div class="modal-body" style="padding: 20px;">
+                <div style="background: #f8fafc; border: 1px solid #f1f5f9; padding: 12px; border-radius: var(--radius-sm); margin-bottom: 16px;">
+                    <div style="font-size: 13px; font-weight: 800; color: var(--navy-900);" id="gradeModalStudent">Student Name</div>
+                    <div style="font-size: 12px; color: var(--text-muted);" id="gradeModalAssignment">Assignment Title</div>
+                </div>
+
+                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                    <div class="form-group">
+                        <label class="form-label">Marks Awarded *</label>
+                        <input type="number" step="0.5" name="marks_obtained" id="gradeModalMarks" required min="0" max="500" class="form-control">
+                        <span style="font-size: 11px; color: var(--text-muted);" id="gradeModalMaxMarksHint">Max marks: 100</span>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Letter Grade</label>
+                        <select name="grade" id="gradeModalGrade" class="form-select">
+                            <option value="A+">A+ (Outstanding)</option>
+                            <option value="A">A (Excellent)</option>
+                            <option value="B+">B+ (Very Good)</option>
+                            <option value="B">B (Good)</option>
+                            <option value="C">C (Satisfactory)</option>
+                            <option value="D">D (Pass)</option>
+                            <option value="F">F (Fail)</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Reviewing Faculty</label>
+                        <input type="text" name="reviewed_by" value="{{ session.get('username', 'Faculty') }}" class="form-control">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Teacher Feedback &amp; Suggestions</label>
+                        <textarea name="teacher_feedback" id="gradeModalFeedback" rows="3" placeholder="Provide constructive criticism, praise strong points, or point out calculation errors..." class="form-control"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 14px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 8px;">
+                <button type="button" class="page-btn" data-modal-close>Cancel</button>
+                <button type="submit" class="btn-toolbar-add" style="background: linear-gradient(135deg, #059669 0%, #047857 100%);">
+                    <i class="fa-solid fa-check-double"></i> Save Grade &amp; Feedback
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- ================================================================= -->
+<!-- MODAL 5: VIEW SUBMISSION WORK MODAL -->
+<!-- ================================================================= -->
+<div class="modal-overlay" id="viewSubmissionModal">
+    <div class="modal-dialog" style="max-width: 600px;">
+        <div class="modal-header">
+            <h4 class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-file-lines" style="color: #2563eb;"></i> Student Work Details
+            </h4>
+            <button type="button" class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 20px; max-height: 75vh; overflow-y: auto;">
+            <div style="margin-bottom: 14px;">
+                <div style="font-size: 14px; font-weight: 800; color: var(--navy-900);" id="viewModalStudent">Student</div>
+                <div style="font-size: 12px; color: var(--text-muted);" id="viewModalAssignment">Assignment</div>
+            </div>
+            <div style="margin-bottom: 14px;">
+                <label class="form-label">Submitted Solution / Text</label>
+                <div id="viewModalContent" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 14px; border-radius: var(--radius-sm); font-size: 13px; color: var(--text-secondary); line-height: 1.6; white-space: pre-line;"></div>
+            </div>
+            <div id="viewModalLinkGroup" style="display: none; margin-bottom: 10px;">
+                <label class="form-label">External Project / File Attachment</label>
+                <div>
+                    <a id="viewModalFileLink" href="#" target="_blank" rel="noopener noreferrer" class="page-btn" style="background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; font-weight: 800;">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Submission Link
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer" style="padding: 14px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end;">
+            <button type="button" class="page-btn" data-modal-close>Close</button>
+        </div>
+    </div>
+</div>
+
+
+<!-- ================================================================= -->
+<!-- MODAL 6: LAUNCH NEW COURSE MODAL -->
+<!-- ================================================================= -->
+<div class="modal-overlay" id="addCourseModal">
+    <div class="modal-dialog" style="max-width: 620px;">
+        <div class="modal-header">
+            <h4 class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-chalkboard" style="color: #7c3aed;"></i> Launch Learning Course
+            </h4>
+            <button type="button" class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('add_course_route') }}">
+            <div class="modal-body" style="padding: 20px; max-height: 75vh; overflow-y: auto;">
+                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Course Title *</label>
+                        <input type="text" name="title" required placeholder="e.g. Modern Web Development with Python" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Subject *</label>
+                        <input type="text" name="subject" required placeholder="e.g. Computer Science" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Instructor Name</label>
+                        <input type="text" name="instructor" value="{{ session.get('username', 'Faculty') }}" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Skill Level</label>
+                        <select name="level" class="form-select">
+                            <option value="Beginner">Beginner</option>
+                            <option value="Intermediate" selected>Intermediate</option>
+                            <option value="Advanced">Advanced</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Duration (Weeks)</label>
+                        <input type="number" name="duration_weeks" value="12" min="1" max="52" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Total Lessons / Modules</label>
+                        <input type="number" name="total_lessons" value="10" min="1" max="100" class="form-control">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Course Overview / Description *</label>
+                        <textarea name="description" rows="2" required placeholder="Summary of course learning objectives and outcomes..." class="form-control"></textarea>
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Syllabus Outline (One module per line)</label>
+                        <textarea name="syllabus" rows="3" placeholder="Module 1: Introduction&#10;Module 2: Core Concepts&#10;Module 3: Hands-on Lab" class="form-control"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 14px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 8px;">
+                <button type="button" class="page-btn" data-modal-close>Cancel</button>
+                <button type="submit" class="btn-toolbar-add" style="background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);">
+                    <i class="fa-solid fa-check"></i> Launch Course
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- ================================================================= -->
+<!-- MODAL 7: INTERACTIVE ONLINE QUIZ RUNNER MODAL -->
+<!-- ================================================================= -->
+<div class="modal-overlay" id="quizRunnerModal">
+    <div class="modal-dialog" style="max-width: 680px;">
+        <div class="modal-header" style="background: linear-gradient(135deg, #881337 0%, #be123c 100%); color: #ffffff;">
+            <div>
+                <h4 class="modal-title" id="runnerQuizTitle" style="color: #ffffff; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-stopwatch"></i> Online Quiz Assessment
+                </h4>
+                <div style="font-size: 12px; opacity: 0.85;" id="runnerQuizSubtitle">Answer all multiple choice questions and submit for instant scoring</div>
+            </div>
+            <button type="button" class="modal-close" style="color: #ffffff;" data-modal-close>&times;</button>
+        </div>
+
+        <form method="POST" action="{{ url_for('submit_quiz_route') }}" id="quizRunnerForm">
+            <input type="hidden" name="quiz_code" id="runnerQuizCode">
+
+            <div class="modal-body" style="padding: 20px; max-height: 70vh; overflow-y: auto;">
+                <!-- Student Identity header -->
+                <div style="background: #fff1f2; border: 1px solid #fecdd3; padding: 14px; border-radius: var(--radius-sm); margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div>
+                        <label class="form-label" style="color: #9f1239;">Student Roll Number *</label>
+                        <input type="text" name="student_roll" id="quizStudentRoll" required placeholder="e.g. 101" list="studentsRollList" onchange="autoFillStudentInQuiz(this)" class="form-control">
+                    </div>
+                    <div>
+                        <label class="form-label" style="color: #9f1239;">Student Name *</label>
+                        <input type="text" name="student_name" id="quizStudentName" required placeholder="e.g. Aarav Sharma" class="form-control">
+                    </div>
+                </div>
+
+                <!-- Questions Container -->
+                <div id="quizQuestionsContainer" style="display: flex; flex-direction: column; gap: 20px;">
+                    <!-- Dynamically populated via JS -->
+                </div>
+            </div>
+
+            <div class="modal-footer" style="padding: 14px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-size: 12px; color: var(--text-muted);">
+                    <i class="fa-solid fa-circle-info"></i> Instant automated grading &amp; attempt certificate
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button type="button" class="page-btn" data-modal-close>Cancel</button>
+                    <button type="submit" class="btn-toolbar-add" style="background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);">
+                        <i class="fa-solid fa-paper-plane"></i> Finish &amp; Submit Quiz
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- Quiz Questions Data payload embedded for client-side runner -->
+<script>
+    const QUIZ_QUESTIONS_MAP = {{ quiz_questions_map | tojson | safe }};
+    const ALL_QUIZZES = {{ quizzes | tojson | safe }};
+    const ALL_STUDENTS = {{ students | tojson | safe }};
+
+    // Auto-fill student in submission modal
+    function autoFillStudent(input) {
+        const roll = input.value.trim();
+        const found = ALL_STUDENTS.find(s => String(s.ROLL_NUMBER) === String(roll));
+        if (found) {
+            document.getElementById('submitStudentName').value = found.NAME;
+            document.getElementById('submitStudentClass').value = found.CLASS || 'Grade 10';
+        }
+    }
+
+    // Auto-fill student in quiz modal
+    function autoFillStudentInQuiz(input) {
+        const roll = input.value.trim();
+        const found = ALL_STUDENTS.find(s => String(s.ROLL_NUMBER) === String(roll));
+        if (found) {
+            document.getElementById('quizStudentName').value = found.NAME;
+        }
+    }
+
+    // Open submit modal prefilled with assignment
+    function openSubmitModal(code, title, className) {
+        const sel = document.getElementById('submitAssignmentCode');
+        if (sel) {
+            sel.value = code;
+        }
+        if (className) {
+            document.getElementById('submitStudentClass').value = className;
+        }
+        document.getElementById('submitWorkModal').classList.add('active');
+    }
+
+    // Open grade submission modal
+    function openGradeModal(id, code, studentName, assignmentTitle, maxMarks, currentMarks, currentGrade, feedback) {
+        const form = document.getElementById('gradeSubmissionForm');
+        form.action = `/coursework/submissions/grade/${id}`;
+
+        document.getElementById('gradeModalStudent').textContent = `${studentName} (${code})`;
+        document.getElementById('gradeModalAssignment').textContent = `Assignment: ${assignmentTitle}`;
+        document.getElementById('gradeModalMarks').value = currentMarks || '';
+        document.getElementById('gradeModalMarks').max = maxMarks || 100;
+        document.getElementById('gradeModalMaxMarksHint').textContent = `Max Marks: ${maxMarks || 100}`;
+        if (currentGrade) {
+            document.getElementById('gradeModalGrade').value = currentGrade;
+        }
+        document.getElementById('gradeModalFeedback').value = feedback || '';
+
+        document.getElementById('gradeSubmissionModal').classList.add('active');
+    }
+
+    // View submission content modal
+    function openViewSubmissionModal(code, studentName, assignmentTitle, contentText, fileUrl) {
+        document.getElementById('viewModalStudent').textContent = `${studentName} — Submission #${code}`;
+        document.getElementById('viewModalAssignment').textContent = assignmentTitle;
+        document.getElementById('viewModalContent').textContent = contentText || 'No text content provided.';
+
+        const linkGroup = document.getElementById('viewModalLinkGroup');
+        const fileLink = document.getElementById('viewModalFileLink');
+        if (fileUrl && fileUrl.trim() !== '') {
+            fileLink.href = fileUrl;
+            linkGroup.style.display = 'block';
+        } else {
+            linkGroup.style.display = 'none';
+        }
+
+        document.getElementById('viewSubmissionModal').classList.add('active');
+    }
+
+    // Launch Interactive Quiz Runner
+    function launchQuizRunner(quizCode) {
+        const quiz = ALL_QUIZZES.find(q => q.QUIZ_CODE === quizCode);
+        const questions = QUIZ_QUESTIONS_MAP[quizCode] || [];
+
+        document.getElementById('runnerQuizCode').value = quizCode;
+        if (quiz) {
+            document.getElementById('runnerQuizTitle').innerHTML = `<i class="fa-solid fa-stopwatch"></i> ${quiz.TITLE}`;
+            document.getElementById('runnerQuizSubtitle').textContent = `${quiz.SUBJECT} (${quiz.CLASS}) • ${quiz.TIME_MINUTES} mins • Pass: ${quiz.PASS_PERCENTAGE}% • ${questions.length} Questions`;
+        }
+
+        const container = document.getElementById('quizQuestionsContainer');
+        container.innerHTML = '';
+
+        if (questions.length === 0) {
+            container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 20px;">No questions configured for this quiz yet.</div>';
+        } else {
+            questions.forEach((q, idx) => {
+                const qNum = q.QUESTION_NUMBER;
+                const card = document.createElement('div');
+                card.style.background = '#f8fafc';
+                card.style.border = '1px solid #e2e8f0';
+                card.style.borderRadius = 'var(--radius-sm)';
+                card.style.padding = '16px';
+
+                card.innerHTML = `
+                    <div style="font-size: 13.5px; font-weight: 800; color: var(--navy-900); margin-bottom: 12px; display: flex; gap: 8px;">
+                        <span style="color: #be123c;">Q${qNum}.</span>
+                        <span>${escapeHtml(q.QUESTION_TEXT)}</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-secondary); background: #ffffff; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; cursor: pointer;">
+                            <input type="radio" name="q_${qNum}" value="A" required style="accent-color: #e11d48;">
+                            <span><strong>A)</strong> ${escapeHtml(q.OPTION_A)}</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-secondary); background: #ffffff; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; cursor: pointer;">
+                            <input type="radio" name="q_${qNum}" value="B" required style="accent-color: #e11d48;">
+                            <span><strong>B)</strong> ${escapeHtml(q.OPTION_B)}</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-secondary); background: #ffffff; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; cursor: pointer;">
+                            <input type="radio" name="q_${qNum}" value="C" required style="accent-color: #e11d48;">
+                            <span><strong>C)</strong> ${escapeHtml(q.OPTION_C)}</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-secondary); background: #ffffff; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; cursor: pointer;">
+                            <input type="radio" name="q_${qNum}" value="D" required style="accent-color: #e11d48;">
+                            <span><strong>D)</strong> ${escapeHtml(q.OPTION_D)}</span>
+                        </label>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        document.getElementById('quizRunnerModal').classList.add('active');
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    // Modal Close and Open handlers
+    document.querySelectorAll('[data-modal-close]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
+        });
+    });
+
+    document.querySelectorAll('[data-modal-target]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const target = btn.getAttribute('data-modal-target');
+            const modal = document.querySelector(target);
+            if (modal) modal.classList.add('active');
+        });
+    });
+
+    // Check if take_quiz query param is present on load
+    window.addEventListener('DOMContentLoaded', () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const takeQuiz = urlParams.get('take_quiz');
+        if (takeQuiz) {
+            launchQuizRunner(takeQuiz);
+        }
+    });
+</script>
+{% endblock %}

@@ -3,33 +3,165 @@
 {% block content %}
 <div class="dashboard-container">
 
+    <!-- Top Page Toolbar -->
     <div class="page-toolbar">
         <div class="toolbar-left">
-            <h3 style="font-size: 18px; font-weight: 700; color: var(--text-primary);">Library Management & Catalog</h3>
-            <p style="font-size: 13px; color: var(--text-secondary);">Manage book inventory, circulation, and available copies</p>
+            <h3 style="font-size: 20px; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-book-bookmark" style="color: #d97706;"></i> Library &amp; Resource Management
+            </h3>
+            <p style="font-size: 13px; color: var(--text-secondary);">
+                Centralized book catalogue, automated issue &amp; return tracking, due date reminders, fines collection, and student reservations.
+            </p>
         </div>
         <div class="toolbar-right">
             {% if current_role in ('super_admin', 'admin') %}
+                <button type="button" class="btn-toolbar-add" data-modal-target="#issueBookModal" style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);">
+                    <i class="fa-solid fa-arrow-right-arrow-left"></i> Issue Book
+                </button>
+                <button type="button" class="btn-toolbar-add" data-modal-target="#reserveBookModal" style="background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);">
+                    <i class="fa-solid fa-bookmark"></i> Place Reservation
+                </button>
                 <button type="button" class="btn-toolbar-add" data-modal-target="#addBookModal" style="background: linear-gradient(135deg, #d97706 0%, #b45309 100%);">
-                    <i class="fa-solid fa-plus-circle"></i> Add Book
+                    <i class="fa-solid fa-plus-circle"></i> Add Title
                 </button>
             {% endif %}
         </div>
     </div>
 
-    <!-- Books Catalog Table -->
+    <!-- 1. Library Executive KPI Summary Cards -->
+    <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); margin-bottom: 24px;">
+        <!-- Total Titles & Stock -->
+        <div class="kpi-card card-amber">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper" style="background: #fef3c7; color: #d97706;"><i class="fa-solid fa-book-open"></i></div>
+                <span class="kpi-pill"><i class="fa-solid fa-layer-group"></i> Inventory</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Catalogue Titles</span>
+                <h3 class="kpi-value">{{ stats.total_titles }}</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext"><strong>{{ stats.available_copies }}</strong> of {{ stats.total_copies }} copies on shelves</span>
+            </div>
+        </div>
+
+        <!-- Books Currently Issued -->
+        <div class="kpi-card card-blue">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper" style="background: #eff6ff; color: #2563eb;"><i class="fa-solid fa-hand-holding-hand"></i></div>
+                <span class="kpi-pill"><i class="fa-solid fa-arrows-spin"></i> Circulation</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Active Issued Books</span>
+                <h3 class="kpi-value">{{ stats.issued_copies }}</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext"><i class="fa-regular fa-clock"></i> In circulation with members</span>
+            </div>
+        </div>
+
+        <!-- Overdue Books Alert -->
+        <div class="kpi-card card-rose">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper" style="background: #ffe4e6; color: #e11d48;"><i class="fa-solid fa-calendar-xmark"></i></div>
+                <span class="kpi-pill" style="background: #fff1f2; color: #e11d48;"><i class="fa-solid fa-triangle-exclamation"></i> Overdue</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Overdue Returns</span>
+                <h3 class="kpi-value" style="color: #e11d48;">{{ stats.overdue_count }}</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext" style="color: #be123c;"><i class="fa-solid fa-clock-rotate-left"></i> Past 14-day due date</span>
+            </div>
+        </div>
+
+        <!-- Fines Management -->
+        <div class="kpi-card card-purple">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper" style="background: #f3e8ff; color: #9333ea;"><i class="fa-solid fa-receipt"></i></div>
+                <span class="kpi-pill"><i class="fa-solid fa-indian-rupee-sign"></i> Fines</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Unpaid Fines</span>
+                <h3 class="kpi-value">₹{{ "{:,.2f}".format(stats.total_fines_unpaid) }}</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext">₹{{ "{:,.2f}".format(stats.total_fines_collected) }} collected to date</span>
+            </div>
+        </div>
+
+        <!-- Active Reservations -->
+        <div class="kpi-card card-emerald">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper" style="background: #ecfdf5; color: #059669;"><i class="fa-solid fa-bookmark"></i></div>
+                <span class="kpi-pill"><i class="fa-solid fa-users"></i> Queue</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Active Reservations</span>
+                <h3 class="kpi-value">{{ stats.active_reservations }}</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext"><i class="fa-regular fa-bell"></i> Students &amp; faculty waiting</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Subsystem Navigation Tabs -->
+    <div class="library-tabs-nav" style="display: flex; gap: 8px; border-bottom: 2px solid var(--border-color); margin-bottom: 20px; overflow-x: auto; padding-bottom: 2px;">
+        <a href="{{ url_for('library_view', tab='catalogue') }}" class="lib-tab-pill {% if tab == 'catalogue' %}active{% endif %}">
+            <i class="fa-solid fa-book"></i> Book Catalogue
+            <span class="tab-counter">{{ stats.total_titles }}</span>
+        </a>
+        <a href="{{ url_for('library_view', tab='issues') }}" class="lib-tab-pill {% if tab == 'issues' %}active{% endif %}">
+            <i class="fa-solid fa-right-left"></i> Issue &amp; Return Tracking
+            <span class="tab-counter">{{ stats.issued_copies }} active</span>
+        </a>
+        <a href="{{ url_for('library_view', tab='fines') }}" class="lib-tab-pill {% if tab == 'fines' %}active{% endif %}">
+            <i class="fa-solid fa-triangle-exclamation"></i> Overdue &amp; Fines
+            {% if stats.overdue_count > 0 %}
+                <span class="tab-counter alert-counter">{{ stats.overdue_count }} late</span>
+            {% else %}
+                <span class="tab-counter">0</span>
+            {% endif %}
+        </a>
+        <a href="{{ url_for('library_view', tab='reservations') }}" class="lib-tab-pill {% if tab == 'reservations' %}active{% endif %}">
+            <i class="fa-solid fa-bookmark"></i> Book Reservations
+            <span class="tab-counter">{{ stats.active_reservations }}</span>
+        </a>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- TAB 1: BOOK CATALOGUE -->
+    <!-- ================================================================= -->
+    {% if tab == 'catalogue' %}
     <div class="data-table-card">
-        <div class="card-header">
+        <div class="card-header" style="flex-wrap: wrap; gap: 12px;">
             <div class="header-left">
-                <div class="card-badge-icon badge-amber">
-                    <i class="fa-solid fa-book"></i>
-                </div>
+                <div class="card-badge-icon badge-amber"><i class="fa-solid fa-books"></i></div>
                 <div>
-                    <h4 class="card-heading">Catalog Titles</h4>
-                    <p class="card-subheading">Total recorded titles: {{ books|length }}</p>
+                    <h4 class="card-heading">Master Book Catalogue</h4>
+                    <p class="card-subheading">Showing {{ books|length }} titles &bull; {{ stats.available_copies }} copies ready for issue</p>
                 </div>
             </div>
-            <span class="chart-tag"><i class="fa-solid fa-barcode"></i> ISBN / Catalog</span>
+
+            <!-- Filter & Search Form -->
+            <form action="{{ url_for('library_view') }}" method="GET" class="filter-form" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <input type="hidden" name="tab" value="catalogue">
+                <div style="position: relative;">
+                    <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 11px; color: var(--text-muted); font-size: 13px;"></i>
+                    <input type="text" name="search" value="{{ search or '' }}" placeholder="Search title, author, ID, shelf..." class="filter-input" style="padding-left: 34px; min-width: 260px;">
+                </div>
+                <select name="genre" class="filter-select" onchange="this.form.submit()">
+                    <option value="">All Categories / Genres</option>
+                    {% for g in genres %}
+                        <option value="{{ g }}" {% if selected_genre == g %}selected{% endif %}>{{ g }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn-filter"><i class="fa-solid fa-filter"></i> Filter</button>
+                {% if search or selected_genre %}
+                    <a href="{{ url_for('library_view', tab='catalogue') }}" class="btn-clear" title="Reset Filters"><i class="fa-solid fa-rotate-left"></i> Reset</a>
+                {% endif %}
+            </form>
         </div>
 
         <div class="table-responsive">
@@ -37,30 +169,93 @@
                 <thead>
                     <tr>
                         <th>Book ID</th>
-                        <th>Book Title</th>
+                        <th>Title &amp; Publication</th>
                         <th>Author</th>
-                        <th>Genre / Category</th>
-                        <th>Total Copies</th>
-                        <th>Available</th>
+                        <th>Genre / Subject</th>
+                        <th>Shelf Location</th>
+                        <th>Stock &amp; Availability</th>
+                        <th style="text-align: right; padding-right: 18px;">Circulation Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% if books and books|length > 0 %}
                         {% for b in books %}
                         <tr>
-                            <td><span class="roll-badge">#{{ b.BOOK_ID }}</span></td>
-                            <td class="student-name">{{ b.TITLE }}</td>
-                            <td class="text-dim">{{ b.AUTHOR or 'Unknown' }}</td>
+                            <td>
+                                <span class="roll-badge" style="background: #fef3c7; color: #b45309; border-color: #fde68a; font-weight: 700;">
+                                    #{{ b.BOOK_ID }}
+                                </span>
+                            </td>
+                            <td>
+                                <div style="display: flex; flex-direction: column;">
+                                    <span style="font-weight: 700; color: var(--navy-900); font-size: 13.5px;">{{ b.TITLE }}</span>
+                                    <span style="font-size: 11px; color: var(--text-muted);">
+                                        {{ b.PUBLISHER or 'Academic Press' }} {% if b.ISBN %}&bull; ISBN: {{ b.ISBN }}{% endif %}
+                                    </span>
+                                </div>
+                            </td>
+                            <td class="text-dim" style="font-size: 12.5px;">{{ b.AUTHOR or 'Unknown' }}</td>
                             <td><span class="class-pill">{{ b.GENRE or 'General' }}</span></td>
-                            <td>{{ b.TOTAL_COPIES }}</td>
-                            <td><span class="status-badge status-active"><span class="badge-dot"></span> {{ b.AVAILABLE_COPIES }} Available</span></td>
+                            <td>
+                                <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; background: #f1f5f9; padding: 2px 8px; border-radius: 6px; color: var(--navy-800); font-family: monospace;">
+                                    <i class="fa-solid fa-location-dot" style="color: #64748b;"></i> {{ b.SHELF_LOCATION or 'General Shelf' }}
+                                </span>
+                            </td>
+                            <td>
+                                <div style="display: flex; flex-direction: column; gap: 4px; min-width: 140px;">
+                                    <div style="display: flex; justify-content: space-between; font-size: 11.5px; font-weight: 700;">
+                                        <span style="color: {% if b.AVAILABLE_COPIES > 0 %}#059669{% else %}#dc2626{% endif %};">
+                                            {{ b.AVAILABLE_COPIES }} Available
+                                        </span>
+                                        <span style="color: var(--text-muted);">Total {{ b.TOTAL_COPIES }}</span>
+                                    </div>
+                                    <div style="height: 6px; width: 100%; background: #e2e8f0; border-radius: 999px; overflow: hidden;">
+                                        <div style="height: 100%; width: {{ (b.AVAILABLE_COPIES / b.TOTAL_COPIES * 100)|round }}%; background: {% if b.AVAILABLE_COPIES > 2 %}#10b981{% elif b.AVAILABLE_COPIES > 0 %}#f59e0b{% else %}#ef4444{% endif %};"></div>
+                                    </div>
+                                    <span style="font-size: 10px; color: var(--text-muted);">{{ b.issued_copies }} currently borrowed</span>
+                                </div>
+                            </td>
+                            <td style="text-align: right; padding-right: 18px;">
+                                <div style="display: flex; justify-content: flex-end; gap: 6px; align-items: center;">
+                                    {% if current_role in ('super_admin', 'admin') %}
+                                        {% if b.AVAILABLE_COPIES > 0 %}
+                                            <button type="button" class="btn-action btn-edit" title="Issue this book"
+                                                    data-book-id="{{ b.BOOK_ID }}" data-book-title="{{ b.TITLE }}"
+                                                    onclick="quickIssueBook(this)" style="background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe;">
+                                                <i class="fa-solid fa-arrow-right-arrow-left"></i> Issue
+                                            </button>
+                                        {% else %}
+                                            <button type="button" class="btn-action btn-edit" title="All copies borrowed - Reserve title"
+                                                    data-book-id="{{ b.BOOK_ID }}" data-book-title="{{ b.TITLE }}"
+                                                    onclick="quickReserveBook(this)" style="background: #fef3c7; color: #b45309; border-color: #fde68a;">
+                                                <i class="fa-solid fa-bookmark"></i> Reserve
+                                            </button>
+                                        {% endif %}
+                                        <button type="button" class="btn-action btn-edit" title="Edit Book Details"
+                                                data-id="{{ b.BOOK_ID }}" data-title="{{ b.TITLE }}" data-author="{{ b.AUTHOR }}"
+                                                data-genre="{{ b.GENRE or '' }}" data-shelf="{{ b.SHELF_LOCATION or '' }}"
+                                                data-copies="{{ b.TOTAL_COPIES }}" data-isbn="{{ b.ISBN or '' }}" data-pub="{{ b.PUBLISHER or '' }}"
+                                                onclick="openEditBookModal(this)">
+                                            <i class="fa-solid fa-pen-to-square"></i>
+                                        </button>
+                                        <form action="{{ url_for('delete_book_route', book_id=b.BOOK_ID) }}" method="POST" style="display:inline;" onsubmit="return confirm('Delete \'{{ b.TITLE }}\' from library catalogue?');">
+                                            <button type="submit" class="btn-action btn-delete" title="Delete Book">
+                                                <i class="fa-solid fa-trash-can"></i>
+                                            </button>
+                                        </form>
+                                    {% else %}
+                                        <span style="font-size: 12px; color: var(--text-muted); font-style: italic;">In Catalog</span>
+                                    {% endif %}
+                                </div>
+                            </td>
                         </tr>
                         {% endfor %}
                     {% else %}
                         <tr>
-                            <td colspan="6" class="empty-table-cell">
+                            <td colspan="7" class="empty-table-cell" style="padding: 48px;">
                                 <i class="fa-solid fa-book-open"></i>
-                                <p>No books logged in the library catalog yet.</p>
+                                <p>No books match the specified search or filter criteria.</p>
+                                <a href="{{ url_for('library_view', tab='catalogue') }}" class="btn-clear" style="margin-top: 10px; display: inline-block;">View All Books</a>
                             </td>
                         </tr>
                     {% endif %}
@@ -68,16 +263,407 @@
             </table>
         </div>
     </div>
+    {% endif %}
 
-    <!-- Add Book Modal -->
+    <!-- ================================================================= -->
+    <!-- TAB 2: ISSUE & RETURN TRACKING -->
+    <!-- ================================================================= -->
+    {% if tab == 'issues' %}
+    <div class="data-table-card">
+        <div class="card-header" style="flex-wrap: wrap; gap: 12px;">
+            <div class="header-left">
+                <div class="card-badge-icon badge-blue"><i class="fa-solid fa-arrow-right-arrow-left"></i></div>
+                <div>
+                    <h4 class="card-heading">Circulation &amp; Lending Records</h4>
+                    <p class="card-subheading">Tracking active issues, return dates, and member borrowing history</p>
+                </div>
+            </div>
+
+            <!-- Filter Status & Search -->
+            <form action="{{ url_for('library_view') }}" method="GET" class="filter-form" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <input type="hidden" name="tab" value="issues">
+                <div style="position: relative;">
+                    <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 11px; color: var(--text-muted); font-size: 13px;"></i>
+                    <input type="text" name="search" value="{{ search or '' }}" placeholder="Search borrower, book, issue ID..." class="filter-input" style="padding-left: 34px; min-width: 250px;">
+                </div>
+                <select name="status" class="filter-select" onchange="this.form.submit()">
+                    <option value="">All Issue Statuses</option>
+                    <option value="active" {% if selected_status == 'active' %}selected{% endif %}>Active / Issued</option>
+                    <option value="overdue" {% if selected_status == 'overdue' %}selected{% endif %}>Overdue</option>
+                    <option value="returned" {% if selected_status == 'returned' %}selected{% endif %}>Returned</option>
+                </select>
+                <button type="submit" class="btn-filter"><i class="fa-solid fa-filter"></i> Search</button>
+                {% if search or selected_status %}
+                    <a href="{{ url_for('library_view', tab='issues') }}" class="btn-clear"><i class="fa-solid fa-rotate-left"></i> Reset</a>
+                {% endif %}
+            </form>
+        </div>
+
+        <div class="table-responsive">
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>Issue ID</th>
+                        <th>Book Information</th>
+                        <th>Borrower (Member)</th>
+                        <th>Issue Date</th>
+                        <th>Due Date &amp; Status</th>
+                        <th>Return Date</th>
+                        <th>Fines &amp; Dues</th>
+                        <th style="text-align: right; padding-right: 18px;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if issues and issues|length > 0 %}
+                        {% for iss in issues %}
+                        <tr style="{% if iss.is_overdue %}background: #fff8f8;{% endif %}">
+                            <td>
+                                <span class="roll-badge" style="font-family: monospace; font-size: 11.5px; font-weight: 700; background: #eff6ff; color: #1e40af; border-color: #bfdbfe;">
+                                    {{ iss.ISSUE_ID }}
+                                </span>
+                            </td>
+                            <td>
+                                <div style="display: flex; flex-direction: column;">
+                                    <span style="font-weight: 700; color: var(--navy-900); font-size: 13px;">{{ iss.BOOK_TITLE or iss.BOOK_ID }}</span>
+                                    <span style="font-size: 11px; color: var(--text-muted);">
+                                        ID: {{ iss.BOOK_ID }} &bull; {{ iss.BOOK_AUTHOR or 'Faculty Library' }}
+                                    </span>
+                                </div>
+                            </td>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <div class="mini-avatar" style="background: {% if iss.BORROWER_TYPE == 'Teacher' %}#7e22ce{% else %}#2563eb{% endif %}; font-size: 11px;">
+                                        {{ iss.BORROWER_NAME[0]|upper }}
+                                    </div>
+                                    <div style="display: flex; flex-direction: column;">
+                                        <span style="font-weight: 700; color: var(--text-primary); font-size: 12.5px;">{{ iss.BORROWER_NAME }}</span>
+                                        <span style="font-size: 11px; color: var(--text-muted);">
+                                            {{ iss.BORROWER_TYPE }} &bull; ID #{{ iss.BORROWER_ID }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td style="font-size: 12.5px; color: var(--text-secondary);">{{ iss.issue_date_fmt }}</td>
+                            <td>
+                                <div style="display: flex; flex-direction: column; gap: 2px;">
+                                    <span style="font-weight: 700; font-size: 12.5px; color: {% if iss.is_overdue %}#dc2626{% else %}var(--navy-900){% endif %};">
+                                        {{ iss.due_date_fmt }}
+                                    </span>
+                                    {% if iss.STATUS == 'Issued' %}
+                                        {% if iss.is_overdue %}
+                                            <span style="font-size: 10.5px; color: #e11d48; font-weight: 700; display: inline-flex; align-items: center; gap: 3px;">
+                                                <i class="fa-solid fa-triangle-exclamation"></i> Overdue by {{ iss.days_overdue }} days!
+                                            </span>
+                                        {% else %}
+                                            <span style="font-size: 10.5px; color: #059669; font-weight: 600;">
+                                                <i class="fa-regular fa-clock"></i> {{ iss.days_left }} days remaining
+                                            </span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span style="font-size: 10.5px; color: #64748b;">Closed</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                {% if iss.return_date_fmt %}
+                                    <span style="font-size: 12.5px; font-weight: 600; color: #059669;"><i class="fa-solid fa-circle-check"></i> {{ iss.return_date_fmt }}</span>
+                                {% else %}
+                                    <span style="font-size: 12px; color: var(--text-muted); font-style: italic;">Not yet returned</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if iss.FINE_AMOUNT and iss.FINE_AMOUNT > 0 %}
+                                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                                        <span style="font-weight: 700; font-size: 12.5px; color: {% if iss.FINE_STATUS == 'Paid' %}#059669{% else %}#dc2626{% endif %};">
+                                            ₹{{ "{:,.2f}".format(iss.FINE_AMOUNT) }}
+                                        </span>
+                                        <span class="role-pill {% if iss.FINE_STATUS == 'Paid' %}role-admin{% elif iss.FINE_STATUS == 'Waived' %}role-viewer{% else %}role-super_admin{% endif %}" style="font-size: 9.5px; padding: 1px 6px;">
+                                            {{ iss.FINE_STATUS }}
+                                        </span>
+                                    </div>
+                                {% else %}
+                                    <span style="font-size: 12px; color: var(--text-muted);">&mdash; None</span>
+                                {% endif %}
+                            </td>
+                            <td style="text-align: right; padding-right: 18px;">
+                                {% if iss.STATUS == 'Issued' and current_role in ('super_admin', 'admin') %}
+                                    <button type="button" class="btn-action btn-edit" title="Mark as Returned"
+                                            data-id="{{ iss.ID }}" data-issue-id="{{ iss.ISSUE_ID }}"
+                                            data-title="{{ iss.BOOK_TITLE }}" data-borrower="{{ iss.BORROWER_NAME }}"
+                                            data-overdue="{{ iss.days_overdue or 0 }}" data-fine="{{ iss.FINE_AMOUNT or 0 }}"
+                                            onclick="openReturnBookModal(this)" style="background: #ecfdf5; color: #059669; border-color: #a7f3d0; font-weight: 700;">
+                                        <i class="fa-solid fa-inbox"></i> Return Book
+                                    </button>
+                                {% elif iss.STATUS == 'Returned' %}
+                                    <span class="status-badge status-active" style="background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0;">
+                                        <span class="badge-dot" style="background: #16a34a;"></span> Returned
+                                    </span>
+                                {% else %}
+                                    <span style="font-size: 12px; color: var(--text-muted);">&mdash;</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="8" class="empty-table-cell" style="padding: 48px;">
+                                <i class="fa-solid fa-book-bookmark"></i>
+                                <p>No circulation records found for the selected view.</p>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ================================================================= -->
+    <!-- TAB 3: OVERDUE & FINES MANAGEMENT -->
+    <!-- ================================================================= -->
+    {% if tab == 'fines' %}
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+        <!-- Fines Policy Notice Banner -->
+        <div style="background: linear-gradient(135deg, #451a03 0%, #78350f 100%); color: #fff; padding: 18px 24px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; box-shadow: 0 4px 12px rgba(120,53,15,0.15);">
+            <div style="display: flex; align-items: center; gap: 14px;">
+                <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                    <i class="fa-solid fa-scale-balanced" style="color: #fde68a;"></i>
+                </div>
+                <div>
+                    <h4 style="font-size: 16px; font-weight: 800; color: #fff; margin-bottom: 2px;">Institutional Library Fines &amp; Due Date Policy</h4>
+                    <p style="font-size: 12.5px; color: #fde68a; margin: 0;">
+                        Standard loan duration: <strong>14 days</strong> for students &bull; Overdue fine rate: <strong>₹5.00 per late day</strong> &bull; Lost book fee: Full catalog replacement value.
+                    </p>
+                </div>
+            </div>
+            <div style="display: flex; gap: 12px;">
+                <div style="text-align: right;">
+                    <span style="font-size: 11px; color: #fcd34d; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Outstanding Total</span>
+                    <h3 style="font-size: 20px; font-weight: 800; color: #fff;">₹{{ "{:,.2f}".format(stats.total_fines_unpaid) }}</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- Overdue & Fines Table Card -->
+        <div class="data-table-card">
+            <div class="card-header">
+                <div class="header-left">
+                    <div class="card-badge-icon badge-rose"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    <div>
+                        <h4 class="card-heading">Overdue Borrowers &amp; Fine Settlement Queue</h4>
+                        <p class="card-subheading">Records with unpaid late penalties or past-due book return dates</p>
+                    </div>
+                </div>
+                <span class="chart-tag" style="background: #fff1f2; color: #e11d48; border-color: #fecdd3;">
+                    <i class="fa-solid fa-clock"></i> {{ overdue_issues|length }} Active Accounts
+                </span>
+            </div>
+
+            <div class="table-responsive">
+                <table class="modern-table">
+                    <thead>
+                        <tr>
+                            <th>Issue ID</th>
+                            <th>Borrower Details</th>
+                            <th>Book Title</th>
+                            <th>Due Date</th>
+                            <th>Days Overdue</th>
+                            <th>Accrued Fine</th>
+                            <th>Fine Status</th>
+                            <th style="text-align: right; padding-right: 18px;">Fine Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if overdue_issues and overdue_issues|length > 0 %}
+                            {% for f in overdue_issues %}
+                            <tr>
+                                <td><span class="roll-badge" style="font-family: monospace;">{{ f.ISSUE_ID }}</span></td>
+                                <td>
+                                    <div style="display: flex; flex-direction: column;">
+                                        <span style="font-weight: 700; color: var(--navy-900); font-size: 13px;">{{ f.BORROWER_NAME }}</span>
+                                        <span style="font-size: 11px; color: var(--text-muted);">{{ f.BORROWER_TYPE }} &bull; ID #{{ f.BORROWER_ID }}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span style="font-weight: 600; color: var(--text-primary); font-size: 12.5px;">{{ f.BOOK_TITLE or f.BOOK_ID }}</span>
+                                </td>
+                                <td style="font-size: 12.5px; color: #dc2626; font-weight: 700;">{{ f.due_date_fmt }}</td>
+                                <td>
+                                    {% if f.is_overdue %}
+                                        <span style="font-weight: 700; color: #e11d48; font-size: 12.5px;">+{{ f.days_overdue }} days</span>
+                                    {% else %}
+                                        <span style="font-size: 11.5px; color: var(--text-muted);">Returned Late</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span style="font-weight: 800; font-size: 14px; color: #dc2626;">₹{{ "{:,.2f}".format(f.FINE_AMOUNT or 0.0) }}</span>
+                                </td>
+                                <td>
+                                    <span class="role-pill {% if f.FINE_STATUS == 'Paid' %}role-admin{% elif f.FINE_STATUS == 'Waived' %}role-viewer{% else %}role-super_admin{% endif %}" style="font-size: 10px; padding: 2px 8px;">
+                                        {{ f.FINE_STATUS or 'Unpaid' }}
+                                    </span>
+                                </td>
+                                <td style="text-align: right; padding-right: 18px;">
+                                    {% if current_role in ('super_admin', 'admin') and f.FINE_STATUS == 'Unpaid' %}
+                                        <div style="display: flex; justify-content: flex-end; gap: 6px;">
+                                            <form action="{{ url_for('resolve_fine_route', id=f.ID) }}" method="POST" style="display:inline;">
+                                                <input type="hidden" name="action" value="pay">
+                                                <button type="submit" class="btn-action" title="Collect fine amount" style="background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; font-weight: 700; font-size: 11.5px; padding: 4px 10px;">
+                                                    <i class="fa-solid fa-receipt"></i> Collect
+                                                </button>
+                                            </form>
+                                            <form action="{{ url_for('resolve_fine_route', id=f.ID) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to waive this fine of ₹{{ f.FINE_AMOUNT }}?');">
+                                                <input type="hidden" name="action" value="waive">
+                                                <button type="submit" class="btn-action" title="Waive fine with special exemption" style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; font-weight: 600; font-size: 11.5px; padding: 4px 8px;">
+                                                    <i class="fa-solid fa-handshake"></i> Waive
+                                                </button>
+                                            </form>
+                                        </div>
+                                    {% else %}
+                                        <span style="font-size: 11.5px; color: #059669; font-weight: 700;"><i class="fa-solid fa-check-double"></i> Settled</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="8" class="empty-table-cell" style="padding: 48px;">
+                                    <i class="fa-solid fa-circle-check" style="color: #10b981;"></i>
+                                    <p>All clear! There are currently no overdue books or outstanding unpaid fines.</p>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ================================================================= -->
+    <!-- TAB 4: BOOK RESERVATIONS -->
+    <!-- ================================================================= -->
+    {% if tab == 'reservations' %}
+    <div class="data-table-card">
+        <div class="card-header" style="flex-wrap: wrap; gap: 12px;">
+            <div class="header-left">
+                <div class="card-badge-icon badge-emerald"><i class="fa-solid fa-bookmark"></i></div>
+                <div>
+                    <h4 class="card-heading">Book Reservation Queue</h4>
+                    <p class="card-subheading">Manage pre-booked titles for students and faculty members</p>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 8px;">
+                {% if current_role in ('super_admin', 'admin') %}
+                <button type="button" class="btn-toolbar-add" data-modal-target="#reserveBookModal" style="background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);">
+                    <i class="fa-solid fa-bookmark"></i> New Reservation
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>Reservation ID</th>
+                        <th>Book Title &amp; ID</th>
+                        <th>Borrower (Member)</th>
+                        <th>Reserve Date</th>
+                        <th>Holds Expiry</th>
+                        <th>Reservation Status</th>
+                        <th>Notes</th>
+                        <th style="text-align: right; padding-right: 18px;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if reservations and reservations|length > 0 %}
+                        {% for r in reservations %}
+                        <tr>
+                            <td><span class="roll-badge" style="font-family: monospace; font-size: 11.5px; background: #ecfdf5; color: #065f46; border-color: #a7f3d0;">{{ r.RESERVATION_ID }}</span></td>
+                            <td>
+                                <div style="display: flex; flex-direction: column;">
+                                    <span style="font-weight: 700; color: var(--navy-900); font-size: 13px;">{{ r.BOOK_TITLE or r.BOOK_ID }}</span>
+                                    <span style="font-size: 11px; color: var(--text-muted);">Book ID: #{{ r.BOOK_ID }}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <div style="display: flex; flex-direction: column;">
+                                    <span style="font-weight: 700; color: var(--text-primary); font-size: 12.5px;">{{ r.BORROWER_NAME }}</span>
+                                    <span style="font-size: 11px; color: var(--text-muted);">{{ r.BORROWER_TYPE }} &bull; ID #{{ r.BORROWER_ID }}</span>
+                                </div>
+                            </td>
+                            <td style="font-size: 12.5px;">{{ r.reserve_date_fmt }}</td>
+                            <td style="font-size: 12.5px; color: var(--text-muted);">{{ r.expiry_date_fmt or '&mdash;' }}</td>
+                            <td>
+                                {% if r.STATUS == 'Ready for Pickup' %}
+                                    <span class="status-badge" style="background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; font-weight: 700;">
+                                        <span class="pulse-dot" style="background: #10b981; margin-right: 4px;"></span> Ready for Pickup
+                                    </span>
+                                {% elif r.STATUS == 'Pending' %}
+                                    <span class="status-badge" style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a;">
+                                        <i class="fa-solid fa-hourglass-half"></i> Pending Stock
+                                    </span>
+                                {% elif r.STATUS == 'Fulfilled' %}
+                                    <span class="status-badge" style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe;">
+                                        <i class="fa-solid fa-check"></i> Fulfilled
+                                    </span>
+                                {% else %}
+                                    <span class="status-badge" style="background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1;">
+                                        {{ r.STATUS }}
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td style="font-size: 12px; color: var(--text-secondary); max-width: 180px;">{{ r.NOTES or '&mdash;' }}</td>
+                            <td style="text-align: right; padding-right: 18px;">
+                                {% if current_role in ('super_admin', 'admin') and r.STATUS in ('Pending', 'Ready for Pickup') %}
+                                    <div style="display: flex; justify-content: flex-end; gap: 6px;">
+                                        <form action="{{ url_for('fulfill_reservation_route', id=r.ID) }}" method="POST" style="display:inline;">
+                                            <button type="submit" class="btn-action" title="Issue book to borrower" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-weight: 700; font-size: 11.5px; padding: 4px 8px;">
+                                                <i class="fa-solid fa-check"></i> Fulfill
+                                            </button>
+                                        </form>
+                                        <form action="{{ url_for('cancel_reservation_route', id=r.ID) }}" method="POST" style="display:inline;" onsubmit="return confirm('Cancel reservation {{ r.RESERVATION_ID }}?');">
+                                            <button type="submit" class="btn-action btn-delete" title="Cancel Reservation">
+                                                <i class="fa-solid fa-xmark"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                {% else %}
+                                    <span style="font-size: 11.5px; color: var(--text-muted); font-style: italic;">Complete</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="8" class="empty-table-cell" style="padding: 48px;">
+                                <i class="fa-solid fa-bookmark"></i>
+                                <p>No active reservations logged in the library queue.</p>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ================================================================= -->
+    <!-- MODALS -->
+    <!-- ================================================================= -->
+
+    {% if current_role in ('super_admin', 'admin') %}
+    <!-- 1. Add Book Modal -->
     <div class="modal-overlay" id="addBookModal">
         <div class="modal-dialog">
             <div class="modal-header">
                 <div class="modal-title-box">
                     <div class="modal-icon badge-amber"><i class="fa-solid fa-book-medical"></i></div>
                     <div>
-                        <h3 class="modal-title">Add Book to Catalog</h3>
-                        <p class="modal-subtitle">Log new publication copies</p>
+                        <h3 class="modal-title">Add New Title to Catalogue</h3>
+                        <p class="modal-subtitle">Log new publication copies into inventory</p>
                     </div>
                 </div>
                 <button type="button" class="modal-close-btn" data-modal-close onclick="document.getElementById('addBookModal').classList.remove('active')">&times;</button>
@@ -85,33 +671,491 @@
             <form action="{{ url_for('add_book') }}" method="POST" class="modal-form">
                 <div class="form-grid">
                     <div class="form-group">
-                        <label>Book ID / Accession No. <span class="required">*</span></label>
-                        <input type="text" name="book_id" required placeholder="e.g. BK-201">
+                        <label>Book ID / Accession Code <span class="required">*</span></label>
+                        <input type="text" name="book_id" required placeholder="e.g. BK-1009" autocomplete="off">
                     </div>
                     <div class="form-group">
                         <label>Book Title <span class="required">*</span></label>
-                        <input type="text" name="title" required placeholder="e.g. Concepts of Physics">
+                        <input type="text" name="title" required placeholder="e.g. Clean Architecture" autocomplete="off">
                     </div>
                     <div class="form-group">
                         <label>Author</label>
-                        <input type="text" name="author" placeholder="e.g. H.C. Verma">
+                        <input type="text" name="author" placeholder="e.g. Robert C. Martin">
                     </div>
                     <div class="form-group">
-                        <label>Genre / Subject</label>
-                        <input type="text" name="genre" placeholder="e.g. Science, Fiction">
+                        <label>Genre / Subject Category</label>
+                        <input type="text" name="genre" placeholder="e.g. Computer Science, Physics, Literature">
                     </div>
-                    <div class="form-group full-width">
-                        <label>Total Number of Copies</label>
-                        <input type="number" name="copies" min="1" value="1" required>
+                    <div class="form-group">
+                        <label>Shelf / Rack Location</label>
+                        <input type="text" name="shelf_location" placeholder="e.g. Rack CS-08">
+                    </div>
+                    <div class="form-group">
+                        <label>ISBN (Optional)</label>
+                        <input type="text" name="isbn" placeholder="e.g. 978-0134494166">
+                    </div>
+                    <div class="form-group">
+                        <label>Publisher</label>
+                        <input type="text" name="publisher" placeholder="e.g. Prentice Hall">
+                    </div>
+                    <div class="form-group">
+                        <label>Total Number of Copies <span class="required">*</span></label>
+                        <input type="number" name="copies" min="1" value="10" required>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn-cancel" data-modal-close onclick="document.getElementById('addBookModal').classList.remove('active')">Cancel</button>
-                    <button type="submit" class="btn-submit"><i class="fa-solid fa-check"></i> Add to Catalog</button>
+                    <button type="submit" class="btn-submit"><i class="fa-solid fa-check"></i> Save to Catalogue</button>
                 </div>
             </form>
         </div>
     </div>
 
+    <!-- 2. Edit Book Modal -->
+    <div class="modal-overlay" id="editBookModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <div class="modal-title-box">
+                    <div class="modal-icon badge-blue"><i class="fa-solid fa-pen-to-square"></i></div>
+                    <div>
+                        <h3 class="modal-title" id="editBookHeading">Edit Catalogue Record</h3>
+                        <p class="modal-subtitle">Update publication and inventory metadata</p>
+                    </div>
+                </div>
+                <button type="button" class="modal-close-btn" data-modal-close onclick="document.getElementById('editBookModal').classList.remove('active')">&times;</button>
+            </div>
+            <form id="editBookForm" method="POST" class="modal-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Book ID (Read-only)</label>
+                        <input type="text" id="editBookIdDisplay" disabled style="background: #f1f5f9; cursor: not-allowed;">
+                    </div>
+                    <div class="form-group">
+                        <label>Book Title <span class="required">*</span></label>
+                        <input type="text" id="editBookTitle" name="title" required placeholder="e.g. Concepts of Physics">
+                    </div>
+                    <div class="form-group">
+                        <label>Author</label>
+                        <input type="text" id="editBookAuthor" name="author" placeholder="e.g. H.C. Verma">
+                    </div>
+                    <div class="form-group">
+                        <label>Genre / Subject</label>
+                        <input type="text" id="editBookGenre" name="genre" placeholder="e.g. Physics">
+                    </div>
+                    <div class="form-group">
+                        <label>Shelf Location</label>
+                        <input type="text" id="editBookShelf" name="shelf_location" placeholder="e.g. Rack A-12">
+                    </div>
+                    <div class="form-group">
+                        <label>ISBN</label>
+                        <input type="text" id="editBookIsbn" name="isbn" placeholder="e.g. 978-8177091878">
+                    </div>
+                    <div class="form-group">
+                        <label>Publisher</label>
+                        <input type="text" id="editBookPublisher" name="publisher" placeholder="e.g. Pearson">
+                    </div>
+                    <div class="form-group">
+                        <label>Total Copies in Stock</label>
+                        <input type="number" id="editBookCopies" name="total_copies" min="1" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" data-modal-close onclick="document.getElementById('editBookModal').classList.remove('active')">Cancel</button>
+                    <button type="submit" class="btn-submit"><i class="fa-solid fa-check"></i> Update Record</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 3. Issue Book Modal -->
+    <div class="modal-overlay" id="issueBookModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <div class="modal-title-box">
+                    <div class="modal-icon badge-blue"><i class="fa-solid fa-arrow-right-arrow-left"></i></div>
+                    <div>
+                        <h3 class="modal-title">Issue Book to Member</h3>
+                        <p class="modal-subtitle">Record active circulation lending transaction</p>
+                    </div>
+                </div>
+                <button type="button" class="modal-close-btn" data-modal-close onclick="document.getElementById('issueBookModal').classList.remove('active')">&times;</button>
+            </div>
+            <form action="{{ url_for('issue_book_route') }}" method="POST" class="modal-form">
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label>Select Book Title <span class="required">*</span></label>
+                        <select name="book_id" id="issueBookSelect" required class="filter-select" style="width: 100%;">
+                            <option value="">-- Choose Book from Catalogue --</option>
+                            {% for b in books %}
+                                <option value="{{ b.BOOK_ID }}" data-title="{{ b.TITLE }}" {% if b.AVAILABLE_COPIES <= 0 %}disabled{% endif %}>
+                                    {{ b.TITLE }} (#{{ b.BOOK_ID }}) &mdash; {{ b.AVAILABLE_COPIES }} copies left {% if b.AVAILABLE_COPIES <= 0 %}(Out of Stock){% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Borrower Category <span class="required">*</span></label>
+                        <select name="borrower_type" id="issueBorrowerType" onchange="toggleBorrowerFields()" class="filter-select" style="width: 100%;">
+                            <option value="Student">Enrolled Student</option>
+                            <option value="Teacher">Teaching Faculty</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Lending Period (Days) <span class="required">*</span></label>
+                        <select name="due_days" class="filter-select" style="width: 100%;">
+                            <option value="7">7 Days (Short Loan)</option>
+                            <option value="14" selected>14 Days (Standard Student Loan)</option>
+                            <option value="21">21 Days</option>
+                            <option value="30">30 Days (Faculty Loan)</option>
+                        </select>
+                    </div>
+
+                    <!-- Student Select Dropdown -->
+                    <div class="form-group full-width" id="studentSelectGroup">
+                        <label>Choose Student <span class="required">*</span></label>
+                        <select id="issueStudentSelect" onchange="onStudentSelect(this)" class="filter-select" style="width: 100%;">
+                            <option value="">-- Select Enrolled Student --</option>
+                            {% for s in students %}
+                                <option value="{{ s.ROLL_NUMBER }}" data-name="{{ s.NAME }}">
+                                    Roll No. {{ s.ROLL_NUMBER }} &bull; {{ s.NAME }} ({{ s.CLASS }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Teacher Select Dropdown -->
+                    <div class="form-group full-width" id="teacherSelectGroup" style="display: none;">
+                        <label>Choose Faculty Member <span class="required">*</span></label>
+                        <select id="issueTeacherSelect" onchange="onTeacherSelect(this)" class="filter-select" style="width: 100%;">
+                            <option value="">-- Select Faculty Member --</option>
+                            {% for t in teachers %}
+                                <option value="{{ t.TEACHER_ID }}" data-name="{{ t.NAME }}">
+                                    {{ t.NAME }} &bull; ID {{ t.TEACHER_ID }} ({{ t.SUBJECT }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Borrower ID / Roll No. <span class="required">*</span></label>
+                        <input type="text" id="issueBorrowerId" name="borrower_id" required placeholder="e.g. 101 or T-201" autocomplete="off">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Borrower Full Name <span class="required">*</span></label>
+                        <input type="text" id="issueBorrowerName" name="borrower_name" required placeholder="e.g. Aarav Sharma" autocomplete="off">
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label>Circulation Remarks / Reference Note</label>
+                        <input type="text" name="remarks" placeholder="e.g. Recommended reading for Semester exam">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" data-modal-close onclick="document.getElementById('issueBookModal').classList.remove('active')">Cancel</button>
+                    <button type="submit" class="btn-submit" style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);">
+                        <i class="fa-solid fa-check"></i> Complete Book Issue
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 4. Return Book Modal -->
+    <div class="modal-overlay" id="returnBookModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <div class="modal-title-box">
+                    <div class="modal-icon badge-emerald"><i class="fa-solid fa-inbox"></i></div>
+                    <div>
+                        <h3 class="modal-title" id="returnBookHeading">Check In &amp; Return Book</h3>
+                        <p class="modal-subtitle">Process book check-in and verify overdue penalties</p>
+                    </div>
+                </div>
+                <button type="button" class="modal-close-btn" data-modal-close onclick="document.getElementById('returnBookModal').classList.remove('active')">&times;</button>
+            </div>
+            <form id="returnBookForm" method="POST" class="modal-form">
+                <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 14px 18px; margin-bottom: 14px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                        <span style="font-size: 12px; color: var(--text-muted);">Issue Transaction</span>
+                        <strong id="returnModalIssueId" style="font-family: monospace; color: var(--navy-900);"></strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                        <span style="font-size: 12px; color: var(--text-muted);">Book Title</span>
+                        <strong id="returnModalTitle" style="color: var(--navy-900); text-align: right;"></strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="font-size: 12px; color: var(--text-muted);">Borrower</span>
+                        <strong id="returnModalBorrower" style="color: var(--navy-900);"></strong>
+                    </div>
+                </div>
+
+                <div id="returnFineAlert" style="display: none; background: #fff1f2; border: 1px solid #fecdd3; border-radius: var(--radius-sm); padding: 12px 16px; margin-bottom: 14px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-triangle-exclamation" style="color: #e11d48; font-size: 18px;"></i>
+                            <div>
+                                <strong style="color: #9f1239; font-size: 13px;">Overdue Return Penalty</strong>
+                                <p id="returnFineDetails" style="font-size: 11.5px; color: #be123c; margin: 0;"></p>
+                            </div>
+                        </div>
+                        <span id="returnFineAmount" style="font-size: 18px; font-weight: 800; color: #e11d48;"></span>
+                    </div>
+
+                    <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #fda4af;">
+                        <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #881337; cursor: pointer;">
+                            <input type="checkbox" name="fine_collected" value="yes" checked style="width: 16px; height: 16px;">
+                            <strong>Fine collected at desk right now (Mark as Paid)</strong>
+                        </label>
+                    </div>
+                </div>
+
+                <p style="font-size: 12.5px; color: var(--text-secondary); margin-bottom: 16px;">
+                    Upon confirmation, 1 copy will be credited back to the catalog stock, and any waiting reservations will be notified.
+                </p>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" data-modal-close onclick="document.getElementById('returnBookModal').classList.remove('active')">Cancel</button>
+                    <button type="submit" class="btn-submit" style="background: linear-gradient(135deg, #059669 0%, #047857 100%);">
+                        <i class="fa-solid fa-check"></i> Confirm Return &amp; Check In
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 5. Place Reservation Modal -->
+    <div class="modal-overlay" id="reserveBookModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <div class="modal-title-box">
+                    <div class="modal-icon badge-emerald"><i class="fa-solid fa-bookmark"></i></div>
+                    <div>
+                        <h3 class="modal-title">Reserve Library Title</h3>
+                        <p class="modal-subtitle">Hold upcoming returned copies for member priority</p>
+                    </div>
+                </div>
+                <button type="button" class="modal-close-btn" data-modal-close onclick="document.getElementById('reserveBookModal').classList.remove('active')">&times;</button>
+            </div>
+            <form action="{{ url_for('reserve_book_route') }}" method="POST" class="modal-form">
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label>Select Book Title to Hold <span class="required">*</span></label>
+                        <select name="book_id" id="reserveBookSelect" required class="filter-select" style="width: 100%;">
+                            <option value="">-- Choose Book from Catalogue --</option>
+                            {% for b in books %}
+                                <option value="{{ b.BOOK_ID }}">
+                                    {{ b.TITLE }} (#{{ b.BOOK_ID }}) &mdash; {{ b.AVAILABLE_COPIES }} copies available
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Borrower Type <span class="required">*</span></label>
+                        <select name="borrower_type" class="filter-select" style="width: 100%;">
+                            <option value="Student">Student</option>
+                            <option value="Teacher">Teacher / Faculty</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Borrower ID (Roll No / Teacher ID) <span class="required">*</span></label>
+                        <input type="text" name="borrower_id" required placeholder="e.g. 104" autocomplete="off">
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label>Borrower Full Name <span class="required">*</span></label>
+                        <input type="text" name="borrower_name" required placeholder="e.g. Aditya Verma" autocomplete="off">
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label>Reservation Priority Notes</label>
+                        <input type="text" name="notes" placeholder="e.g. Urgently needed for annual board exam preparation">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" data-modal-close onclick="document.getElementById('reserveBookModal').classList.remove('active')">Cancel</button>
+                    <button type="submit" class="btn-submit" style="background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);">
+                        <i class="fa-solid fa-bookmark"></i> Place Reservation
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
 </div>
+
+<!-- Interactive Library JavaScript -->
+<script>
+    // Tab Pill Styles
+    const style = document.createElement('style');
+    style.innerHTML = `
+        .lib-tab-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 8px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        .lib-tab-pill:hover {
+            color: var(--navy-800);
+            background: #f1f5f9;
+        }
+        .lib-tab-pill.active {
+            color: var(--navy-900);
+            background: #e2e8f0;
+            box-shadow: inset 0 -2px 0 var(--navy-700);
+        }
+        .tab-counter {
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            padding: 1px 7px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-secondary);
+        }
+        .tab-counter.alert-counter {
+            background: #ffe4e6;
+            color: #e11d48;
+            border-color: #fecdd3;
+        }
+    `;
+    document.head.appendChild(style);
+
+    // Edit Book Modal Populator
+    function openEditBookModal(btn) {
+        const id = btn.getAttribute('data-id');
+        const title = btn.getAttribute('data-title');
+        const author = btn.getAttribute('data-author');
+        const genre = btn.getAttribute('data-genre');
+        const shelf = btn.getAttribute('data-shelf');
+        const copies = btn.getAttribute('data-copies');
+        const isbn = btn.getAttribute('data-isbn');
+        const pub = btn.getAttribute('data-pub');
+
+        document.getElementById('editBookHeading').textContent = `Edit Book (${id})`;
+        document.getElementById('editBookIdDisplay').value = id;
+        document.getElementById('editBookTitle').value = title || '';
+        document.getElementById('editBookAuthor').value = author || '';
+        document.getElementById('editBookGenre').value = genre || '';
+        document.getElementById('editBookShelf').value = shelf || '';
+        document.getElementById('editBookCopies').value = copies || 1;
+        document.getElementById('editBookIsbn').value = isbn || '';
+        document.getElementById('editBookPublisher').value = pub || '';
+
+        const form = document.getElementById('editBookForm');
+        form.action = `/library/edit/${id}`;
+
+        document.getElementById('editBookModal').classList.add('active');
+    }
+
+    // Quick Issue Pre-fill
+    function quickIssueBook(btn) {
+        const bookId = btn.getAttribute('data-book-id');
+        const select = document.getElementById('issueBookSelect');
+        if (select) {
+            select.value = bookId;
+        }
+        document.getElementById('issueBookModal').classList.add('active');
+    }
+
+    // Quick Reserve Pre-fill
+    function quickReserveBook(btn) {
+        const bookId = btn.getAttribute('data-book-id');
+        const select = document.getElementById('reserveBookSelect');
+        if (select) {
+            select.value = bookId;
+        }
+        document.getElementById('reserveBookModal').classList.add('active');
+    }
+
+    // Return Modal
+    function openReturnBookModal(btn) {
+        const id = btn.getAttribute('data-id');
+        const issueId = btn.getAttribute('data-issue-id');
+        const title = btn.getAttribute('data-title');
+        const borrower = btn.getAttribute('data-borrower');
+        const overdueDays = parseInt(btn.getAttribute('data-overdue') || '0', 10);
+        const fineAmount = parseFloat(btn.getAttribute('data-fine') || '0');
+
+        document.getElementById('returnModalIssueId').textContent = issueId;
+        document.getElementById('returnModalTitle').textContent = title;
+        document.getElementById('returnModalBorrower').textContent = borrower;
+
+        const fineAlert = document.getElementById('returnFineAlert');
+        if (overdueDays > 0) {
+            fineAlert.style.display = 'block';
+            document.getElementById('returnFineDetails').textContent = `Overdue by ${overdueDays} days (@ ₹5.00/day)`;
+            document.getElementById('returnFineAmount').textContent = `₹${fineAmount.toFixed(2)}`;
+        } else {
+            fineAlert.style.display = 'none';
+        }
+
+        const form = document.getElementById('returnBookForm');
+        form.action = `/library/return/${id}`;
+
+        document.getElementById('returnBookModal').classList.add('active');
+    }
+
+    // Toggle Borrower Dropdowns
+    function toggleBorrowerFields() {
+        const type = document.getElementById('issueBorrowerType').value;
+        const studentGroup = document.getElementById('studentSelectGroup');
+        const teacherGroup = document.getElementById('teacherSelectGroup');
+
+        if (type === 'Student') {
+            studentGroup.style.display = 'block';
+            teacherGroup.style.display = 'none';
+        } else {
+            studentGroup.style.display = 'none';
+            teacherGroup.style.display = 'block';
+        }
+    }
+
+    function onStudentSelect(sel) {
+        const roll = sel.value;
+        const opt = sel.options[sel.selectedIndex];
+        const name = opt.getAttribute('data-name');
+        if (roll) {
+            document.getElementById('issueBorrowerId').value = roll;
+            document.getElementById('issueBorrowerName').value = name || '';
+        }
+    }
+
+    function onTeacherSelect(sel) {
+        const tid = sel.value;
+        const opt = sel.options[sel.selectedIndex];
+        const name = opt.getAttribute('data-name');
+        if (tid) {
+            document.getElementById('issueBorrowerId').value = tid;
+            document.getElementById('issueBorrowerName').value = name || '';
+        }
+    }
+
+    // Global Modal Close Listeners
+    document.querySelectorAll('[data-modal-close]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
+        });
+    });
+
+    document.querySelectorAll('[data-modal-target]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const target = btn.getAttribute('data-modal-target');
+            const modal = document.querySelector(target);
+            if (modal) modal.classList.add('active');
+        });
+    });
+</script>
 {% endblock %}

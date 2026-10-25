@@ -1,0 +1,1104 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard-container">
+
+    <!-- Page Header & Toolbar -->
+    <div class="page-toolbar">
+        <div class="toolbar-left">
+            <h3 style="font-size: 20px; font-weight: 700; color: var(--text-main); margin-bottom: 4px;">
+                <i class="fa-solid fa-chart-line" style="color: var(--primary); margin-right: 6px;"></i>
+                Student Performance Analytics & Intervention Desk
+            </h3>
+            <p style="font-size: 13px; color: var(--text-muted); margin: 0;">
+                Multi-term progression trajectories, subject struggle diagnostics, class comparative benchmarks & early-warning at-risk support
+            </p>
+        </div>
+        <div class="toolbar-right" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            {% if current_role in ('super_admin', 'admin') %}
+                <button type="button" class="btn-toolbar-add" data-modal-target="#flagStudentModal" style="background: linear-gradient(135deg, #e11d48, #be123c);">
+                    <i class="fa-solid fa-user-plus"></i> Flag Student for Support
+                </button>
+            {% endif %}
+            <a href="{{ url_for('exams_view') }}" class="btn-toolbar-filter" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                <i class="fa-solid fa-award"></i> Marksheet Records
+            </a>
+            <button type="button" class="btn-toolbar-filter" onclick="window.print()">
+                <i class="fa-solid fa-print"></i> Export / Print
+            </button>
+        </div>
+    </div>
+
+    <!-- Executive KPI Summary Cards (5 Cards) -->
+    <div class="kpi-grid" style="grid-template-columns: repeat(5, 1fr); margin-bottom: 24px;">
+        <!-- KPI 1: Overall Average -->
+        <div class="kpi-card card-cyan">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper"><i class="fa-solid fa-chart-simple"></i></div>
+                <span class="kpi-pill"><i class="fa-solid fa-arrow-trend-up"></i> {{ kpis.term_delta }}</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">School Academic Average</span>
+                <h3 class="kpi-value">{{ kpis.overall_average }}%</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext"><i class="fa-solid fa-graduation-cap"></i> Across 4 term cycles</span>
+            </div>
+        </div>
+
+        <!-- KPI 2: Top Performing Class -->
+        <div class="kpi-card card-emerald">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper"><i class="fa-solid fa-trophy"></i></div>
+                <span class="kpi-pill pill-emerald"><i class="fa-solid fa-star"></i> Leading Class</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Top Class Average</span>
+                <h3 class="kpi-value" style="font-size: 20px;">{{ kpis.top_class }}</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext" style="color: var(--accent-emerald); font-weight: 600;">
+                    <i class="fa-solid fa-gauge-high"></i> {{ kpis.top_class_avg }}% Class Average
+                </span>
+            </div>
+        </div>
+
+        <!-- KPI 3: Top Struggling Subject -->
+        <div class="kpi-card card-amber">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper" style="background: rgba(225, 29, 72, 0.12); color: #e11d48;"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                <span class="kpi-pill" style="background: rgba(225, 29, 72, 0.1); color: #e11d48;"><i class="fa-solid fa-bell"></i> Need Support</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Primary Struggle Area</span>
+                <h3 class="kpi-value" style="font-size: 20px;">{{ kpis.struggling_subject }}</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext" style="color: #e11d48; font-weight: 600;">
+                    <i class="fa-solid fa-chart-line-down"></i> {{ kpis.struggling_subject_avg }}% avg ({{ kpis.struggling_subject_fail_rate }}% struggle rate)
+                </span>
+            </div>
+        </div>
+
+        <!-- KPI 4: Flagged Students Requiring Support -->
+        <div class="kpi-card card-purple">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper" style="background: rgba(239, 68, 68, 0.12); color: #dc2626;"><i class="fa-solid fa-user-shield"></i></div>
+                <span class="kpi-pill pill-rose"><i class="fa-solid fa-triangle-exclamation"></i> Early Warning</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Flagged At-Risk Students</span>
+                <h3 class="kpi-value">{{ kpis.flagged_students_count }}</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext" style="color: var(--text-muted);">
+                    <strong style="color: #dc2626;">{{ kpis.critical_count }} Critical</strong>, {{ kpis.moderate_count }} Moderate, {{ kpis.watchlist_count }} Watchlist
+                </span>
+            </div>
+        </div>
+
+        <!-- KPI 5: Total Exam Papers Evaluated -->
+        <div class="kpi-card card-cyan">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper"><i class="fa-solid fa-file-signature"></i></div>
+                <span class="kpi-pill"><i class="fa-solid fa-check-double"></i> Complete</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Total Exam Evaluations</span>
+                <h3 class="kpi-value">{{ kpis.total_evaluations }}</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext"><i class="fa-solid fa-users"></i> {{ kpis.total_students }} Enrolled Students</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="data-table-card" style="margin-bottom: 20px; padding: 14px 20px;">
+        <form method="GET" action="{{ url_for('performance_analytics_view') }}" style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+            <input type="hidden" name="tab" value="{{ tab }}">
+            
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <label style="font-size: 13px; font-weight: 600; color: var(--text-main);"><i class="fa-solid fa-chalkboard-user"></i> Class Filter:</label>
+                <select name="class_filter" class="form-control" style="width: auto; padding: 6px 12px; font-size: 13px;" onchange="this.form.submit()">
+                    <option value="All" {% if class_filter == 'All' %}selected{% endif %}>All Classes (Grade 8 - 12)</option>
+                    {% for c in classes_list %}
+                        <option value="{{ c }}" {% if class_filter == c %}selected{% endif %}>{{ c }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <label style="font-size: 13px; font-weight: 600; color: var(--text-main);"><i class="fa-solid fa-calendar-check"></i> Term / Cycle:</label>
+                <select name="term_filter" class="form-control" style="width: auto; padding: 6px 12px; font-size: 13px;" onchange="this.form.submit()">
+                    <option value="All" {% if term_filter == 'All' %}selected{% endif %}>All Terms Aggregated</option>
+                    {% for t in terms_list %}
+                        <option value="{{ t }}" {% if term_filter == t %}selected{% endif %}>{{ t }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            {% if class_filter != 'All' or term_filter != 'All' %}
+                <a href="{{ url_for('performance_analytics_view', tab=tab) }}" class="btn-toolbar-filter" style="text-decoration: none; padding: 6px 14px; font-size: 12px;">
+                    <i class="fa-solid fa-rotate-left"></i> Reset Filters
+                </a>
+            {% endif %}
+
+            <div style="margin-left: auto; font-size: 12px; color: var(--text-muted);">
+                Showing analytics for: <strong style="color: var(--text-main);">{{ class_filter }}</strong> | Term: <strong style="color: var(--text-main);">{{ term_filter }}</strong>
+            </div>
+        </form>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="tabs-header-wrapper" style="margin-bottom: 24px;">
+        <nav class="subsystem-tabs" style="display: flex; gap: 8px; border-bottom: 2px solid var(--border-light); padding-bottom: 4px;">
+            <a href="{{ url_for('performance_analytics_view', tab='trends', class_filter=class_filter, term_filter=term_filter) }}" 
+               class="tab-link {% if tab == 'trends' %}active{% endif %}" 
+               style="text-decoration: none; padding: 10px 18px; border-radius: 8px 8px 0 0; font-weight: 600; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; color: {% if tab == 'trends' %}var(--primary){% else %}var(--text-muted){% endif %}; border-bottom: {% if tab == 'trends' %}3px solid var(--primary){% else %}none{% endif %}; background: {% if tab == 'trends' %}rgba(37, 99, 235, 0.06){% else %}transparent{% endif %};">
+                <i class="fa-solid fa-arrow-trend-up"></i>
+                Multi-Term Trends & Trajectories
+            </a>
+            <a href="{{ url_for('performance_analytics_view', tab='subjects', class_filter=class_filter, term_filter=term_filter) }}" 
+               class="tab-link {% if tab == 'subjects' %}active{% endif %}" 
+               style="text-decoration: none; padding: 10px 18px; border-radius: 8px 8px 0 0; font-weight: 600; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; color: {% if tab == 'subjects' %}var(--primary){% else %}var(--text-muted){% endif %}; border-bottom: {% if tab == 'subjects' %}3px solid var(--primary){% else %}none{% endif %}; background: {% if tab == 'subjects' %}rgba(37, 99, 235, 0.06){% else %}transparent{% endif %};">
+                <i class="fa-solid fa-triangle-exclamation" style="color: #e11d48;"></i>
+                Subject Struggle Diagnostics
+                <span class="badge-rose" style="font-size: 11px; padding: 2px 7px; border-radius: 10px;">Alerts</span>
+            </a>
+            <a href="{{ url_for('performance_analytics_view', tab='classes', class_filter=class_filter, term_filter=term_filter) }}" 
+               class="tab-link {% if tab == 'classes' %}active{% endif %}" 
+               style="text-decoration: none; padding: 10px 18px; border-radius: 8px 8px 0 0; font-weight: 600; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; color: {% if tab == 'classes' %}var(--primary){% else %}var(--text-muted){% endif %}; border-bottom: {% if tab == 'classes' %}3px solid var(--primary){% else %}none{% endif %}; background: {% if tab == 'classes' %}rgba(37, 99, 235, 0.06){% else %}transparent{% endif %};">
+                <i class="fa-solid fa-scale-balanced"></i>
+                Class Averages Benchmark
+            </a>
+            <a href="{{ url_for('performance_analytics_view', tab='support', class_filter=class_filter, term_filter=term_filter) }}" 
+               class="tab-link {% if tab == 'support' %}active{% endif %}" 
+               style="text-decoration: none; padding: 10px 18px; border-radius: 8px 8px 0 0; font-weight: 600; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; color: {% if tab == 'support' %}var(--primary){% else %}var(--text-muted){% endif %}; border-bottom: {% if tab == 'support' %}3px solid var(--primary){% else %}none{% endif %}; background: {% if tab == 'support' %}rgba(37, 99, 235, 0.06){% else %}transparent{% endif %};">
+                <i class="fa-solid fa-user-shield" style="color: #e11d48;"></i>
+                Student Support & Intervention Desk
+                <span class="badge-amber" style="font-size: 11px; padding: 2px 7px; border-radius: 10px;">{{ kpis.flagged_students_count }} Flagged</span>
+            </a>
+        </nav>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- TAB 1: MULTI-TERM TRENDS & TRAJECTORIES                                 -->
+    <!-- ======================================================================= -->
+    {% if tab == 'trends' %}
+    <div class="tab-pane active">
+        <!-- Visual Multi-Term Trend Progression Chart -->
+        <div class="data-table-card" style="margin-bottom: 24px; padding: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div>
+                    <h4 style="font-size: 16px; font-weight: 700; color: var(--text-main); margin: 0;">
+                        <i class="fa-solid fa-chart-line" style="color: var(--primary);"></i> Academic Progression Trajectories Across Terms
+                    </h4>
+                    <p style="font-size: 12px; color: var(--text-muted); margin: 2px 0 0 0;">
+                        Term-over-term comparative averages showing progression from Term 1 Baseline through Final Examination
+                    </p>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <span class="status-badge status-active"><i class="fa-solid fa-circle-check"></i> 4 Terms Tracked</span>
+                </div>
+            </div>
+            <div style="position: relative; height: 320px; width: 100%;">
+                <canvas id="multiTermTrendsChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Student-Level Multi-Term Report & Progression Trajectories Table -->
+        <div class="data-table-card">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <div class="header-left">
+                    <div class="card-badge-icon badge-blue"><i class="fa-solid fa-user-graduate"></i></div>
+                    <div>
+                        <h4 class="card-heading">Individual Student Term Progression Ledger</h4>
+                        <p class="card-subheading">Tracking individual student averages from term to term with trajectory indicators</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Roll</th>
+                            <th>Student Name</th>
+                            <th>Class</th>
+                            <th style="text-align: center;">Term 1 Exam</th>
+                            <th style="text-align: center;">Mid-Term Exam</th>
+                            <th style="text-align: center;">Term 2 Exam</th>
+                            <th style="text-align: center;">Final Exam</th>
+                            <th style="text-align: center;">Overall Avg</th>
+                            <th style="text-align: center;">Term Delta</th>
+                            <th style="text-align: center;">Progression Trajectory</th>
+                            <th style="text-align: right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if trends.student_trajectories %}
+                            {% for s in trends.student_trajectories %}
+                            <tr>
+                                <td><strong>#{{ s.roll }}</strong></td>
+                                <td>
+                                    <div style="font-weight: 600; color: var(--text-main);">{{ s.name }}</div>
+                                </td>
+                                <td><span class="chart-tag" style="background: rgba(37,99,235,0.08); color: var(--primary);">{{ s.class }}</span></td>
+                                <td style="text-align: center;">
+                                    {% if s.term1 is not none %}
+                                        <span style="font-weight: 600; color: {% if s.term1 < 50 %}#e11d48{% elif s.term1 >= 80 %}#10b981{% else %}var(--text-main){% endif %};">{{ s.term1 }}%</span>
+                                    {% else %}
+                                        <span style="color: var(--text-muted);">--</span>
+                                    {% endif %}
+                                </td>
+                                <td style="text-align: center;">
+                                    {% if s.midterm is not none %}
+                                        <span style="font-weight: 600; color: {% if s.midterm < 50 %}#e11d48{% elif s.midterm >= 80 %}#10b981{% else %}var(--text-main){% endif %};">{{ s.midterm }}%</span>
+                                    {% else %}
+                                        <span style="color: var(--text-muted);">--</span>
+                                    {% endif %}
+                                </td>
+                                <td style="text-align: center;">
+                                    {% if s.term2 is not none %}
+                                        <span style="font-weight: 600; color: {% if s.term2 < 50 %}#e11d48{% elif s.term2 >= 80 %}#10b981{% else %}var(--text-main){% endif %};">{{ s.term2 }}%</span>
+                                    {% else %}
+                                        <span style="color: var(--text-muted);">--</span>
+                                    {% endif %}
+                                </td>
+                                <td style="text-align: center;">
+                                    {% if s.final is not none %}
+                                        <span style="font-weight: 600; color: {% if s.final < 50 %}#e11d48{% elif s.final >= 80 %}#10b981{% else %}var(--text-main){% endif %};">{{ s.final }}%</span>
+                                    {% else %}
+                                        <span style="color: var(--text-muted);">--</span>
+                                    {% endif %}
+                                </td>
+                                <td style="text-align: center;">
+                                    <strong style="font-size: 14px; color: {% if s.overall_avg < 50 %}#e11d48{% elif s.overall_avg >= 80 %}#10b981{% else %}var(--text-main){% endif %};">
+                                        {{ s.overall_avg }}%
+                                    </strong>
+                                </td>
+                                <td style="text-align: center;">
+                                    {% if s.delta > 0 %}
+                                        <span style="color: #10b981; font-weight: 600;">+{{ s.delta }}%</span>
+                                    {% elif s.delta < 0 %}
+                                        <span style="color: #e11d48; font-weight: 600;">{{ s.delta }}%</span>
+                                    {% else %}
+                                        <span style="color: var(--text-muted);">0.0%</span>
+                                    {% endif %}
+                                </td>
+                                <td style="text-align: center;">
+                                    <span class="status-badge {{ s.trajectory_badge }}" style="display: inline-flex; align-items: center; gap: 4px;">
+                                        <i class="fa-solid {{ s.trajectory_icon }}"></i> {{ s.trajectory }}
+                                    </span>
+                                </td>
+                                <td style="text-align: right;">
+                                    <button type="button" class="btn-table-action" onclick="openStudentReport('{{ s.roll }}')" title="View Detailed Multi-Term Report">
+                                        <i class="fa-solid fa-file-lines"></i> Report Card
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="11" style="text-align: center; padding: 30px; color: var(--text-muted);">
+                                    No student marks records found matching the active filter.
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ======================================================================= -->
+    <!-- TAB 2: SUBJECT STRUGGLE DIAGNOSTICS                                     -->
+    <!-- ======================================================================= -->
+    {% if tab == 'subjects' %}
+    <div class="tab-pane active">
+        <!-- Diagnostic Overview Alert Banner -->
+        <div style="background: linear-gradient(135deg, rgba(225, 29, 72, 0.08), rgba(245, 158, 11, 0.08)); border: 1px solid rgba(225, 29, 72, 0.2); border-radius: 12px; padding: 18px 24px; margin-bottom: 24px; display: flex; align-items: center; gap: 16px;">
+            <div style="width: 44px; height: 44px; border-radius: 50%; background: #e11d48; color: white; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div>
+                <h4 style="margin: 0; font-size: 15px; font-weight: 700; color: #9f1239;">Curriculum Subject Difficulty & Struggle Analysis</h4>
+                <p style="margin: 3px 0 0 0; font-size: 13px; color: #881337;">
+                    Subjects with high failure rates or average scores below 70% are automatically flagged for pedagogical reinforcement, practical lab interventions, and remedial tutorial schedules.
+                </p>
+            </div>
+        </div>
+
+        <!-- Subject Diagnostic Cards Grid -->
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 28px;">
+            {% for s in subject_diagnostics %}
+            <div class="data-table-card" style="padding: 20px; border-top: 4px solid {% if s.struggle_tier == 'High Struggle' %}#e11d48{% elif s.struggle_tier == 'Moderate Concern' %}#f59e0b{% else %}#10b981{% endif %}; display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                        <div>
+                            <h4 style="font-size: 17px; font-weight: 700; color: var(--text-main); margin: 0;">{{ s.subject }}</h4>
+                            <span style="font-size: 12px; color: var(--text-muted);"><i class="fa-solid fa-chalkboard-user"></i> {{ s.faculty }}</span>
+                        </div>
+                        <span class="status-badge {{ s.struggle_badge }}" style="font-size: 11px;">{{ s.struggle_tier }}</span>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; background: var(--bg-hover); padding: 10px 14px; border-radius: 8px;">
+                        <div>
+                            <span style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Average Score</span>
+                            <div style="font-size: 22px; font-weight: 700; color: {% if s.avg_marks < 68 %}#e11d48{% elif s.avg_marks >= 80 %}#10b981{% else %}var(--text-main){% endif %};">
+                                {{ s.avg_marks }}%
+                            </div>
+                        </div>
+                        <div style="text-align: right;">
+                            <span style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Failure Rate</span>
+                            <div style="font-size: 16px; font-weight: 700; color: {% if s.fail_pct > 0 %}#e11d48{% else %}#10b981{% endif %};">
+                                {{ s.fail_pct }}% ({{ s.fail_count }} papers)
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar for Pass Rate -->
+                    <div style="margin-bottom: 14px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
+                            <span style="font-weight: 600; color: var(--text-main);">Pass Rate (Score &ge; 40%)</span>
+                            <span style="font-weight: 700; color: #10b981;">{{ s.pass_pct }}%</span>
+                        </div>
+                        <div style="width: 100%; height: 8px; background: rgba(0,0,0,0.06); border-radius: 4px; overflow: hidden; display: flex;">
+                            <div style="width: {{ s.pass_pct }}%; background: #10b981; height: 100%;"></div>
+                            <div style="width: {{ s.fail_pct }}%; background: #e11d48; height: 100%;"></div>
+                        </div>
+                    </div>
+
+                    <div style="font-size: 12px; margin-bottom: 10px;">
+                        <strong style="color: var(--text-main);"><i class="fa-solid fa-crosshairs"></i> Identified Struggle Focus:</strong>
+                        <p style="color: var(--text-muted); margin: 3px 0 0 0; line-height: 1.4;">{{ s.struggle_focus }}</p>
+                    </div>
+
+                    <div style="font-size: 12px; background: rgba(37,99,235,0.04); border-left: 3px solid var(--primary); padding: 8px 10px; border-radius: 0 6px 6px 0;">
+                        <strong style="color: var(--primary);"><i class="fa-solid fa-lightbulb"></i> Recommended Action:</strong>
+                        <p style="color: var(--text-main); margin: 2px 0 0 0; line-height: 1.35;">{{ s.recommendation }}</p>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-light); padding-top: 12px; margin-top: 14px; font-size: 11px; color: var(--text-muted);">
+                    <span><i class="fa-solid fa-gauge"></i> Difficulty: <strong>{{ s.difficulty_score }}</strong></span>
+                    <span>Range: <strong>{{ s.min_marks }}% - {{ s.max_marks }}%</strong></span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Horizontal Subject Comparison Chart -->
+        <div class="data-table-card" style="padding: 24px;">
+            <h4 style="font-size: 16px; font-weight: 700; color: var(--text-main); margin: 0 0 4px 0;">
+                <i class="fa-solid fa-chart-column" style="color: var(--primary);"></i> Subject Struggle Index & Failure Percentage Breakdown
+            </h4>
+            <p style="font-size: 12px; color: var(--text-muted); margin: 0 0 16px 0;">
+                Comparative evaluation across curriculum subjects comparing mean score against failure percentage
+            </p>
+            <div style="position: relative; height: 280px; width: 100%;">
+                <canvas id="subjectStruggleChart"></canvas>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ======================================================================= -->
+    <!-- TAB 3: CLASS AVERAGES BENCHMARK                                         -->
+    <!-- ======================================================================= -->
+    {% if tab == 'classes' %}
+    <div class="tab-pane active">
+        <!-- Class Comparison Cards Grid -->
+        <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px;">
+            {% for c in class_benchmarks %}
+            <div class="data-table-card" style="padding: 18px; text-align: center; border-radius: 12px; border-top: 4px solid {% if c.class_avg >= 85 %}#10b981{% elif c.class_avg >= 72 %}#3b82f6{% else %}#f59e0b{% endif %};">
+                <span class="chart-tag" style="background: rgba(37,99,235,0.08); color: var(--primary); font-weight: 700; margin-bottom: 8px;">
+                    {{ c.class_name }}
+                </span>
+                <div style="font-size: 26px; font-weight: 800; color: var(--text-main); margin: 6px 0;">
+                    {{ c.class_avg }}%
+                </div>
+                <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
+                    Class Pass Rate: <strong style="color: #10b981;">{{ c.class_pass_pct }}%</strong>
+                </div>
+
+                <div style="text-align: left; font-size: 11px; background: var(--bg-hover); padding: 8px 10px; border-radius: 6px; margin-bottom: 8px;">
+                    <div style="color: var(--text-muted); margin-bottom: 2px;">Highest Scoring Student:</div>
+                    <strong style="color: var(--text-main); font-size: 12px;"><i class="fa-solid fa-crown" style="color: #f59e0b;"></i> {{ c.top_student }}</strong>
+                </div>
+
+                <div style="text-align: left; font-size: 11px; line-height: 1.4;">
+                    <div style="color: var(--text-muted);"><i class="fa-solid fa-arrow-up" style="color: #10b981;"></i> Top: <strong>{{ c.top_subject }}</strong></div>
+                    <div style="color: var(--text-muted); margin-top: 2px;"><i class="fa-solid fa-arrow-down" style="color: #e11d48;"></i> Lowest: <strong>{{ c.struggling_subject }}</strong></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Comparative Class Benchmark Bar Chart -->
+        <div class="data-table-card" style="margin-bottom: 24px; padding: 24px;">
+            <h4 style="font-size: 16px; font-weight: 700; color: var(--text-main); margin: 0 0 4px 0;">
+                <i class="fa-solid fa-scale-balanced" style="color: var(--primary);"></i> Cross-Class Academic Performance Benchmark
+            </h4>
+            <p style="font-size: 12px; color: var(--text-muted); margin: 0 0 16px 0;">
+                Comparative evaluation of class composite averages and performance distribution tiers
+            </p>
+            <div style="position: relative; height: 300px; width: 100%;">
+                <canvas id="classBenchmarkChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Detailed Class Benchmarks Ledger Table -->
+        <div class="data-table-card">
+            <div class="card-header">
+                <div class="header-left">
+                    <div class="card-badge-icon badge-emerald"><i class="fa-solid fa-table-list"></i></div>
+                    <div>
+                        <h4 class="card-heading">Class Comparative Performance Ledger</h4>
+                        <p class="card-subheading">Comprehensive metrics by class including distinction rates, evaluations, and range</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Class / Grade</th>
+                            <th style="text-align: center;">Students</th>
+                            <th style="text-align: center;">Evaluations</th>
+                            <th style="text-align: center;">Class Average</th>
+                            <th style="text-align: center;">Pass Rate</th>
+                            <th style="text-align: center;">Distinction (&ge;80%)</th>
+                            <th style="text-align: center;">Struggle Rate (<50%)</th>
+                            <th>Top Performing Subject</th>
+                            <th>Identified Struggle Area</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in class_benchmarks %}
+                        <tr>
+                            <td><strong style="color: var(--primary);">{{ c.class_name }}</strong></td>
+                            <td style="text-align: center;">{{ c.student_count }}</td>
+                            <td style="text-align: center;">{{ c.total_papers }}</td>
+                            <td style="text-align: center;"><strong style="font-size: 14px;">{{ c.class_avg }}%</strong></td>
+                            <td style="text-align: center;"><span class="status-badge status-active">{{ c.class_pass_pct }}%</span></td>
+                            <td style="text-align: center;"><span style="color: #10b981; font-weight: 600;">{{ c.distinction_pct }}%</span></td>
+                            <td style="text-align: center;">
+                                {% if c.struggle_rate > 0 %}
+                                    <span style="color: #e11d48; font-weight: 700;">{{ c.struggle_rate }}%</span>
+                                {% else %}
+                                    <span style="color: var(--text-muted);">0.0%</span>
+                                {% endif %}
+                            </td>
+                            <td><strong style="color: #10b981;">{{ c.top_subject }}</strong></td>
+                            <td><strong style="color: #e11d48;">{{ c.struggling_subject }}</strong></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ======================================================================= -->
+    <!-- TAB 4: STUDENT SUPPORT & INTERVENTION DESK                              -->
+    <!-- ======================================================================= -->
+    {% if tab == 'support' %}
+    <div class="tab-pane active">
+        <!-- At-Risk Early Warning Flagging Alert Header -->
+        <div style="background: linear-gradient(135deg, rgba(225, 29, 72, 0.08), rgba(239, 68, 68, 0.04)); border: 1px solid rgba(225, 29, 72, 0.2); border-radius: 12px; padding: 18px 24px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+            <div style="display: flex; align-items: center; gap: 16px;">
+                <div style="width: 44px; height: 44px; border-radius: 50%; background: #e11d48; color: white; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;">
+                    <i class="fa-solid fa-user-shield"></i>
+                </div>
+                <div>
+                    <h4 style="margin: 0; font-size: 15px; font-weight: 700; color: #9f1239;">Student Academic Early-Warning & Support System</h4>
+                    <p style="margin: 3px 0 0 0; font-size: 13px; color: #881337;">
+                        Algorithmic detection of students requiring immediate remedial interventions based on low marks, failed papers, or sharp term drops.
+                    </p>
+                </div>
+            </div>
+            {% if current_role in ('super_admin', 'admin') %}
+                <button type="button" class="btn-toolbar-add" data-modal-target="#flagStudentModal" style="background: #e11d48;">
+                    <i class="fa-solid fa-plus-circle"></i> Create Support Plan
+                </button>
+            {% endif %}
+        </div>
+
+        <!-- 1. Flagged At-Risk Students Registry -->
+        <div class="data-table-card" style="margin-bottom: 24px;">
+            <div class="card-header">
+                <div class="header-left">
+                    <div class="card-badge-icon badge-rose"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    <div>
+                        <h4 class="card-heading">Flagged Students Requiring Additional Academic Support</h4>
+                        <p class="card-subheading">Students identified as Critical, Moderate, or Watchlist requiring pedagogical interventions</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Roll</th>
+                            <th>Student Name</th>
+                            <th>Class</th>
+                            <th style="text-align: center;">Risk Level</th>
+                            <th style="text-align: center;">Overall Average</th>
+                            <th style="text-align: center;">Failed Exams</th>
+                            <th>Struggling Subjects</th>
+                            <th>Primary Diagnosis</th>
+                            <th>Active Support Status</th>
+                            <th style="text-align: right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if at_risk_students %}
+                            {% for s in at_risk_students %}
+                            <tr>
+                                <td><strong>#{{ s.roll }}</strong></td>
+                                <td>
+                                    <div style="font-weight: 600; color: var(--text-main);">{{ s.name }}</div>
+                                    <span style="font-size: 11px; color: var(--text-muted);"><i class="fa-solid fa-phone"></i> {{ s.phone }}</span>
+                                </td>
+                                <td><span class="chart-tag">{{ s.class }}</span></td>
+                                <td style="text-align: center;">
+                                    <span class="status-badge {{ s.risk_badge }}" style="font-weight: 700;">
+                                        <i class="fa-solid fa-shield-halved"></i> {{ s.risk_tier }}
+                                    </span>
+                                </td>
+                                <td style="text-align: center;">
+                                    <strong style="font-size: 14px; color: {% if s.overall_avg < 50 %}#e11d48{% elif s.overall_avg < 65 %}#f59e0b{% else %}var(--text-main){% endif %};">
+                                        {{ s.overall_avg }}%
+                                    </strong>
+                                </td>
+                                <td style="text-align: center;">
+                                    {% if s.failed_count > 0 %}
+                                        <span class="badge-rose" style="font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 12px;">
+                                            {{ s.failed_count }} Failed
+                                        </span>
+                                    {% else %}
+                                        <span style="color: var(--text-muted);">None</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div style="font-size: 12px; color: #e11d48; font-weight: 600;">
+                                        {{ s.weak_subjects }}
+                                    </div>
+                                </td>
+                                <td style="font-size: 12px; color: var(--text-muted); max-width: 200px;">
+                                    {{ s.primary_reason }}
+                                </td>
+                                <td>
+                                    {% if s.intervention_code %}
+                                        <span class="status-badge status-active" style="font-size: 11px;">
+                                            <i class="fa-solid fa-check"></i> {{ s.intervention_code }} ({{ s.intervention_status }})
+                                        </span>
+                                    {% else %}
+                                        <span class="badge-amber" style="font-size: 11px; padding: 2px 8px; border-radius: 10px;">
+                                            <i class="fa-solid fa-clock"></i> Action Needed
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td style="text-align: right;">
+                                    <button type="button" class="btn-table-action" onclick="openStudentReport('{{ s.roll }}')" title="View Marksheet">
+                                        <i class="fa-solid fa-file-lines"></i> Report
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="10" style="text-align: center; padding: 30px; color: var(--text-muted);">
+                                    <i class="fa-solid fa-check-circle" style="color: #10b981; font-size: 24px; margin-bottom: 8px;"></i>
+                                    <p>No at-risk students flagged under the active filter criteria.</p>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 2. Academic Support Plans & Remedial Actions Ledger -->
+        <div class="data-table-card">
+            <div class="card-header">
+                <div class="header-left">
+                    <div class="card-badge-icon badge-blue"><i class="fa-solid fa-handshake-angle"></i></div>
+                    <div>
+                        <h4 class="card-heading">Active Academic Support Plans & Remediation Ledger</h4>
+                        <p class="card-subheading">Assigned faculty mentors, individualized remedial strategies, and status progression</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Plan Code</th>
+                            <th>Student</th>
+                            <th>Class</th>
+                            <th>Risk Tier</th>
+                            <th>Assigned Faculty Mentor</th>
+                            <th>Remedial Strategy & Action Plan</th>
+                            <th style="text-align: center;">Parent Notified</th>
+                            <th style="text-align: center;">Status</th>
+                            {% if current_role in ('super_admin', 'admin') %}
+                                <th style="text-align: right;">Action</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if interventions %}
+                            {% for i in interventions %}
+                            <tr>
+                                <td><strong style="color: var(--primary);">{{ i.INTERVENTION_CODE }}</strong></td>
+                                <td>
+                                    <strong>{{ i.STUDENT_NAME }}</strong>
+                                    <div style="font-size: 11px; color: var(--text-muted);">Roll #{{ i.ROLL_NUMBER }}</div>
+                                </td>
+                                <td><span class="chart-tag">{{ i.CLASS }}</span></td>
+                                <td>
+                                    <span class="status-badge {{ i.risk_badge }}">{{ i.RISK_LEVEL }}</span>
+                                </td>
+                                <td>
+                                    <strong style="color: var(--text-main); font-size: 13px;"><i class="fa-solid fa-user-tie"></i> {{ i.ASSIGNED_MENTOR }}</strong>
+                                </td>
+                                <td style="max-width: 300px;">
+                                    <div style="font-weight: 600; color: var(--text-main); font-size: 12px;">{{ i.REMEDIAL_STRATEGY }}</div>
+                                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 3px; line-height: 1.35;">{{ i.ACTION_PLAN }}</div>
+                                </td>
+                                <td style="text-align: center;">
+                                    {% if i.PARENT_NOTIFIED == 'Yes' %}
+                                        <span class="badge-emerald" style="padding: 2px 8px; border-radius: 10px; font-size: 11px;"><i class="fa-solid fa-check"></i> Notified</span>
+                                    {% else %}
+                                        <span class="badge-amber" style="padding: 2px 8px; border-radius: 10px; font-size: 11px;">Pending</span>
+                                    {% endif %}
+                                </td>
+                                <td style="text-align: center;">
+                                    <span class="status-badge {{ i.status_badge }}">{{ i.STATUS }}</span>
+                                </td>
+                                {% if current_role in ('super_admin', 'admin') %}
+                                <td style="text-align: right; white-space: nowrap;">
+                                    <button type="button" class="btn-table-action" onclick="openUpdateStatusModal({{ i.ID }}, '{{ i.STATUS }}', '{{ i.INTERVENTION_CODE }}')" title="Update Support Status">
+                                        <i class="fa-solid fa-pen-to-square"></i>
+                                    </button>
+                                    <form method="POST" action="{{ url_for('delete_intervention_route', id=i.ID) }}" style="display: inline;" onsubmit="return confirm('Delete academic support plan {{ i.INTERVENTION_CODE }}?');">
+                                        <button type="submit" class="btn-table-action" style="color: #e11d48;" title="Delete Plan">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="9" style="text-align: center; padding: 30px; color: var(--text-muted);">
+                                    No academic support plans recorded yet. Click "Flag Student for Support" to create one.
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<!-- =========================================================================== -->
+<!-- MODAL: FLAG STUDENT FOR SUPPORT & CREATE ACTION PLAN                        -->
+<!-- =========================================================================== -->
+<div class="modal-overlay" id="flagStudentModal">
+    <div class="modal-card" style="max-width: 600px;">
+        <div class="modal-header">
+            <h4 class="modal-title"><i class="fa-solid fa-user-plus" style="color: #e11d48;"></i> Create Academic Support Plan</h4>
+            <button type="button" class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('add_intervention_route') }}">
+            <div class="modal-body" style="padding: 20px;">
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label class="form-label">Select Student *</label>
+                    <select name="roll_number" class="form-control" required>
+                        <option value="">-- Choose Student --</option>
+                        {% for st in students %}
+                            <option value="{{ st.ROLL_NUMBER }}">{{ st.NAME }} (Roll #{{ st.ROLL_NUMBER }} - {{ st.CLASS }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                    <div class="form-group">
+                        <label class="form-label">Risk Level Tier *</label>
+                        <select name="risk_level" class="form-control" required>
+                            <option value="Critical">Critical (Immediate Remediation)</option>
+                            <option value="Moderate" selected>Moderate (Targeted Support)</option>
+                            <option value="Watchlist">Watchlist (Borderline Passing)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Assigned Faculty Mentor *</label>
+                        <select name="assigned_mentor" class="form-control" required>
+                            <option value="">-- Choose Mentor --</option>
+                            {% for tc in teachers %}
+                                <option value="{{ tc.NAME }}">{{ tc.NAME }} ({{ tc.SUBJECT }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label class="form-label">Remedial Strategy *</label>
+                    <input type="text" name="remedial_strategy" class="form-control" placeholder="e.g. 1-on-1 problem clinics, peer tutoring, remedial worksheets" required>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label class="form-label">Action Plan & Schedule Details</label>
+                    <textarea name="action_plan" class="form-control" rows="3" placeholder="Outline specific learning interventions, session timings, and expected review milestones..."></textarea>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 8px;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
+                        <input type="checkbox" name="parent_notified" value="Yes" checked style="width: 16px; height: 16px;">
+                        <span>Notify parents / guardians about this academic support plan</span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 16px 20px; display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" class="btn-cancel" data-modal-close>Cancel</button>
+                <button type="submit" class="btn-save" style="background: #e11d48;">Save Support Plan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- =========================================================================== -->
+<!-- MODAL: UPDATE INTERVENTION STATUS                                           -->
+<!-- =========================================================================== -->
+<div class="modal-overlay" id="updateInterventionModal">
+    <div class="modal-card" style="max-width: 500px;">
+        <div class="modal-header">
+            <h4 class="modal-title"><i class="fa-solid fa-pen-to-square"></i> Update Support Plan Status</h4>
+            <button type="button" class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <form id="updateInterventionForm" method="POST" action="">
+            <div class="modal-body" style="padding: 20px;">
+                <p id="updateModalCode" style="font-weight: 600; color: var(--primary); margin-bottom: 14px; font-size: 14px;"></p>
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label class="form-label">Progress Status *</label>
+                    <select name="status" id="updateStatusSelect" class="form-control" required>
+                        <option value="Open">Open</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Under Review">Under Review</option>
+                        <option value="Resolved">Resolved (Student Mastered Objectives)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Progress Notes / Review Remarks</label>
+                    <textarea name="notes" class="form-control" rows="3" placeholder="Add notes regarding student progress, quiz improvement, or mentor observations..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 16px 20px; display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" class="btn-cancel" data-modal-close>Cancel</button>
+                <button type="submit" class="btn-save">Update Plan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- =========================================================================== -->
+<!-- MODAL: STUDENT DETAILED MARKSHEET REPORT                                    -->
+<!-- =========================================================================== -->
+<div class="modal-overlay" id="studentReportModal">
+    <div class="modal-card" style="max-width: 650px;">
+        <div class="modal-header">
+            <h4 class="modal-title"><i class="fa-solid fa-graduation-cap" style="color: var(--primary);"></i> Student Academic Report Card</h4>
+            <button type="button" class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 20px;">
+            <div id="reportStudentHeader" style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-hover); padding: 12px 16px; border-radius: 8px; margin-bottom: 16px;">
+                <div>
+                    <h4 id="reportStudentName" style="margin: 0; font-size: 16px; font-weight: 700; color: var(--text-main);">--</h4>
+                    <span id="reportStudentMeta" style="font-size: 12px; color: var(--text-muted);">--</span>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Composite Average</div>
+                    <div id="reportStudentAvg" style="font-size: 20px; font-weight: 800; color: var(--primary);">--</div>
+                </div>
+            </div>
+
+            <div class="table-responsive" style="max-height: 320px; overflow-y: auto;">
+                <table class="data-table" style="font-size: 13px;">
+                    <thead>
+                        <tr>
+                            <th>Term / Examination</th>
+                            <th>Subject</th>
+                            <th style="text-align: center;">Score</th>
+                            <th style="text-align: center;">Max</th>
+                            <th style="text-align: center;">Percentage</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reportStudentTableBody">
+                        <tr><td colspan="5" style="text-align: center; padding: 20px;">Loading marks...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="modal-footer" style="padding: 14px 20px; display: flex; justify-content: flex-end;">
+            <button type="button" class="btn-cancel" data-modal-close>Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- =========================================================================== -->
+<!-- CHART.JS INTEGRATION SCRIPTS                                               -->
+<!-- =========================================================================== -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+    // 1. Tab 1: Multi-Term Line Chart
+    {% if tab == 'trends' %}
+    const trendsCtx = document.getElementById('multiTermTrendsChart');
+    if (trendsCtx) {
+        const termsLabels = {{ trends.terms | tojson }};
+        const schoolData = {{ trends.school_trends | tojson }};
+        const classData = {{ trends.class_trends | tojson }};
+
+        const datasets = [
+            {
+                label: 'School Overall Average',
+                data: schoolData,
+                borderColor: '#2563eb',
+                backgroundColor: 'rgba(37, 99, 235, 0.12)',
+                borderWidth: 3,
+                tension: 0.3,
+                fill: true,
+                pointRadius: 5,
+                pointHoverRadius: 7
+            }
+        ];
+
+        const palette = ['#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
+        let colorIdx = 0;
+        for (const [cName, cScores] of Object.entries(classData)) {
+            const rowData = termsLabels.map(t => cScores[t] || null);
+            const col = palette[colorIdx % palette.length];
+            datasets.push({
+                label: cName,
+                data: rowData,
+                borderColor: col,
+                backgroundColor: 'transparent',
+                borderWidth: 2,
+                borderDash: [5, 5],
+                tension: 0.3,
+                pointRadius: 4
+            });
+            colorIdx++;
+        }
+
+        new Chart(trendsCtx, {
+            type: 'line',
+            data: { labels: termsLabels, datasets: datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        min: 40,
+                        max: 100,
+                        ticks: { callback: v => v + '%' }
+                    }
+                },
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    }
+    {% endif %}
+
+    // 2. Tab 2: Subject Struggle Bar Chart
+    {% if tab == 'subjects' %}
+    const struggleCtx = document.getElementById('subjectStruggleChart');
+    if (struggleCtx) {
+        const subDiagnostics = {{ subject_diagnostics | tojson }};
+        const subLabels = subDiagnostics.map(s => s.subject);
+        const subAvgs = subDiagnostics.map(s => s.avg_marks);
+        const subFails = subDiagnostics.map(s => s.fail_pct);
+
+        new Chart(struggleCtx, {
+            type: 'bar',
+            data: {
+                labels: subLabels,
+                datasets: [
+                    {
+                        label: 'Average Score (%)',
+                        data: subAvgs,
+                        backgroundColor: '#3b82f6',
+                        borderRadius: 6
+                    },
+                    {
+                        label: 'Failure / Struggle Rate (%)',
+                        data: subFails,
+                        backgroundColor: '#e11d48',
+                        borderRadius: 6
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: { callback: v => v + '%' }
+                    }
+                },
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    }
+    {% endif %}
+
+    // 3. Tab 3: Class Benchmarks Bar Chart
+    {% if tab == 'classes' %}
+    const benchmarkCtx = document.getElementById('classBenchmarkChart');
+    if (benchmarkCtx) {
+        const classData = {{ class_benchmarks | tojson }};
+        const cLabels = classData.map(c => c.class_name);
+        const cAvgs = classData.map(c => c.class_avg);
+        const cPasses = classData.map(c => c.class_pass_pct);
+        const cDistinctions = classData.map(c => c.distinction_pct);
+
+        new Chart(benchmarkCtx, {
+            type: 'bar',
+            data: {
+                labels: cLabels,
+                datasets: [
+                    {
+                        label: 'Class Composite Average (%)',
+                        data: cAvgs,
+                        backgroundColor: '#2563eb',
+                        borderRadius: 6
+                    },
+                    {
+                        label: 'Pass Rate (%)',
+                        data: cPasses,
+                        backgroundColor: '#10b981',
+                        borderRadius: 6
+                    },
+                    {
+                        label: 'Distinction Rate (&ge;80%)',
+                        data: cDistinctions,
+                        backgroundColor: '#f59e0b',
+                        borderRadius: 6
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: { callback: v => v + '%' }
+                    }
+                },
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    }
+    {% endif %}
+
+});
+
+// Modal helpers
+function openUpdateStatusModal(id, currentStatus, code) {
+    const form = document.getElementById('updateInterventionForm');
+    form.action = `/performance-analytics/intervention/update-status/${id}`;
+    document.getElementById('updateModalCode').innerText = `Updating Plan: ${code}`;
+    document.getElementById('updateStatusSelect').value = currentStatus;
+    const modal = document.getElementById('updateInterventionModal');
+    if (modal) modal.classList.add('active');
+}
+
+function openStudentReport(roll) {
+    const modal = document.getElementById('studentReportModal');
+    if (modal) modal.classList.add('active');
+
+    const nameEl = document.getElementById('reportStudentName');
+    const metaEl = document.getElementById('reportStudentMeta');
+    const avgEl = document.getElementById('reportStudentAvg');
+    const tbody = document.getElementById('reportStudentTableBody');
+
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">Fetching report...</td></tr>';
+
+    fetch(`/performance-analytics/api/student-report/${roll}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #e11d48; padding: 20px;">${data.error}</td></tr>`;
+                return;
+            }
+            nameEl.innerText = data.name;
+            metaEl.innerText = `Roll #${data.roll} • ${data.class}`;
+            avgEl.innerText = `${data.overall_avg}%`;
+
+            if (data.evaluations && data.evaluations.length > 0) {
+                let html = '';
+                data.evaluations.forEach(ev => {
+                    const isFail = ev.percentage < 40;
+                    const pctCol = isFail ? '#e11d48' : (ev.percentage >= 80 ? '#10b981' : 'var(--text-main)');
+                    html += `
+                        <tr>
+                            <td><strong>${ev.EXAM_TYPE}</strong></td>
+                            <td>${ev.SUBJECT}</td>
+                            <td style="text-align: center; font-weight: 600;">${ev.MARKS_OBTAINED}</td>
+                            <td style="text-align: center; color: var(--text-muted);">${ev.MAX_MARKS}</td>
+                            <td style="text-align: center; font-weight: 700; color: ${pctCol};">${ev.percentage}%</td>
+                        </tr>
+                    `;
+                });
+                tbody.innerHTML = html;
+            } else {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--text-muted);">No evaluations recorded for this student.</td></tr>';
+            }
+        })
+        .catch(err => {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #e11d48; padding: 20px;">Error loading report: ${err}</td></tr>`;
+        });
+}
+
+// Modal closing setup
+document.querySelectorAll('[data-modal-close]').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const modal = this.closest('.modal-overlay');
+        if (modal) modal.classList.remove('active');
+    });
+});
+
+document.querySelectorAll('[data-modal-target]').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const target = document.querySelector(this.getAttribute('data-modal-target'));
+        if (target) target.classList.add('active');
+    });
+});
+</script>
+{% endblock %}

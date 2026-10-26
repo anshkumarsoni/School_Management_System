@@ -685,8 +685,6 @@ def dashboard():
 def students_view():
     search = request.args.get("search", "").strip()
     selected_class = request.args.get("class", "").strip()
-    min_age_raw = request.args.get("min_age", "").strip()
-    max_age_raw = request.args.get("max_age", "").strip()
     page = int(request.args.get("page", 1))
     per_page = 10
 
@@ -714,13 +712,7 @@ def students_view():
         base_query += " AND CLASS = %s"
         params.append(selected_class)
 
-    if min_age_raw.isdigit():
-        base_query += " AND AGE >= %s"
-        params.append(int(min_age_raw))
 
-    if max_age_raw.isdigit():
-        base_query += " AND AGE <= %s"
-        params.append(int(max_age_raw))
 
     # Count total matching rows for pagination
     cur.execute(f"SELECT COUNT(*) AS total {base_query}", tuple(params))
@@ -796,8 +788,6 @@ def students_view():
         student_att_counts=student_att_counts,
         search=search,
         selected_class=selected_class,
-        min_age=min_age_raw,
-        max_age=max_age_raw,
         page=page,
         total_pages=total_pages,
         total_records=total_records

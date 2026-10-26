@@ -21,14 +21,8 @@
                     </select>
                 </div>
 
-                <div style="display: flex; align-items: center; gap: 4px;">
-                    <input type="number" name="min_age" class="filter-input" style="width: 80px;" min="1" max="120" placeholder="Min Age" value="{{ min_age or '' }}">
-                    <span style="color: var(--text-muted); font-size: 12px;">to</span>
-                    <input type="number" name="max_age" class="filter-input" style="width: 80px;" min="1" max="120" placeholder="Max Age" value="{{ max_age or '' }}">
-                </div>
-
                 <button type="submit" class="btn-filter"><i class="fa-solid fa-filter"></i> Filter</button>
-                {% if search or selected_class or min_age or max_age %}
+                {% if search or selected_class %}
                     <a href="{{ url_for('students_view') }}" class="btn-clear"><i class="fa-solid fa-rotate-left"></i> Reset</a>
                 {% endif %}
             </form>
@@ -305,7 +299,7 @@
                             <td colspan="{{ '10' if current_role in ('super_admin', 'admin') else '9' }}" class="empty-table-cell">
                                 <i class="fa-solid fa-inbox"></i>
                                 <p>No matching student records found.</p>
-                                {% if search or selected_class or min_age or max_age %}
+                                {% if search or selected_class %}
                                     <a href="{{ url_for('students_view') }}" class="btn-clear" style="margin-top: 8px; display: inline-block;">Clear all search filters</a>
                                 {% endif %}
                             </td>
@@ -323,14 +317,14 @@
             </span>
             <div class="pagination-links">
                 {% if page > 1 %}
-                    <a href="{{ url_for('students_view', page=page-1, search=search, class=selected_class, min_age=min_age, max_age=max_age) }}" class="page-btn">
+                    <a href="{{ url_for('students_view', page=page-1, search=search, class=selected_class) }}" class="page-btn">
                         <i class="fa-solid fa-angle-left"></i> Prev
                     </a>
                 {% endif %}
 
                 {% for p in range(1, total_pages + 1) %}
                     {% if p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
-                        <a href="{{ url_for('students_view', page=p, search=search, class=selected_class, min_age=min_age, max_age=max_age) }}" 
+                        <a href="{{ url_for('students_view', page=p, search=search, class=selected_class) }}" 
                            class="page-btn {% if p == page %}active{% endif %}">
                             {{ p }}
                         </a>
@@ -340,7 +334,7 @@
                 {% endfor %}
 
                 {% if page < total_pages %}
-                    <a href="{{ url_for('students_view', page=page+1, search=search, class=selected_class, min_age=min_age, max_age=max_age) }}" class="page-btn">
+                    <a href="{{ url_for('students_view', page=page+1, search=search, class=selected_class) }}" class="page-btn">
                         Next <i class="fa-solid fa-angle-right"></i>
                     </a>
                 {% endif %}

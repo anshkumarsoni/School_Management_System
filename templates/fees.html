@@ -5,14 +5,21 @@
 
     <div class="page-toolbar">
         <div class="toolbar-left">
-            <h3 style="font-size: 18px; font-weight: 700; color: var(--text-primary);">Fees & Financial Ledger</h3>
-            <p style="font-size: 13px; color: var(--text-secondary);">Total Recorded Collections: <strong style="color: var(--accent-emerald);">₹{{ "{:,.2f}".format(total_rev or 0) }}</strong></p>
+            {% if current_role == 'viewer' %}
+                <h3 style="font-size: 18px; font-weight: 700; color: var(--text-primary);"><i class="fa-solid fa-receipt" style="color: #059669; margin-right: 6px;"></i> Student Fee Receipts & Payment Status</h3>
+                <p style="font-size: 13px; color: var(--text-secondary);">Verified tuition payment receipts and student fee clearing history</p>
+            {% else %}
+                <h3 style="font-size: 18px; font-weight: 700; color: var(--text-primary);">Fees & Financial Ledger</h3>
+                <p style="font-size: 13px; color: var(--text-secondary);">Total Recorded Collections: <strong style="color: var(--accent-emerald);">₹{{ "{:,.2f}".format(total_rev or 0) }}</strong></p>
+            {% endif %}
         </div>
         <div class="toolbar-right">
-            {% if current_role in ('super_admin', 'admin') %}
+            {% if current_role == 'super_admin' %}
                 <button type="button" class="btn-toolbar-add" data-modal-target="#addFeeModal" style="background: linear-gradient(135deg, #059669 0%, #047857 100%);">
                     <i class="fa-solid fa-plus-circle"></i> Record Payment
                 </button>
+            {% elif current_role == 'viewer' %}
+                <span class="role-pill role-viewer" style="font-size: 12px; padding: 6px 14px;"><i class="fa-solid fa-shield-check"></i> Verified Receipts Only</span>
             {% endif %}
         </div>
     </div>
@@ -25,8 +32,8 @@
                     <i class="fa-solid fa-wallet"></i>
                 </div>
                 <div>
-                    <h4 class="card-heading">Recent Fee Transactions</h4>
-                    <p class="card-subheading">Showing latest {{ transactions|length }} verified payment receipts</p>
+                    <h4 class="card-heading">{% if current_role == 'viewer' %}Verified Student Receipts{% else %}Recent Fee Transactions{% endif %}</h4>
+                    <p class="card-subheading">Showing latest {{ transactions|length }} verified payment receipt(s)</p>
                 </div>
             </div>
             <span class="chart-tag"><i class="fa-solid fa-shield-halved"></i> Financial Ledger</span>
@@ -71,6 +78,7 @@
         </div>
     </div>
 
+    {% if current_role == 'super_admin' %}
     <!-- Record Fee Modal -->
     <div class="modal-overlay" id="addFeeModal">
         <div class="modal-dialog">
@@ -119,6 +127,7 @@
             </form>
         </div>
     </div>
+    {% endif %}
 
 </div>
 {% endblock %}

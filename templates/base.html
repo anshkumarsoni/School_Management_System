@@ -56,12 +56,14 @@
                             <span class="nav-badge">Live</span>
                         </a>
                     </li>
+                    {% if session.get('role') in ('super_admin', 'admin') %}
                     <li class="nav-item">
                         <a href="{{ url_for('parents_view') }}" class="nav-link {% if active_page == 'parents' %}active{% endif %}">
                             <i class="fa-solid fa-people-roof"></i>
                             <span class="link-text">Parent Details</span>
                         </a>
                     </li>
+                    {% endif %}
                     <li class="nav-item">
                         <a href="{{ url_for('teachers_view') }}" class="nav-link {% if active_page == 'teachers' %}active{% endif %}">
                             <i class="fa-solid fa-chalkboard-user"></i>
@@ -80,12 +82,22 @@
                             <span class="link-text">Attendance</span>
                         </a>
                     </li>
+                    {% if session.get('role') == 'super_admin' %}
                     <li class="nav-item">
                         <a href="{{ url_for('fees_view') }}" class="nav-link {% if active_page == 'fees' %}active{% endif %}">
                             <i class="fa-solid fa-wallet"></i>
                             <span class="link-text">Fees & Finance</span>
                         </a>
                     </li>
+                    {% elif session.get('role') == 'viewer' %}
+                    <li class="nav-item">
+                        <a href="{{ url_for('fees_view') }}" class="nav-link {% if active_page == 'fees' %}active{% endif %}">
+                            <i class="fa-solid fa-receipt"></i>
+                            <span class="link-text">Fee Receipts & Dues</span>
+                            <span class="nav-badge" style="background: rgba(16, 185, 129, 0.12); color: #059669;">Receipts</span>
+                        </a>
+                    </li>
+                    {% endif %}
                     <li class="nav-item">
                         <a href="{{ url_for('exams_view') }}" class="nav-link {% if active_page == 'exams' %}active{% endif %}">
                             <i class="fa-solid fa-award"></i>

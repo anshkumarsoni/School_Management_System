@@ -313,13 +313,77 @@ def login():
 
     # First-run scenario: No users exist yet
     first_run = (total_users == 0)
+    active_tab = request.args.get("tab", "signin").lower()
 
     if request.method == "POST":
+        auth_mode = request.form.get("auth_mode", "signin").lower()
+
+        # Branch A: Account Self-Registration (Sign Up)
+        if auth_mode == "signup":
+            username = request.form.get("username", "").strip()
+            password = request.form.get("password", "").strip()
+            confirm_password = request.form.get("confirm_password", "").strip()
+            role_input = request.form.get("role", "").strip()
+
+            if not username or not password or not confirm_password:
+                flash("Please fill in all registration fields.", "warning")
+                cur.close()
+                con.close()
+                return render_template("login.html", first_run=False, active_tab="signup")
+
+            if password != confirm_password:
+                flash("Passwords do not match. Please verify and try again.", "danger")
+                cur.close()
+                con.close()
+                return render_template("login.html", first_run=False, active_tab="signup", reg_username=username)
+
+            is_valid, err_msg = validate_password_strength(password)
+            if not is_valid:
+                flash(err_msg, "danger")
+                cur.close()
+                con.close()
+                return render_template("login.html", first_run=False, active_tab="signup", reg_username=username)
+
+            canonical_role = ROLE_ALIASES.get(role_input.lower(), role_input.lower())
+            if canonical_role not in ("admin", "viewer"):
+                flash("Self-registration is only permitted for Teachers and Parents & Students. Principal accounts are provisioned internally.", "danger")
+                cur.close()
+                con.close()
+                return render_template("login.html", first_run=False, active_tab="signup", reg_username=username)
+
+            cur.execute("SELECT 1 FROM users WHERE USERNAME = %s", (username,))
+            if cur.fetchone():
+                flash(f"Username '{username}' is already taken. Please sign in or choose another username.", "warning")
+                cur.close()
+                con.close()
+                return render_template("login.html", first_run=False, active_tab="signup", reg_username=username)
+
+            hashed = hash_password(password)
+            try:
+                cur.execute(
+                    "INSERT INTO users (USERNAME, PASSWORD, ROLE) VALUES (%s, %s, %s)",
+                    (username, hashed, canonical_role)
+                )
+                con.commit()
+                display_role = get_role_display(canonical_role)
+                log_history(username, f"Self-registered account as {display_role}")
+                session["username"] = username
+                session["role"] = canonical_role
+                flash(f"Welcome to EduPulse, {username}! Your {display_role} account has been registered successfully.", "success")
+                cur.close()
+                con.close()
+                return redirect(url_for("dashboard"))
+            except Error as e:
+                flash(f"Registration Error: {e}", "danger")
+                cur.close()
+                con.close()
+                return render_template("login.html", first_run=False, active_tab="signup", reg_username=username)
+
+        # Branch B: Initial Principal Setup (First Run)
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "").strip()
 
         if first_run:
-            # Register initial Super Admin account
             if not username or not password:
                 flash("Username and Password cannot be empty.", "warning")
                 cur.close()
@@ -353,14 +417,14 @@ def login():
                 con.close()
                 return render_template("login.html", first_run=True)
 
-        # Standard Login Flow
+        # Branch C: Standard Login Flow
         selected_role = request.form.get("role", "").strip()
 
         if not username or not password:
             flash("Please enter both username and password.", "warning")
             cur.close()
             con.close()
-            return render_template("login.html", first_run=False)
+            return render_template("login.html", first_run=False, active_tab="signin")
 
         cur.execute("SELECT USERNAME, PASSWORD, ROLE FROM users WHERE USERNAME = %s", (username,))
         user_row = cur.fetchone()
@@ -368,20 +432,19 @@ def login():
         con.close()
 
         if not user_row:
-            flash("Invalid username or password.", "danger")
-            return render_template("login.html", first_run=False)
+            flash("Invalid username or password. If you are new, click 'Create Account' below to register.", "danger")
+            return render_template("login.html", first_run=False, active_tab="signin")
 
         stored_hash = user_row["PASSWORD"]
         user_role = user_row["ROLE"]
 
-        # Support role aliases (e.g. principal -> super_admin, teacher -> admin, student/parent -> viewer)
         if selected_role:
             canonical_selected = ROLE_ALIASES.get(selected_role.lower(), selected_role)
             if canonical_selected != user_role:
                 expected_label = get_role_display(user_role)
                 selected_label = get_role_display(canonical_selected)
-                flash(f"Access Denied: Account belongs to '{expected_label}', not '{selected_label}'.", "danger")
-                return render_template("login.html", first_run=False)
+                flash(f"Access Denied: Account '{username}' belongs to '{expected_label}', not '{selected_label}'.", "danger")
+                return render_template("login.html", first_run=False, active_tab="signin")
 
         if check_password(password, stored_hash):
             session["username"] = user_row["USERNAME"]
@@ -393,12 +456,21 @@ def login():
             next_url = request.args.get("next")
             return redirect(next_url or url_for("dashboard"))
         else:
-            flash("Invalid username or password.", "danger")
-            return render_template("login.html", first_run=False)
+            flash("Invalid username or password. Please check your credentials.", "danger")
+            return render_template("login.html", first_run=False, active_tab="signin")
 
     cur.close()
     con.close()
-    return render_template("login.html", first_run=first_run)
+    return render_template("login.html", first_run=first_run, active_tab=active_tab)
+
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if "username" in session and "role" in session:
+        return redirect(url_for("dashboard"))
+    if request.method == "POST":
+        return login()
+    return redirect(url_for("login", tab="signup"))
 
 
 @app.route("/logout")
@@ -499,6 +571,12 @@ def dashboard():
     cur.execute("SELECT IFNULL(SUM(TOTAL_COPIES), 0) AS total FROM Books_Details")
     total_books = int(cur.fetchone()["total"] or 0)
 
+    try:
+        cur.execute("SELECT COUNT(*) AS total FROM Assignments")
+        total_assignments = int(cur.fetchone()["total"] or 0)
+    except Exception:
+        total_assignments = 0
+
     # 2. Real recent activity from history table
     cur.execute("SELECT USERNAME, ACTIONS, LOG_TIME FROM history ORDER BY ID DESC LIMIT 8")
     recent_activity = cur.fetchall()
@@ -585,6 +663,7 @@ def dashboard():
         total_users=total_users,
         total_fees=total_fees,
         total_books=total_books,
+        total_assignments=total_assignments,
         recent_activity=recent_activity,
         recent_students=recent_students,
         all_todays_bdays=all_todays_bdays,
@@ -932,7 +1011,7 @@ def delete_student_route(id):
 # -------------------------------------------------------------------------
 
 @app.route("/parents")
-@login_required
+@role_required(["super_admin", "admin"])
 def parents_view():
     search = request.args.get("search", "").strip()
     page = int(request.args.get("page", 1))
@@ -1878,28 +1957,70 @@ def add_attendance_route():
 
 
 @app.route("/fees")
-@login_required
+@role_required(["super_admin", "viewer"])
 def fees_view():
     con = get_connection()
     transactions = []
     total_rev = 0.0
+    role = session.get("role", "")
+    search = request.args.get("search", "").strip()
+
     if con:
         cur = con.cursor(dictionary=True)
-        cur.execute("""
-            SELECT f.*, s.NAME, s.CLASS 
-            FROM Fee_Transactions f
-            LEFT JOIN Students_Details s ON f.ROLL_NUMBER = s.ROLL_NUMBER
-            ORDER BY f.PAYMENT_DATE DESC
-            LIMIT 50
-        """)
-        transactions = cur.fetchall()
-
-        cur.execute("SELECT IFNULL(SUM(AMOUNT_PAID), 0) AS total FROM Fee_Transactions")
-        total_rev = float(cur.fetchone()["total"] or 0)
+        if role == "viewer":
+            # Viewer gets student-specific verified receipts; total revenue is hidden for privacy
+            if search:
+                cur.execute("""
+                    SELECT f.*, s.NAME, s.CLASS 
+                    FROM Fee_Transactions f
+                    LEFT JOIN Students_Details s ON f.ROLL_NUMBER = s.ROLL_NUMBER
+                    WHERE f.ROLL_NUMBER = %s OR s.NAME LIKE %s
+                    ORDER BY f.PAYMENT_DATE DESC
+                """, (search, f"%{search}%"))
+            else:
+                cur.execute("""
+                    SELECT f.*, s.NAME, s.CLASS 
+                    FROM Fee_Transactions f
+                    LEFT JOIN Students_Details s ON f.ROLL_NUMBER = s.ROLL_NUMBER
+                    ORDER BY f.PAYMENT_DATE DESC
+                    LIMIT 25
+                """)
+            transactions = cur.fetchall()
+            total_rev = None
+        else:
+            # Super admin (Principal) gets full institutional ledger
+            if search:
+                cur.execute("""
+                    SELECT f.*, s.NAME, s.CLASS 
+                    FROM Fee_Transactions f
+                    LEFT JOIN Students_Details s ON f.ROLL_NUMBER = s.ROLL_NUMBER
+                    WHERE f.ROLL_NUMBER = %s OR s.NAME LIKE %s OR f.REMARKS LIKE %s
+                    ORDER BY f.PAYMENT_DATE DESC
+                """, (search, f"%{search}%", f"%{search}%"))
+            else:
+                cur.execute("""
+                    SELECT f.*, s.NAME, s.CLASS 
+                    FROM Fee_Transactions f
+                    LEFT JOIN Students_Details s ON f.ROLL_NUMBER = s.ROLL_NUMBER
+                    ORDER BY f.PAYMENT_DATE DESC
+                    LIMIT 50
+                """)
+            transactions = cur.fetchall()
+            cur.execute("SELECT IFNULL(SUM(AMOUNT_PAID), 0) AS total FROM Fee_Transactions")
+            total_rev = float(cur.fetchone()["total"] or 0)
 
         cur.close()
         con.close()
-    return render_template("fees.html", active_page="fees", title="Fees & Finance", transactions=transactions, total_rev=total_rev)
+
+    page_title = "Fees & Finance" if role == "super_admin" else "Fee Receipts & Dues"
+    return render_template(
+        "fees.html",
+        active_page="fees",
+        title=page_title,
+        transactions=transactions,
+        total_rev=total_rev,
+        search=search
+    )
 
 
 @app.route("/exams")
@@ -2448,7 +2569,7 @@ def cancel_reservation_route(id):
 
 
 @app.route("/fees/add", methods=["POST"], endpoint="add_fee")
-@role_required(["super_admin", "admin"])
+@role_required(["super_admin"])
 def add_fee_route():
     roll_number = request.form.get("roll_number", "").strip()
     amount_raw = request.form.get("amount", "0").strip()

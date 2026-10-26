@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>{{ 'Initial Setup' if first_run else 'Sign In' }} | EduPulse School Management</title>
+    <title>{{ 'Initial Setup' if first_run else ('Create Account' if active_tab == 'signup' else 'Sign In') }} | EduPulse School Management</title>
 
     <!-- Google Fonts: Plus Jakarta Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,10 +16,47 @@
     <!-- Application CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
-        .role-selector-group {
+        .auth-nav-tabs {
+            display: flex;
+            background: #f1f5f9;
+            padding: 4px;
+            border-radius: 10px;
+            margin-bottom: 18px;
+            gap: 4px;
+            border: 1px solid var(--border-color);
+        }
+        .auth-tab-btn {
+            flex: 1;
+            padding: 9px 12px;
+            border: none;
+            background: transparent;
+            border-radius: 7px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .auth-tab-btn.active {
+            background: #ffffff;
+            color: var(--navy-800);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            font-weight: 700;
+        }
+        .auth-tab-btn:hover:not(.active) {
+            color: var(--navy-700);
+        }
+        .auth-section {
+            display: none;
+        }
+        .auth-section.active {
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 14px;
         }
         .password-field-wrapper {
             position: relative;
@@ -84,10 +121,68 @@
         .policy-item.valid i {
             color: #10b981;
         }
+        .quick-login-card {
+            margin-top: 18px;
+            padding: 12px 14px;
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 11.5px;
+        }
+        .quick-login-title {
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 10px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .quick-pills {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .quick-pill {
+            padding: 5px 9px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            color: var(--navy-700);
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .quick-pill:hover {
+            background: var(--navy-700);
+            color: #ffffff;
+            border-color: var(--navy-700);
+        }
+        .auth-switch-link {
+            text-align: center;
+            font-size: 12.5px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        .auth-switch-link a {
+            color: var(--primary);
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .auth-switch-link a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body class="login-body">
-    <div class="login-card">
+    <div class="login-card" style="max-width: 440px;">
         <!-- Header -->
         <div class="login-header">
             <div class="login-logo">
@@ -109,11 +204,11 @@
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
                     {% for category, message in messages %}
-                        <div class="alert alert-{{ category }}" style="margin-bottom: 4px;">
+                        <div class="alert alert-{{ category }}" style="margin-bottom: 12px;">
                             <div class="alert-content">
                                 {% if category == 'success' %}
                                     <i class="fa-solid fa-circle-check"></i>
-                                厚 elif category == 'danger' %}
+                                {% elif category == 'danger' %}
                                     <i class="fa-solid fa-triangle-exclamation"></i>
                                 {% elif category == 'warning' %}
                                     <i class="fa-solid fa-circle-exclamation"></i>
@@ -132,30 +227,27 @@
                     <i class="fa-solid fa-shield-halved" style="color: #d97706;"></i>
                     First-Time Setup Required
                 </div>
-                <p style="font-size: 12px; color: var(--text-secondary); line-height: 1.45; margin-bottom: 2px;">
+                <p style="font-size: 12px; color: var(--text-secondary); line-height: 1.45; margin-bottom: 12px;">
                     Welcome! No user accounts were found in the database. Please create the initial <strong>Principal (Super Admin)</strong> account to access all features.
                 </p>
-            {% endif %}
 
-            <form action="{{ url_for('login') }}" method="POST" autocomplete="off" style="display: flex; flex-direction: column; gap: 14px;">
-                <div class="form-group">
-                    <label for="username"><i class="fa-regular fa-user" style="color: var(--navy-600); margin-right: 4px;"></i> Username <span class="required">*</span></label>
-                    <div style="position: relative;">
-                        <input type="text" id="username" name="username" required placeholder="e.g. admin" autofocus autocomplete="username">
+                <form action="{{ url_for('login') }}" method="POST" autocomplete="off" style="display: flex; flex-direction: column; gap: 14px;">
+                    <input type="hidden" name="auth_mode" value="signin">
+                    <div class="form-group">
+                        <label for="username"><i class="fa-regular fa-user" style="color: var(--navy-600); margin-right: 4px;"></i> Username <span class="required">*</span></label>
+                        <input type="text" id="username" name="username" required placeholder="e.g. principal_office" autofocus>
                     </div>
-                </div>
 
-                <div class="form-group">
-                    <label for="password"><i class="fa-solid fa-key" style="color: var(--navy-600); margin-right: 4px;"></i> Password <span class="required">*</span></label>
-                    <div class="password-field-wrapper">
-                        <input type="password" id="password" name="password" required placeholder="Enter password..." autocomplete="current-password" oninput="checkPasswordRequirements(this.value)">
-                        <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('password', this)" title="Show/Hide Password" aria-label="Toggle Password">
-                            <i class="fa-solid fa-eye"></i>
-                        </button>
+                    <div class="form-group">
+                        <label for="password"><i class="fa-solid fa-key" style="color: var(--navy-600); margin-right: 4px;"></i> Password <span class="required">*</span></label>
+                        <div class="password-field-wrapper">
+                            <input type="password" id="password" name="password" required placeholder="Enter strong password..." oninput="checkPasswordRequirements(this.value, 'reqLen', 'reqUpper', 'reqDigit')">
+                            <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('password', this)">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
                     </div>
-                </div>
 
-                {% if first_run %}
                     <div class="policy-checklist">
                         <div style="font-weight: 700; color: var(--navy-900); margin-bottom: 2px;">
                             <i class="fa-solid fa-shield-check" style="color: var(--navy-700);"></i> Password Requirements:
@@ -173,39 +265,190 @@
                             <span>At least 1 numeric digit (0-9)</span>
                         </div>
                     </div>
-                {% else %}
-                    <div class="form-group role-selector-group">
-                        <label for="role"><i class="fa-solid fa-user-tag" style="color: var(--navy-600); margin-right: 4px;"></i> Role Verification (Optional)</label>
-                        <select id="role" name="role">
-                            <option value="">Any Authorized Account</option>
-                            <option value="super_admin">Principal (Super Admin)</option>
-                            <option value="admin">Teacher (Faculty Admin)</option>
-                            <option value="viewer">Parents & Students (Viewer)</option>
-                        </select>
-                    </div>
-                {% endif %}
 
-                <button type="submit" class="btn-login">
-                    {% if first_run %}
+                    <button type="submit" class="btn-login">
                         <i class="fa-solid fa-user-shield"></i> Initialize Principal Account
-                    {% else %}
-                        <i class="fa-solid fa-right-to-bracket"></i> Sign In to Portal
-                    {% endif %}
-                </button>
-            </form>
+                    </button>
+                </form>
+
+            {% else %}
+                <!-- Tabs: Sign In vs Create Account -->
+                <div class="auth-nav-tabs">
+                    <button type="button" class="auth-tab-btn {% if active_tab != 'signup' %}active{% endif %}" id="btnTabSignIn" onclick="switchAuthTab('signin')">
+                        <i class="fa-solid fa-right-to-bracket"></i> Sign In
+                    </button>
+                    <button type="button" class="auth-tab-btn {% if active_tab == 'signup' %}active{% endif %}" id="btnTabSignUp" onclick="switchAuthTab('signup')">
+                        <i class="fa-solid fa-user-plus"></i> Create Account
+                    </button>
+                </div>
+
+                <!-- SECTION 1: SIGN IN FORM -->
+                <div class="auth-section {% if active_tab != 'signup' %}active{% endif %}" id="sectionSignIn">
+                    <form action="{{ url_for('login') }}" method="POST" autocomplete="off" style="display: flex; flex-direction: column; gap: 14px;">
+                        <input type="hidden" name="auth_mode" value="signin">
+
+                        <div class="form-group">
+                            <label for="login_username"><i class="fa-regular fa-user" style="color: var(--navy-600); margin-right: 4px;"></i> Username <span class="required">*</span></label>
+                            <input type="text" id="login_username" name="username" required placeholder="Enter username..." autofocus autocomplete="username">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="login_password"><i class="fa-solid fa-key" style="color: var(--navy-600); margin-right: 4px;"></i> Password <span class="required">*</span></label>
+                            <div class="password-field-wrapper">
+                                <input type="password" id="login_password" name="password" required placeholder="Enter password..." autocomplete="current-password">
+                                <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('login_password', this)">
+                                    <i class="fa-solid fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="login_role"><i class="fa-solid fa-user-tag" style="color: var(--navy-600); margin-right: 4px;"></i> Role Verification (Optional)</label>
+                            <select id="login_role" name="role">
+                                <option value="">Any Authorized Account</option>
+                                <option value="super_admin">Principal (Super Admin)</option>
+                                <option value="admin">Teacher (Faculty Admin)</option>
+                                <option value="viewer">Parents & Students (Viewer)</option>
+                            </select>
+                        </div>
+
+                        <button type="submit" class="btn-login">
+                            <i class="fa-solid fa-right-to-bracket"></i> Sign In to Portal
+                        </button>
+
+                        <div class="auth-switch-link">
+                            New to EduPulse? <a onclick="switchAuthTab('signup')">Create an Account</a>
+                        </div>
+                    </form>
+
+                    <!-- Quick Demo Credentials for Effortless Testing -->
+                    <div class="quick-login-card">
+                        <div class="quick-login-title">
+                            <span><i class="fa-solid fa-bolt" style="color: #f59e0b;"></i> Quick Demo Logins</span>
+                            <span style="font-weight: 500; font-size: 10px; color: var(--text-muted);">1-Click Auto Fill</span>
+                        </div>
+                        <div class="quick-pills">
+                            <button type="button" class="quick-pill" onclick="autoFillLogin('ansh#123', 'ansh2005', 'super_admin')">
+                                <i class="fa-solid fa-crown" style="color: #f59e0b;"></i> Principal
+                            </button>
+                            <button type="button" class="quick-pill" onclick="autoFillLogin('teacher_rajesh', 'Teacher@123', 'admin')">
+                                <i class="fa-solid fa-chalkboard-user" style="color: #2563eb;"></i> Teacher
+                            </button>
+                            <button type="button" class="quick-pill" onclick="autoFillLogin('student_aarav', 'Student@123', 'viewer')">
+                                <i class="fa-solid fa-user-graduate" style="color: #10b981;"></i> Student/Parent
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 2: CREATE ACCOUNT / SIGN UP FORM -->
+                <div class="auth-section {% if active_tab == 'signup' %}active{% endif %}" id="sectionSignUp">
+                    <form action="{{ url_for('login') }}" method="POST" autocomplete="off" style="display: flex; flex-direction: column; gap: 14px;">
+                        <input type="hidden" name="auth_mode" value="signup">
+
+                        <div class="form-group">
+                            <label for="reg_username"><i class="fa-regular fa-user" style="color: var(--navy-600); margin-right: 4px;"></i> Choose Username <span class="required">*</span></label>
+                            <input type="text" id="reg_username" name="username" value="{{ reg_username or '' }}" required placeholder="e.g. teacher_priya, parent_mehta" autocomplete="username">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="reg_role"><i class="fa-solid fa-id-badge" style="color: var(--navy-600); margin-right: 4px;"></i> I am a: <span class="required">*</span></label>
+                            <select id="reg_role" name="role" required>
+                                <option value="admin">Teacher (Faculty Admin)</option>
+                                <option value="viewer" selected>Parent & Student (Viewer)</option>
+                            </select>
+                            <span style="font-size: 11px; color: var(--text-muted); margin-top: 3px;">
+                                * Principal accounts are restricted and provisioned internally by administration.
+                            </span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="reg_password"><i class="fa-solid fa-lock" style="color: var(--navy-600); margin-right: 4px;"></i> Create Password <span class="required">*</span></label>
+                            <div class="password-field-wrapper">
+                                <input type="password" id="reg_password" name="password" required placeholder="Minimum 8 characters..." oninput="checkPasswordRequirements(this.value, 'regReqLen', 'regReqUpper', 'regReqDigit'); checkPasswordMatch();">
+                                <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('reg_password', this)">
+                                    <i class="fa-solid fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Live Password Requirements Checklist -->
+                        <div class="policy-checklist">
+                            <div style="font-weight: 700; color: var(--navy-900); margin-bottom: 2px;">
+                                <i class="fa-solid fa-shield-check" style="color: var(--navy-700);"></i> Password Requirements:
+                            </div>
+                            <div class="policy-item" id="regReqLen">
+                                <i class="fa-regular fa-circle"></i>
+                                <span>At least 8 characters</span>
+                            </div>
+                            <div class="policy-item" id="regReqUpper">
+                                <i class="fa-regular fa-circle"></i>
+                                <span>At least 1 uppercase letter (A-Z)</span>
+                            </div>
+                            <div class="policy-item" id="regReqDigit">
+                                <i class="fa-regular fa-circle"></i>
+                                <span>At least 1 numeric digit (0-9)</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="reg_confirm"><i class="fa-solid fa-check-double" style="color: var(--navy-600); margin-right: 4px;"></i> Confirm Password <span class="required">*</span></label>
+                            <div class="password-field-wrapper">
+                                <input type="password" id="reg_confirm" name="confirm_password" required placeholder="Re-enter password..." oninput="checkPasswordMatch()">
+                                <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('reg_confirm', this)">
+                                    <i class="fa-solid fa-eye"></i>
+                                </button>
+                            </div>
+                            <span id="matchNotice" style="font-size: 11px; margin-top: 3px; display: none;"></span>
+                        </div>
+
+                        <button type="submit" class="btn-login" style="background: linear-gradient(135deg, #2563eb, #1d4ed8);">
+                            <i class="fa-solid fa-user-plus"></i> Create Account & Sign In
+                        </button>
+
+                        <div class="auth-switch-link">
+                            Already have an account? <a onclick="switchAuthTab('signin')">Sign In</a>
+                        </div>
+                    </form>
+                </div>
+            {% endif %}
         </div>
 
         <!-- Footer -->
         <div class="login-footer">
-            <span><i class="fa-solid fa-database" style="color: var(--navy-600); margin-right: 4px;"></i> Connected to MySQL Database (Student)</span><br>
-            <span style="color: var(--text-muted); font-size: 11px;">EduPulse Academic Management System &bull; Secure Authentication</span>
+            <span><i class="fa-solid fa-database" style="color: var(--navy-600); margin-right: 4px;"></i> Connected to MySQL (Student & Aiven Cloud)</span><br>
+            <span style="color: var(--text-muted); font-size: 11px;">EduPulse Academic Management System &bull; Multi-Role Portal</span>
         </div>
     </div>
 
     <script>
+        function switchAuthTab(mode) {
+            const btnSignIn = document.getElementById('btnTabSignIn');
+            const btnSignUp = document.getElementById('btnTabSignUp');
+            const secSignIn = document.getElementById('sectionSignIn');
+            const secSignUp = document.getElementById('sectionSignUp');
+
+            if (!btnSignIn || !btnSignUp) return;
+
+            if (mode === 'signup') {
+                btnSignUp.classList.add('active');
+                btnSignIn.classList.remove('active');
+                secSignUp.classList.add('active');
+                secSignIn.classList.remove('active');
+                document.getElementById('reg_username')?.focus();
+            } else {
+                btnSignIn.classList.add('active');
+                btnSignUp.classList.remove('active');
+                secSignIn.classList.add('active');
+                secSignUp.classList.remove('active');
+                document.getElementById('login_username')?.focus();
+            }
+        }
+
         function togglePasswordVisibility(inputId, btn) {
             const input = document.getElementById(inputId);
             const icon = btn.querySelector('i');
+            if (!input) return;
             if (input.type === 'password') {
                 input.type = 'text';
                 icon.classList.remove('fa-eye');
@@ -217,10 +460,10 @@
             }
         }
 
-        function checkPasswordRequirements(val) {
-            const reqLen = document.getElementById('reqLen');
-            const reqUpper = document.getElementById('reqUpper');
-            const reqDigit = document.getElementById('reqDigit');
+        function checkPasswordRequirements(val, idLen, idUpper, idDigit) {
+            const reqLen = document.getElementById(idLen);
+            const reqUpper = document.getElementById(idUpper);
+            const reqDigit = document.getElementById(idDigit);
 
             if (!reqLen || !reqUpper || !reqDigit) return;
 
@@ -250,6 +493,45 @@
                 reqDigit.classList.remove('valid');
                 reqDigit.querySelector('i').className = 'fa-regular fa-circle';
             }
+        }
+
+        function checkPasswordMatch() {
+            const p1 = document.getElementById('reg_password')?.value || '';
+            const p2 = document.getElementById('reg_confirm')?.value || '';
+            const notice = document.getElementById('matchNotice');
+            if (!notice) return;
+
+            if (!p2) {
+                notice.style.display = 'none';
+                return;
+            }
+
+            notice.style.display = 'block';
+            if (p1 === p2) {
+                notice.style.color = '#059669';
+                notice.innerHTML = '<i class="fa-solid fa-check"></i> Passwords match perfectly.';
+            } else {
+                notice.style.color = '#e11d48';
+                notice.innerHTML = '<i class="fa-solid fa-xmark"></i> Passwords do not match.';
+            }
+        }
+
+        function autoFillLogin(uname, pwd, role) {
+            switchAuthTab('signin');
+            const uInput = document.getElementById('login_username');
+            const pInput = document.getElementById('login_password');
+            const rSelect = document.getElementById('login_role');
+
+            if (uInput) uInput.value = uname;
+            if (pInput) pInput.value = pwd;
+            if (rSelect) rSelect.value = role;
+
+            uInput?.classList.add('pulse-highlight');
+            pInput?.classList.add('pulse-highlight');
+            setTimeout(() => {
+                uInput?.classList.remove('pulse-highlight');
+                pInput?.classList.remove('pulse-highlight');
+            }, 600);
         }
     </script>
 </body>

@@ -19,7 +19,13 @@
                 <span class="role-pill role-{{ current_role }}" style="font-size: 11px; padding: 2px 10px; margin-left: 8px; vertical-align: middle;">{{ current_role | role_name }}</span>
             </h2>
             <p class="banner-desc">
-                Institutional dashboard overview: student records, teaching faculty, financial accounting, library catalog, and campus notices.
+                {% if current_role == 'viewer' %}
+                    Student & Parent portal: review report cards, submit homework, take online quizzes, track attendance, and check campus circulars.
+                {% elif current_role == 'admin' %}
+                    Faculty academic portal: manage classes, evaluate coursework turn-ins, record attendance, and conduct student assessments.
+                {% else %}
+                    Institutional dashboard overview: student records, teaching faculty, financial accounting, library catalog, and campus notices.
+                {% endif %}
             </p>
         </div>
         <div class="quick-actions-bar">
@@ -30,17 +36,29 @@
                 <a href="{{ url_for('teachers_view') }}" class="action-pill secondary-pill">
                     <i class="fa-solid fa-chalkboard-user"></i> Faculty
                 </a>
-            {% else %}
-                <a href="{{ url_for('students_view') }}" class="action-pill primary-pill">
-                    <i class="fa-solid fa-users-viewfinder"></i> Students
+                {% if current_role == 'super_admin' %}
+                <a href="{{ url_for('fees_view') }}" class="action-pill secondary-pill">
+                    <i class="fa-solid fa-receipt"></i> Fees
                 </a>
-                <a href="{{ url_for('teachers_view') }}" class="action-pill secondary-pill">
-                    <i class="fa-solid fa-chalkboard-user"></i> Faculty
+                {% elif current_role == 'admin' %}
+                <a href="{{ url_for('coursework_view') }}" class="action-pill secondary-pill">
+                    <i class="fa-solid fa-graduation-cap"></i> Coursework
+                </a>
+                {% endif %}
+            {% else %}
+                <a href="{{ url_for('coursework_view') }}" class="action-pill primary-pill">
+                    <i class="fa-solid fa-graduation-cap"></i> Homework & LMS
+                </a>
+                <a href="{{ url_for('exams_view') }}" class="action-pill secondary-pill">
+                    <i class="fa-solid fa-award"></i> Exam Results
+                </a>
+                <a href="{{ url_for('calendar_ptm_view', tab='slots') }}" class="action-pill secondary-pill">
+                    <i class="fa-solid fa-calendar-check"></i> Book PTM
+                </a>
+                <a href="{{ url_for('fees_view') }}" class="action-pill secondary-pill">
+                    <i class="fa-solid fa-receipt"></i> Fee Receipts
                 </a>
             {% endif %}
-            <a href="{{ url_for('fees_view') }}" class="action-pill secondary-pill">
-                <i class="fa-solid fa-receipt"></i> Fees
-            </a>
         </div>
     </div>
 
@@ -110,6 +128,7 @@
             </div>
         </a>
 
+        {% if current_role == 'super_admin' %}
         <a href="{{ url_for('fees_view') }}" class="kpi-card card-emerald" style="text-decoration: none;">
             <div class="kpi-top">
                 <div class="kpi-icon-wrapper"><i class="fa-solid fa-indian-rupee-sign"></i></div>
@@ -123,6 +142,37 @@
                 <span class="kpi-subtext"><i class="fa-regular fa-credit-card"></i> Total verified receipts</span>
             </div>
         </a>
+        {% elif current_role in ('admin', 'viewer') %}
+        <a href="{{ url_for('coursework_view') }}" class="kpi-card card-emerald" style="text-decoration: none;">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper"><i class="fa-solid fa-book-open"></i></div>
+                <span class="kpi-pill pill-emerald"><i class="fa-solid fa-graduation-cap"></i> Academics</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Active Coursework</span>
+                <h3 class="kpi-value">{{ "{:,}".format(total_assignments or 0) }}</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext"><i class="fa-solid fa-pen-ruler"></i> Assignments & LMS curriculum</span>
+            </div>
+        </a>
+        {% endif %}
+
+        {% if current_role == 'viewer' %}
+        <a href="{{ url_for('fees_view') }}" class="kpi-card card-cyan" style="text-decoration: none; border-top: 3px solid #10b981;">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper" style="color: #059669; background: #ecfdf5;"><i class="fa-solid fa-receipt"></i></div>
+                <span class="kpi-pill pill-emerald"><i class="fa-solid fa-circle-check"></i> Status</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Fee Status</span>
+                <h3 class="kpi-value" style="font-size: 20px;">Receipts & Dues</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext"><i class="fa-regular fa-credit-card"></i> View student payment receipts</span>
+            </div>
+        </a>
+        {% endif %}
 
         {% if current_role == 'super_admin' %}
         <a href="{{ url_for('users_view') }}" class="kpi-card card-cyan" style="text-decoration: none; border-top: 3px solid #06b6d4;">
@@ -159,16 +209,6 @@
                 <span class="action-tile-label">Enroll Student</span>
                 <span class="action-tile-desc">New admission</span>
             </button>
-            {% else %}
-            <a href="{{ url_for('students_view') }}" class="quick-action-tile">
-                <div class="action-tile-icon tile-blue">
-                    <i class="fa-solid fa-users-viewfinder"></i>
-                </div>
-                <span class="action-tile-label">Students</span>
-                <span class="action-tile-desc">View directory</span>
-            </a>
-            {% endif %}
-
             <a href="{{ url_for('teachers_view') }}" class="quick-action-tile">
                 <div class="action-tile-icon tile-purple">
                     <i class="fa-solid fa-chalkboard-user"></i>
@@ -176,15 +216,32 @@
                 <span class="action-tile-label">Faculty Portal</span>
                 <span class="action-tile-desc">Manage teachers</span>
             </a>
+            {% else %}
+            <a href="{{ url_for('coursework_view', tab='assignments') }}" class="quick-action-tile">
+                <div class="action-tile-icon tile-blue">
+                    <i class="fa-solid fa-file-arrow-up"></i>
+                </div>
+                <span class="action-tile-label">Turn In Work</span>
+                <span class="action-tile-desc">Submit assignments</span>
+            </a>
+            <a href="{{ url_for('calendar_ptm_view', tab='slots') }}" class="quick-action-tile">
+                <div class="action-tile-icon tile-purple">
+                    <i class="fa-solid fa-handshake"></i>
+                </div>
+                <span class="action-tile-label">Book PTM</span>
+                <span class="action-tile-desc">Teacher 1-on-1 slots</span>
+            </a>
+            {% endif %}
 
             <a href="{{ url_for('library_view') }}" class="quick-action-tile">
                 <div class="action-tile-icon tile-amber">
                     <i class="fa-solid fa-book-open-reader"></i>
                 </div>
-                <span class="action-tile-label">Library Desk</span>
-                <span class="action-tile-desc">Issue & catalog</span>
+                <span class="action-tile-label">Library Catalog</span>
+                <span class="action-tile-desc">{% if current_role == 'viewer' %}Browse & reserve{% else %}Issue & catalog{% endif %}</span>
             </a>
 
+            {% if current_role == 'super_admin' %}
             <a href="{{ url_for('fees_view') }}" class="quick-action-tile">
                 <div class="action-tile-icon tile-emerald">
                     <i class="fa-solid fa-hand-holding-dollar"></i>
@@ -192,13 +249,30 @@
                 <span class="action-tile-label">Fee Collection</span>
                 <span class="action-tile-desc">Receipts & dues</span>
             </a>
+            {% elif current_role == 'admin' %}
+            <a href="{{ url_for('coursework_view') }}" class="quick-action-tile">
+                <div class="action-tile-icon tile-emerald">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                </div>
+                <span class="action-tile-label">Coursework & LMS</span>
+                <span class="action-tile-desc">Assignments & grading</span>
+            </a>
+            {% elif current_role == 'viewer' %}
+            <a href="{{ url_for('fees_view') }}" class="quick-action-tile">
+                <div class="action-tile-icon tile-emerald">
+                    <i class="fa-solid fa-receipt"></i>
+                </div>
+                <span class="action-tile-label">Fee Receipts</span>
+                <span class="action-tile-desc">Dues & payment receipts</span>
+            </a>
+            {% endif %}
 
             <a href="{{ url_for('attendance_view') }}" class="quick-action-tile">
                 <div class="action-tile-icon tile-sky">
                     <i class="fa-solid fa-calendar-check"></i>
                 </div>
                 <span class="action-tile-label">Attendance</span>
-                <span class="action-tile-desc">Daily register</span>
+                <span class="action-tile-desc">{% if current_role == 'viewer' %}Check percentage{% else %}Daily register{% endif %}</span>
             </a>
 
             <a href="{{ url_for('exams_view') }}" class="quick-action-tile">
@@ -206,7 +280,7 @@
                     <i class="fa-solid fa-award"></i>
                 </div>
                 <span class="action-tile-label">Examinations</span>
-                <span class="action-tile-desc">Marks & grades</span>
+                <span class="action-tile-desc">{% if current_role == 'viewer' %}Report card & marks{% else %}Marks & grades{% endif %}</span>
             </a>
         </div>
     </div>

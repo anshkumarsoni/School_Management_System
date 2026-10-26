@@ -20,10 +20,13 @@ from auth import (
     role_required
 )
 
+# Load environment variables from .env relative to this project file
+env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+load_dotenv(env_path)
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = os.getenv("FLASK_SECRET_KEY", "edupulse_academic_secret_998877")
+app.secret_key = os.getenv("FLASK_SECRET_KEY") or os.getenv("SECRET_KEY") or "edupulse_academic_secret_998877"
 
 # Role Display Names and Flexible Persona Mapping
 ROLE_DISPLAY = {
@@ -4510,6 +4513,36 @@ def student_report_api(roll):
         con.close()
 
 
+# =========================================================================
+# 9. AIVEN CLOUD MYSQL DATABASE SYNCHRONIZATION ROUTES
+# =========================================================================
+
+@app.route("/cloud-sync")
+@role_required(["super_admin"])
+def cloud_sync_view():
+    from Cloud_Backup_Sync_System import get_sync_overview
+    overview = get_sync_overview()
+    return render_template(
+        "cloud_sync.html",
+        active_page="cloud_sync",
+        title="Aiven Cloud Database Sync",
+        overview=overview
+    )
+
+
+@app.route("/cloud-sync/sync", methods=["POST"])
+@role_required(["super_admin"])
+def trigger_cloud_sync_route():
+    from Cloud_Backup_Sync_System import sync_local_to_aiven
+    success, result = sync_local_to_aiven()
+    if success:
+        flash(f"Aiven Cloud Sync Completed! {result['synced_tables']} tables and {result['total_rows']} records mirrored to Aiven Cloud successfully.", "success")
+        log_history(session.get("username", "Principal"), f"Triggered Aiven Cloud Sync: {result['synced_tables']} tables, {result['total_rows']} rows copied")
+    else:
+        flash(f"Aiven Cloud Sync Failed: {result}", "danger")
+    return redirect(url_for("cloud_sync_view"))
+
+
 # 7. BACKWARD COMPATIBILITY / TEMPLATE URL ALIASES
 # -------------------------------------------------------------------------
 app.add_url_rule("/students/add", endpoint="add_student", view_func=add_student_route, methods=["POST"])
@@ -4524,4 +4557,4 @@ app.add_url_rule("/change-password", endpoint="change_password", view_func=chang
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(debug=True, host= "0.0.0.0", port=5000)

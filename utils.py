@@ -5,11 +5,14 @@ from mysql.connector import Error
 from dotenv import load_dotenv
 
 # ---------------------------------- DATABASE CONFIG ----------------------------------
+# Load .env file reliably from project directory
+env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+load_dotenv(env_path)
 load_dotenv()
 
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_USER = os.getenv("DB_USER", "root")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "ansh2005")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 DB_NAME = os.getenv("DB_NAME", "Student")
 
 # ---------------------------------- SCREEN UTILITIES ---------------------------------

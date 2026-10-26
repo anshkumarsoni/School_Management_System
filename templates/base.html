@@ -131,6 +131,13 @@
                             <span class="nav-badge-purple">Principal</span>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a href="{{ url_for('cloud_sync_view') }}" class="nav-link {% if active_page == 'cloud_sync' %}active{% endif %}">
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                            <span class="link-text">Aiven Cloud Sync</span>
+                            <span class="nav-badge" style="background: rgba(2, 132, 199, 0.12); color: #0284c7;">Cloud</span>
+                        </a>
+                    </li>
                 </ul>
                 {% endif %}
 

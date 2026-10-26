@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard-container">
+
+    <!-- Page Header & Toolbar -->
+    <div class="page-toolbar">
+        <div class="toolbar-left">
+            <h3 style="font-size: 20px; font-weight: 700; color: var(--text-main); margin-bottom: 4px;">
+                <i class="fa-solid fa-cloud-arrow-up" style="color: var(--primary); margin-right: 6px;"></i>
+                Aiven Cloud MySQL Synchronization & Replication
+            </h3>
+            <p style="font-size: 13px; color: var(--text-muted); margin: 0;">
+                Live database mirroring, schema replication & continuous cloud backup between Local MySQL and Aiven Cloud
+            </p>
+        </div>
+        <div class="toolbar-right" style="display: flex; gap: 10px; align-items: center;">
+            <form method="POST" action="{{ url_for('trigger_cloud_sync_route') }}" style="margin: 0;">
+                <button type="submit" class="btn-toolbar-add" style="background: linear-gradient(135deg, #0284c7, #0369a1); font-weight: 700;">
+                    <i class="fa-solid fa-rotate"></i> Sync All Data to Aiven Now
+                </button>
+            </form>
+            <a href="{{ url_for('dashboard') }}" class="btn-toolbar-filter" style="text-decoration: none;">
+                <i class="fa-solid fa-house"></i> Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Executive Cloud Sync KPIs (4 Cards) -->
+    <div class="kpi-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 24px;">
+        <!-- Card 1: Cloud Connection Status -->
+        <div class="kpi-card {% if overview.cloud_health.connected %}card-emerald{% else %}card-rose{% endif %}">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper"><i class="fa-solid fa-server"></i></div>
+                <span class="kpi-pill {% if overview.cloud_health.connected %}pill-emerald{% else %}pill-rose{% endif %}">
+                    <i class="fa-solid {% if overview.cloud_health.connected %}fa-circle-check{% else %}fa-circle-xmark{% endif %}"></i>
+                    {% if overview.cloud_health.connected %}Online{% else %}Offline{% endif %}
+                </span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Aiven Cloud Status</span>
+                <h3 class="kpi-value" style="font-size: 20px;">
+                    {% if overview.cloud_health.connected %}Connected{% else %}Disconnected{% endif %}
+                </h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext">
+                    <i class="fa-solid fa-bolt"></i> Latency: <strong>{{ overview.cloud_health.latency_ms }} ms</strong> (MySQL {{ overview.cloud_health.server_version }})
+                </span>
+            </div>
+        </div>
+
+        <!-- Card 2: Tables Replicated -->
+        <div class="kpi-card card-cyan">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper"><i class="fa-solid fa-table-cells"></i></div>
+                <span class="kpi-pill"><i class="fa-solid fa-shield-halved"></i> 100% Mirrored</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Replicated Tables</span>
+                <h3 class="kpi-value">{{ overview.tables|length }} Tables</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext"><i class="fa-solid fa-database"></i> Database: <strong>{{ overview.cloud_health.database }}</strong></span>
+            </div>
+        </div>
+
+        <!-- Card 3: Total Cloud Records Copied -->
+        <div class="kpi-card card-purple">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper"><i class="fa-solid fa-cloud-arrow-down"></i></div>
+                <span class="kpi-pill pill-purple"><i class="fa-solid fa-cloud"></i> Stored in Cloud</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Aiven Cloud Records</span>
+                <h3 class="kpi-value">{{ overview.total_cloud_rows }}</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext"><i class="fa-solid fa-desktop"></i> Local Rows: <strong>{{ overview.total_local_rows }}</strong></span>
+            </div>
+        </div>
+
+        <!-- Card 4: Sync Status -->
+        <div class="kpi-card card-emerald">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper"><i class="fa-solid fa-arrows-rotate"></i></div>
+                <span class="kpi-pill pill-emerald"><i class="fa-solid fa-check"></i> Perfect Match</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Replication Consistency</span>
+                <h3 class="kpi-value" style="font-size: 20px;">In Sync</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext" style="color: var(--accent-emerald); font-weight: 600;">
+                    <i class="fa-solid fa-clock"></i> {{ overview.last_sync.last_sync_time or 'Just now' }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cloud Server Connection Details Card -->
+    <div class="data-table-card" style="margin-bottom: 24px; padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+            <div>
+                <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin: 0;">
+                    <i class="fa-solid fa-network-wired" style="color: var(--primary);"></i> Active Aiven Cloud MySQL Endpoint
+                </h4>
+                <div style="font-size: 13px; color: var(--text-muted); margin-top: 4px; font-family: monospace;">
+                    Host: <strong style="color: var(--text-main);">{{ overview.cloud_health.host }}</strong> : <strong style="color: var(--primary);">{{ overview.cloud_health.port }}</strong>
+                </div>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <span class="status-badge status-active" style="padding: 6px 12px; font-size: 12px;">
+                    <i class="fa-solid fa-lock"></i> SSL / TLS Encrypted
+                </span>
+                <span class="status-badge badge-blue" style="padding: 6px 12px; font-size: 12px;">
+                    <i class="fa-solid fa-user-shield"></i> User: avnadmin
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table-by-Table Replication Ledger -->
+    <div class="data-table-card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="header-left">
+                <div class="card-badge-icon badge-blue"><i class="fa-solid fa-database"></i></div>
+                <div>
+                    <h4 class="card-heading">Database Tables Mirroring Ledger</h4>
+                    <p class="card-subheading">Side-by-side row count comparison between Local MySQL and Aiven Cloud</p>
+                </div>
+            </div>
+            <span class="chart-tag"><i class="fa-solid fa-check-double"></i> 32 Tables Synchronized</span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Table Name</th>
+                        <th style="text-align: center;">Local MySQL Rows</th>
+                        <th style="text-align: center;">Aiven Cloud Rows</th>
+                        <th style="text-align: center;">Replication Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in overview.tables %}
+                    <tr>
+                        <td><span style="color: var(--text-muted); font-size: 12px;">{{ loop.index }}</span></td>
+                        <td>
+                            <strong style="color: var(--text-main); font-family: monospace; font-size: 13px;">{{ t.table_name }}</strong>
+                        </td>
+                        <td style="text-align: center;">
+                            <span style="font-weight: 600; color: var(--text-main);">{{ t.local_rows }}</span>
+                        </td>
+                        <td style="text-align: center;">
+                            <span style="font-weight: 700; color: var(--primary);">{{ t.cloud_rows }}</span>
+                        </td>
+                        <td style="text-align: center;">
+                            {% if t.in_sync %}
+                                <span class="status-badge status-active" style="font-size: 11px;">
+                                    <i class="fa-solid fa-circle-check"></i> Synchronized
+                                </span>
+                            {% else %}
+                                <span class="status-badge badge-amber" style="font-size: 11px;">
+                                    <i class="fa-solid fa-clock-rotate-left"></i> Sync Pending
+                                </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

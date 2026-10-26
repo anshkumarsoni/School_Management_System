@@ -1,11 +1,9 @@
-# Core Web Framework
 Flask>=3.0.0
 
-# Security & Password Hashing
+gunicorn>=22.0.0
+
 bcrypt>=4.0.0
 
-# Database Connectivity
 mysql-connector-python>=8.0.0
 
-# Environment Configuration
 python-dotenv>=1.0.0

@@ -1931,6 +1931,7 @@ select.filter-input {
     border-radius: var(--radius-md);
     padding: 20px 22px;
     box-shadow: var(--shadow-sm);
+    margin-top: 24px;
     margin-bottom: 24px;
 }
 

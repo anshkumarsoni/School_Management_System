@@ -67,6 +67,7 @@ def create_database():
 
 def get_connection():
     try:
+        print("DEBUG DB CONFIG:", DB_HOST, DB_PORT)
         return ms.connect(
             host=DB_HOST,
             port=DB_PORT,

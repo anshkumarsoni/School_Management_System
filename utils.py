@@ -67,15 +67,18 @@ def create_database():
 
 def get_connection():
     try:
-        print("DEBUG DB CONFIG:", DB_HOST, DB_PORT)
         return ms.connect(
             host=DB_HOST,
             port=DB_PORT,
             user=DB_USER,
             password=DB_PASSWORD,
-            database=DB_NAME
+            database=DB_NAME,
+            ssl_ca=os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                "ca.pem"
+            ),
+            ssl_verify_cert=True
         )
     except Error as e:
         print("Connection Error:", e)
-        return None
-    
+        return None    

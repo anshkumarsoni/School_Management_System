@@ -12,8 +12,9 @@ load_dotenv()
 
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_USER = os.getenv("DB_USER", "root")
-DB_PASSWORD = os.getenv("DB_PASSWORD") or "ansh2005"
+DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_NAME = os.getenv("DB_NAME", "Student")
+DB_PORT = int(os.getenv("DB_PORT","3306"))
 
 # ---------------------------------- SCREEN UTILITIES ---------------------------------
 def clear_screen():
@@ -68,6 +69,7 @@ def get_connection():
     try:
         return ms.connect(
             host=DB_HOST,
+            port=DB_PORT,
             user=DB_USER,
             password=DB_PASSWORD,
             database=DB_NAME
@@ -75,3 +77,4 @@ def get_connection():
     except Error as e:
         print("Connection Error:", e)
         return None
+    

@@ -2779,7 +2779,7 @@ def coursework_view():
                 SELECT q.*,
                        (SELECT COUNT(*) FROM Quiz_Questions qq WHERE qq.QUIZ_CODE = q.QUIZ_CODE) AS QUESTIONS_COUNT,
                        (SELECT COUNT(*) FROM Quiz_Attempts qa WHERE qa.QUIZ_CODE = q.QUIZ_CODE) AS ATTEMPTS_COUNT
-                FROM Online_Quizzes q
+                FROM online_quizzes q
                 ORDER BY q.ID ASC
             """)
             quizzes = cur.fetchall()
@@ -2800,7 +2800,7 @@ def coursework_view():
                        q.SUBJECT AS QUIZ_SUBJECT,
                        q.PASS_PERCENTAGE
                 FROM Quiz_Attempts qa
-                LEFT JOIN Online_Quizzes q ON qa.QUIZ_CODE = q.QUIZ_CODE
+                LEFT JOIN online_quizzes q ON qa.QUIZ_CODE = q.QUIZ_CODE
                 ORDER BY qa.ID DESC
             """)
             quiz_attempts = cur.fetchall()
@@ -3173,7 +3173,7 @@ def submit_quiz_route():
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("SELECT * FROM Online_Quizzes WHERE QUIZ_CODE = %s", (quiz_code,))
+            cur.execute("SELECT * FROM online_quizzes WHERE QUIZ_CODE = %s", (quiz_code,))
             quiz = cur.fetchone()
             if not quiz:
                 flash(f"Quiz '{quiz_code}' not found.", "warning")
@@ -3386,7 +3386,7 @@ def health_discipline_view():
             # 4. Fetch Follow-up Interventions
             cur.execute("""
                 SELECT f.*, i.CATEGORY AS INCIDENT_CATEGORY, i.SEVERITY AS INCIDENT_SEVERITY, i.DESCRIPTION AS INCIDENT_DESCRIPTION
-                FROM Discipline_Followups f
+                FROM discipline_followups f
                 LEFT JOIN discipline_incidents i ON f.INCIDENT_CODE = i.INCIDENT_CODE
                 ORDER BY f.ID DESC
             """)
@@ -3687,7 +3687,7 @@ def delete_discipline_incident_route(id):
             row = cur.fetchone()
             if row:
                 inc_code = row["INCIDENT_CODE"]
-                cur.execute("DELETE FROM Discipline_Followups WHERE INCIDENT_CODE = %s", (inc_code,))
+                cur.execute("DELETE FROM discipline_followups WHERE INCIDENT_CODE = %s", (inc_code,))
                 cur.execute("DELETE FROM discipline_incidents WHERE ID = %s", (id,))
                 con.commit()
                 flash(f"Discipline incident {inc_code} and associated follow-up actions deleted.", "info")
@@ -3726,13 +3726,13 @@ def add_discipline_followup_route():
             roll = inc["ROLL_NUMBER"]
             name = inc["STUDENT_NAME"]
 
-            cur.execute("SELECT MAX(ID) AS MAX_ID FROM Discipline_Followups")
+            cur.execute("SELECT MAX(ID) AS MAX_ID FROM discipline_followups")
             row = cur.fetchone()
             next_num = (row["MAX_ID"] or 0) + 301
             fol_code = f"FOL-{next_num}"
 
             cur.execute("""
-                INSERT INTO Discipline_Followups
+                INSERT INTO discipline_followups
                 (FOLLOWUP_CODE, INCIDENT_CODE, ROLL_NUMBER, STUDENT_NAME, ACTION_TYPE, ASSIGNED_TO, SCHEDULED_DATE, STATUS, OUTCOME_NOTES, PARENT_ACKNOWLEDGED)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, 'Scheduled', %s, FALSE)
             """, (fol_code, incident_code, roll, name, action_type, assigned_to, scheduled_date, outcome_notes))
@@ -3763,7 +3763,7 @@ def complete_discipline_followup_route(id):
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("SELECT FOLLOWUP_CODE, INCIDENT_CODE FROM Discipline_Followups WHERE ID = %s", (id,))
+            cur.execute("SELECT FOLLOWUP_CODE, INCIDENT_CODE FROM discipline_followups WHERE ID = %s", (id,))
             fol = cur.fetchone()
             if not fol:
                 flash("Follow-up action not found.", "warning")
@@ -3771,7 +3771,7 @@ def complete_discipline_followup_route(id):
 
             if status == "Completed":
                 cur.execute("""
-                    UPDATE Discipline_Followups
+                    UPDATE discipline_followups
                     SET STATUS = %s,
                         COMPLETION_DATE = CURDATE(),
                         OUTCOME_NOTES = %s,
@@ -3782,7 +3782,7 @@ def complete_discipline_followup_route(id):
                 cur.execute("UPDATE discipline_incidents SET STATUS = 'Resolved' WHERE INCIDENT_CODE = %s", (fol["INCIDENT_CODE"],))
             else:
                 cur.execute("""
-                    UPDATE Discipline_Followups
+                    UPDATE discipline_followups
                     SET STATUS = %s,
                         OUTCOME_NOTES = %s,
                         PARENT_ACKNOWLEDGED = %s
@@ -3916,7 +3916,7 @@ def calendar_ptm_view():
             # 3. Fetch PTM Meeting Slots
             cur.execute("""
                 SELECT s.*,
-                       (SELECT COUNT(*) FROM PTM_Bookings b WHERE b.SLOT_CODE = s.SLOT_CODE AND b.STATUS = 'Confirmed') AS BOOKED_COUNT
+                       (SELECT COUNT(*) FROM ptm_bookings b WHERE b.SLOT_CODE = s.SLOT_CODE AND b.STATUS = 'Confirmed') AS BOOKED_COUNT
                 FROM ptm_meeting_slots s
                 ORDER BY s.MEETING_DATE ASC, s.START_TIME ASC
             """)
@@ -3955,7 +3955,7 @@ def calendar_ptm_view():
             cur.execute("""
                 SELECT b.*,
                        s.TEACHER_ID, s.TEACHER_NAME, s.SUBJECT, s.MEETING_DATE, s.START_TIME, s.END_TIME, s.MEETING_MODE, s.ROOM_OR_LINK
-                FROM PTM_Bookings b
+                FROM ptm_bookings b
                 JOIN ptm_meeting_slots s ON b.SLOT_CODE = s.SLOT_CODE
                 ORDER BY s.MEETING_DATE ASC, s.START_TIME ASC
             """)
@@ -4249,7 +4249,7 @@ def delete_ptm_slot_route(id):
             row = cur.fetchone()
             if row:
                 slot_code = row["SLOT_CODE"]
-                cur.execute("DELETE FROM PTM_Bookings WHERE SLOT_CODE = %s", (slot_code,))
+                cur.execute("DELETE FROM ptm_bookings WHERE SLOT_CODE = %s", (slot_code,))
                 cur.execute("DELETE FROM ptm_meeting_slots WHERE ID = %s", (id,))
                 con.commit()
                 flash(f"Meeting slot {slot_code} deleted.", "info")
@@ -4297,7 +4297,7 @@ def book_ptm_slot_route():
             student_name = st["NAME"]
             student_class = st["CLASS"]
 
-            cur.execute("SELECT MAX(ID) AS MAX_ID FROM PTM_Bookings")
+            cur.execute("SELECT MAX(ID) AS MAX_ID FROM ptm_bookings")
             row = cur.fetchone()
             next_num = (row["MAX_ID"] or 0) + 301
             booking_code = f"BKG-{next_num}"
@@ -4305,7 +4305,7 @@ def book_ptm_slot_route():
             topic_text = discussion_topic or "General review of academic progress, coursework, and attendance."
 
             cur.execute("""
-                INSERT INTO PTM_Bookings (BOOKING_CODE, SLOT_CODE, STUDENT_ROLL, STUDENT_NAME, STUDENT_CLASS, PARENT_NAME, PARENT_PHONE, PARENT_EMAIL, DISCUSSION_TOPIC, STATUS, REMINDER_SENT)
+                INSERT INTO ptm_bookings (BOOKING_CODE, SLOT_CODE, STUDENT_ROLL, STUDENT_NAME, STUDENT_CLASS, PARENT_NAME, PARENT_PHONE, PARENT_EMAIL, DISCUSSION_TOPIC, STATUS, REMINDER_SENT)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'Confirmed', FALSE)
             """, (booking_code, slot_code, student_roll, student_name, student_class, parent_name, parent_phone, parent_email or None, topic_text))
 
@@ -4342,11 +4342,11 @@ def cancel_ptm_booking_route(id):
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("SELECT BOOKING_CODE, SLOT_CODE, PARENT_NAME FROM PTM_Bookings WHERE ID = %s", (id,))
+            cur.execute("SELECT BOOKING_CODE, SLOT_CODE, PARENT_NAME FROM ptm_bookings WHERE ID = %s", (id,))
             bkg = cur.fetchone()
             if bkg:
                 slot_code = bkg["SLOT_CODE"]
-                cur.execute("UPDATE PTM_Bookings SET STATUS = 'Cancelled' WHERE ID = %s", (id,))
+                cur.execute("UPDATE ptm_bookings SET STATUS = 'Cancelled' WHERE ID = %s", (id,))
                 cur.execute("UPDATE ptm_meeting_slots SET STATUS = 'Available' WHERE SLOT_CODE = %s", (slot_code,))
                 con.commit()
                 log_history(session.get("username", "User"), f"Cancelled PTM booking {bkg['BOOKING_CODE']}")
@@ -4371,7 +4371,7 @@ def save_ptm_notes_route(id):
         cur = con.cursor(dictionary=True)
         try:
             cur.execute("""
-                UPDATE PTM_Bookings
+                UPDATE ptm_bookings
                 SET TEACHER_FEEDBACK_NOTES = %s,
                     STATUS = %s
                 WHERE ID = %s
@@ -4395,7 +4395,7 @@ def send_ptm_reminder_route(id):
         cur = con.cursor(dictionary=True)
         try:
             cur.execute("""
-                UPDATE PTM_Bookings
+                UPDATE ptm_bookings
                 SET REMINDER_SENT = TRUE,
                     REMINDER_SENT_AT = NOW()
                 WHERE ID = %s

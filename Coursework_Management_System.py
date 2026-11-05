@@ -102,9 +102,9 @@ def create_coursework_tables():
             )
         """)
 
-        # 5. Online_Quizzes
+        # 5. online_quizzes
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS Online_Quizzes (
+            CREATE TABLE IF NOT EXISTS online_quizzes (
                 ID INT AUTO_INCREMENT PRIMARY KEY,
                 QUIZ_CODE VARCHAR(30) UNIQUE NOT NULL,
                 TITLE VARCHAR(150) NOT NULL,
@@ -533,7 +533,7 @@ def run_interactive_quiz():
             return
         cur = con.cursor(dictionary=True)
 
-        cur.execute("SELECT * FROM Online_Quizzes WHERE STATUS = 'Active' ORDER BY ID ASC")
+        cur.execute("SELECT * FROM online_quizzes WHERE STATUS = 'Active' ORDER BY ID ASC")
         quizzes = cur.fetchall()
 
         if not quizzes:

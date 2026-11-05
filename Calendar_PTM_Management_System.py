@@ -81,7 +81,7 @@ def create_calendar_ptm_tables():
 
         # 4. PTM Bookings
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS PTM_Bookings (
+            CREATE TABLE IF NOT EXISTS ptm_bookings (
                 ID INT AUTO_INCREMENT PRIMARY KEY,
                 BOOKING_CODE VARCHAR(30) UNIQUE NOT NULL,
                 SLOT_CODE VARCHAR(30) NOT NULL,
@@ -194,7 +194,7 @@ def seed_calendar_ptm_data():
             print("Seeded PTM Meeting Slots.")
 
         # 4. Seed PTM Bookings
-        cur.execute("SELECT COUNT(*) AS CNT FROM PTM_Bookings")
+        cur.execute("SELECT COUNT(*) AS CNT FROM ptm_bookings")
         if cur.fetchone()["CNT"] == 0:
             bookings = [
                 ("BKG-301", "SLT-201", "101", "Aarav Sharma", "Grade 10", "Sunil Sharma", "9876543201", "sunil.sharma@example.com", "Review calculus problem-solving speed and mid-term exam performance.", "Confirmed", True, datetime.datetime.now() - datetime.timedelta(hours=6), "Parent is keen on additional Olympiad problem sheets."),
@@ -202,7 +202,7 @@ def seed_calendar_ptm_data():
                 ("BKG-303", "SLT-206", "103", "Rohan Mehta", "Grade 9", "Ramesh Mehta", "9876543231", "ramesh.mehta@example.com", "Consultation regarding organic reactions formula memorization and classroom focus.", "Confirmed", False, None, None)
             ]
             cur.executemany("""
-                INSERT INTO PTM_Bookings (BOOKING_CODE, SLOT_CODE, STUDENT_ROLL, STUDENT_NAME, STUDENT_CLASS, PARENT_NAME, PARENT_PHONE, PARENT_EMAIL, DISCUSSION_TOPIC, STATUS, REMINDER_SENT, REMINDER_SENT_AT, TEACHER_FEEDBACK_NOTES)
+                INSERT INTO ptm_bookings (BOOKING_CODE, SLOT_CODE, STUDENT_ROLL, STUDENT_NAME, STUDENT_CLASS, PARENT_NAME, PARENT_PHONE, PARENT_EMAIL, DISCUSSION_TOPIC, STATUS, REMINDER_SENT, REMINDER_SENT_AT, TEACHER_FEEDBACK_NOTES)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, bookings)
             con.commit()
@@ -560,13 +560,13 @@ def book_meeting_slot():
         if not topic:
             topic = "General academic progress and classroom engagement review."
 
-        cur.execute("SELECT MAX(ID) AS MAX_ID FROM PTM_Bookings")
+        cur.execute("SELECT MAX(ID) AS MAX_ID FROM ptm_bookings")
         row = cur.fetchone()
         next_num = (row["MAX_ID"] or 0) + 301
         bkg_code = f"BKG-{next_num}"
 
         cur.execute("""
-            INSERT INTO PTM_Bookings (BOOKING_CODE, SLOT_CODE, STUDENT_ROLL, STUDENT_NAME, STUDENT_CLASS, PARENT_NAME, PARENT_PHONE, PARENT_EMAIL, DISCUSSION_TOPIC, STATUS, REMINDER_SENT)
+            INSERT INTO ptm_bookings (BOOKING_CODE, SLOT_CODE, STUDENT_ROLL, STUDENT_NAME, STUDENT_CLASS, PARENT_NAME, PARENT_PHONE, PARENT_EMAIL, DISCUSSION_TOPIC, STATUS, REMINDER_SENT)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'Confirmed', FALSE)
         """, (bkg_code, slot_code, roll, st_name, st_class, p_name, p_phone, p_email, topic))
 
@@ -599,7 +599,7 @@ def view_ptm_bookings():
         cur.execute("""
             SELECT b.BOOKING_CODE, b.SLOT_CODE, b.STUDENT_ROLL, b.STUDENT_NAME, b.PARENT_NAME, b.PARENT_PHONE,
                    s.TEACHER_NAME, s.SUBJECT, s.MEETING_DATE, s.START_TIME, s.MEETING_MODE, b.STATUS, b.REMINDER_SENT
-            FROM PTM_Bookings b
+            FROM ptm_bookings b
             JOIN ptm_meeting_slots s ON b.SLOT_CODE = s.SLOT_CODE
             ORDER BY s.MEETING_DATE ASC, s.START_TIME ASC
         """)
@@ -669,7 +669,7 @@ def view_and_send_reminders():
         c = input("\nEnter choice: ").strip()
         if c == "1":
             cur.execute("""
-                UPDATE PTM_Bookings
+                UPDATE ptm_bookings
                 SET REMINDER_SENT = TRUE, REMINDER_SENT_AT = NOW()
                 WHERE STATUS = 'Confirmed' AND REMINDER_SENT = FALSE
             """)

@@ -90,7 +90,7 @@ def create_health_discipline_tables():
 
         # 4. Follow-up Actions & Interventions
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS Discipline_Followups (
+            CREATE TABLE IF NOT EXISTS discipline_followups (
                 ID INT AUTO_INCREMENT PRIMARY KEY,
                 FOLLOWUP_CODE VARCHAR(30) UNIQUE NOT NULL,
                 INCIDENT_CODE VARCHAR(30) NOT NULL,
@@ -186,7 +186,7 @@ def seed_health_discipline_data():
             print("Seeded Discipline Incidents.")
 
         # 4. Seed Discipline Follow-ups
-        cur.execute("SELECT COUNT(*) AS CNT FROM Discipline_Followups")
+        cur.execute("SELECT COUNT(*) AS CNT FROM discipline_followups")
         if cur.fetchone()["CNT"] == 0:
             today = datetime.date.today()
             followups = [
@@ -196,7 +196,7 @@ def seed_health_discipline_data():
                 ("FOL-304", "DIS-204", "109", "Kabir Das", "Behavioral Contract", "Principal Dr. Rajesh Khanna", today + datetime.timedelta(days=3), None, "Scheduled", "Disciplinary board review with student and parents to sign zero-tolerance academic honesty undertaking.", True)
             ]
             cur.executemany("""
-                INSERT INTO Discipline_Followups 
+                INSERT INTO discipline_followups 
                 (FOLLOWUP_CODE, INCIDENT_CODE, ROLL_NUMBER, STUDENT_NAME, ACTION_TYPE, ASSIGNED_TO, SCHEDULED_DATE, COMPLETION_DATE, STATUS, OUTCOME_NOTES, PARENT_ACKNOWLEDGED)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, followups)
@@ -584,7 +584,7 @@ def view_followup_actions():
 
     cur = con.cursor(dictionary=True)
     try:
-        cur.execute("SELECT FOLLOWUP_CODE, INCIDENT_CODE, ROLL_NUMBER, STUDENT_NAME, ACTION_TYPE, ASSIGNED_TO, SCHEDULED_DATE, STATUS, PARENT_ACKNOWLEDGED FROM Discipline_Followups ORDER BY ID DESC")
+        cur.execute("SELECT FOLLOWUP_CODE, INCIDENT_CODE, ROLL_NUMBER, STUDENT_NAME, ACTION_TYPE, ASSIGNED_TO, SCHEDULED_DATE, STATUS, PARENT_ACKNOWLEDGED FROM discipline_followups ORDER BY ID DESC")
         rows = cur.fetchall()
         if not rows:
             print("No follow-up actions recorded.")
@@ -673,13 +673,13 @@ def schedule_followup_action():
 
         outcome_notes = input("Preliminary Notes / Objectives: ").strip()
 
-        cur.execute("SELECT MAX(ID) AS MAX_ID FROM Discipline_Followups")
+        cur.execute("SELECT MAX(ID) AS MAX_ID FROM discipline_followups")
         row = cur.fetchone()
         next_num = (row["MAX_ID"] or 0) + 301
         fol_code = f"FOL-{next_num}"
 
         cur.execute("""
-            INSERT INTO Discipline_Followups
+            INSERT INTO discipline_followups
             (FOLLOWUP_CODE, INCIDENT_CODE, ROLL_NUMBER, STUDENT_NAME, ACTION_TYPE, ASSIGNED_TO, SCHEDULED_DATE, STATUS, OUTCOME_NOTES, PARENT_ACKNOWLEDGED)
             VALUES (%s, %s, %s, %s, %s, %s, %s, 'Scheduled', %s, FALSE)
         """, (fol_code, inc_code, roll, name, action_type, assigned_to, sched_date, outcome_notes))

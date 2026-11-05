@@ -73,10 +73,7 @@ def get_connection():
             user=DB_USER,
             password=DB_PASSWORD,
             database=DB_NAME,
-            ssl_ca=os.path.join(
-                os.path.dirname(os.path.abspath(__file__)),
-                "ca.pem"
-            ),
+            ssl_ca="/etc/secrets/ca.pem",
             ssl_verify_cert=True
         )
     except Error as e:

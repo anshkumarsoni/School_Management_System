@@ -198,7 +198,7 @@ def init_db_schema():
                 )
             """)
 
-            # Ensure Books_Details has extended attributes (shelf location, ISBN, publisher)
+            # Ensure books_details has extended attributes (shelf location, ISBN, publisher)
             for col_def in [
                 ("SHELF_LOCATION", "VARCHAR(50) DEFAULT NULL"),
                 ("ISBN", "VARCHAR(30) DEFAULT NULL"),
@@ -207,10 +207,10 @@ def init_db_schema():
                 col_name, col_type = col_def
                 cur.execute("""
                     SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
-                    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'Books_Details' AND COLUMN_NAME = %s
+                    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'books_details' AND COLUMN_NAME = %s
                 """, (col_name,))
                 if not cur.fetchone():
-                    cur.execute(f"ALTER TABLE Books_Details ADD COLUMN {col_name} {col_type}")
+                    cur.execute(f"ALTER TABLE books_details ADD COLUMN {col_name} {col_type}")
                     con.commit()
         except Error as e:
             print("Schema Init Notice:", e)
@@ -568,7 +568,7 @@ def dashboard():
     cur.execute("SELECT IFNULL(SUM(AMOUNT_PAID), 0) AS total FROM Fee_Transactions")
     total_fees = float(cur.fetchone()["total"] or 0)
 
-    cur.execute("SELECT IFNULL(SUM(TOTAL_COPIES), 0) AS total FROM Books_Details")
+    cur.execute("SELECT IFNULL(SUM(TOTAL_COPIES), 0) AS total FROM books_details")
     total_books = int(cur.fetchone()["total"] or 0)
 
     try:
@@ -1698,7 +1698,7 @@ def library_view():
         today = datetime.date.today()
 
         # 1. Fetch Books Catalogue
-        cur.execute("SELECT * FROM Books_Details ORDER BY ID ASC")
+        cur.execute("SELECT * FROM books_details ORDER BY ID ASC")
         all_books = cur.fetchall()
         for b in all_books:
             if b.get("GENRE"):
@@ -1725,7 +1725,7 @@ def library_view():
         cur.execute("""
             SELECT i.*, b.TITLE AS BOOK_TITLE, b.AUTHOR AS BOOK_AUTHOR, b.GENRE AS BOOK_GENRE, b.SHELF_LOCATION
             FROM Book_Issues i
-            LEFT JOIN Books_Details b ON i.BOOK_ID = b.BOOK_ID
+            LEFT JOIN books_details b ON i.BOOK_ID = b.BOOK_ID
             ORDER BY i.ID DESC
         """)
         all_issues = cur.fetchall()
@@ -1787,7 +1787,7 @@ def library_view():
         cur.execute("""
             SELECT r.*, b.TITLE AS BOOK_TITLE, b.AUTHOR AS BOOK_AUTHOR, b.AVAILABLE_COPIES
             FROM Book_Reservations r
-            LEFT JOIN Books_Details b ON r.BOOK_ID = b.BOOK_ID
+            LEFT JOIN books_details b ON r.BOOK_ID = b.BOOK_ID
             ORDER BY r.ID DESC
         """)
         all_reservations = cur.fetchall()
@@ -2158,12 +2158,12 @@ def add_book_route():
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("SELECT 1 FROM Books_Details WHERE BOOK_ID = %s", (book_id,))
+            cur.execute("SELECT 1 FROM books_details WHERE BOOK_ID = %s", (book_id,))
             if cur.fetchone():
                 flash(f"Validation Error: Book ID '{book_id}' already exists in catalogue.", "danger")
             else:
                 cur.execute("""
-                    INSERT INTO Books_Details 
+                    INSERT INTO books_details 
                     (BOOK_ID, TITLE, AUTHOR, GENRE, TOTAL_COPIES, AVAILABLE_COPIES, SHELF_LOCATION, ISBN, PUBLISHER)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (book_id, title, author, genre, copies, copies, shelf, isbn, publisher))
@@ -2198,7 +2198,7 @@ def edit_book_route(book_id):
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("SELECT * FROM Books_Details WHERE BOOK_ID = %s", (book_id,))
+            cur.execute("SELECT * FROM books_details WHERE BOOK_ID = %s", (book_id,))
             book = cur.fetchone()
             if not book:
                 flash("Book not found.", "danger")
@@ -2220,7 +2220,7 @@ def edit_book_route(book_id):
                 new_available = book["AVAILABLE_COPIES"]
 
             cur.execute("""
-                UPDATE Books_Details 
+                UPDATE books_details 
                 SET TITLE = %s, AUTHOR = %s, GENRE = %s, TOTAL_COPIES = %s, AVAILABLE_COPIES = %s,
                     SHELF_LOCATION = %s, ISBN = %s, PUBLISHER = %s
                 WHERE BOOK_ID = %s
@@ -2251,7 +2251,7 @@ def delete_book_route(book_id):
                 flash("Cannot delete book: Copies of this book are currently issued to students or faculty!", "danger")
                 return redirect(url_for("library_view", tab="catalogue"))
 
-            cur.execute("DELETE FROM Books_Details WHERE BOOK_ID = %s", (book_id,))
+            cur.execute("DELETE FROM books_details WHERE BOOK_ID = %s", (book_id,))
             con.commit()
 
             curr_user = session.get("username", "Admin")
@@ -2289,7 +2289,7 @@ def issue_book_route():
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("SELECT * FROM Books_Details WHERE BOOK_ID = %s", (book_id,))
+            cur.execute("SELECT * FROM books_details WHERE BOOK_ID = %s", (book_id,))
             book = cur.fetchone()
             if not book:
                 flash(f"Error: Book ID '{book_id}' does not exist.", "danger")
@@ -2313,7 +2313,7 @@ def issue_book_route():
                 VALUES (%s, %s, %s, %s, %s, %s, %s, 'Issued', %s)
             """, (issue_id, book_id, borrower_type, borrower_id, borrower_name, today, due_date, remarks))
 
-            cur.execute("UPDATE Books_Details SET AVAILABLE_COPIES = AVAILABLE_COPIES - 1 WHERE BOOK_ID = %s", (book_id,))
+            cur.execute("UPDATE books_details SET AVAILABLE_COPIES = AVAILABLE_COPIES - 1 WHERE BOOK_ID = %s", (book_id,))
             con.commit()
 
             curr_user = session.get("username", "Admin")
@@ -2340,7 +2340,7 @@ def return_book_route(id):
             cur.execute("""
                 SELECT i.*, b.TITLE 
                 FROM Book_Issues i
-                LEFT JOIN Books_Details b ON i.BOOK_ID = b.BOOK_ID
+                LEFT JOIN books_details b ON i.BOOK_ID = b.BOOK_ID
                 WHERE i.ID = %s
             """, (id,))
             iss = cur.fetchone()
@@ -2374,7 +2374,7 @@ def return_book_route(id):
 
             # Increment available copies (bounded by total copies)
             cur.execute("""
-                UPDATE Books_Details 
+                UPDATE books_details 
                 SET AVAILABLE_COPIES = LEAST(TOTAL_COPIES, AVAILABLE_COPIES + 1)
                 WHERE BOOK_ID = %s
             """, (iss["BOOK_ID"],))
@@ -2454,7 +2454,7 @@ def reserve_book_route():
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("SELECT * FROM Books_Details WHERE BOOK_ID = %s", (book_id,))
+            cur.execute("SELECT * FROM books_details WHERE BOOK_ID = %s", (book_id,))
             book = cur.fetchone()
             if not book:
                 flash(f"Error: Book ID '{book_id}' does not exist.", "danger")
@@ -2498,7 +2498,7 @@ def fulfill_reservation_route(id):
             cur.execute("""
                 SELECT r.*, b.TITLE, b.AVAILABLE_COPIES 
                 FROM Book_Reservations r
-                LEFT JOIN Books_Details b ON r.BOOK_ID = b.BOOK_ID
+                LEFT JOIN books_details b ON r.BOOK_ID = b.BOOK_ID
                 WHERE r.ID = %s AND r.STATUS IN ('Pending', 'Ready for Pickup')
             """, (id,))
             res_item = cur.fetchone()
@@ -2524,7 +2524,7 @@ def fulfill_reservation_route(id):
             """, (issue_id, res_item["BOOK_ID"], res_item["BORROWER_TYPE"], res_item["BORROWER_ID"], res_item["BORROWER_NAME"], today, due_date, f"Fulfilled from {res_item['RESERVATION_ID']}"))
 
             cur.execute("UPDATE Book_Reservations SET STATUS = 'Fulfilled' WHERE ID = %s", (id,))
-            cur.execute("UPDATE Books_Details SET AVAILABLE_COPIES = AVAILABLE_COPIES - 1 WHERE BOOK_ID = %s", (res_item["BOOK_ID"],))
+            cur.execute("UPDATE books_details SET AVAILABLE_COPIES = AVAILABLE_COPIES - 1 WHERE BOOK_ID = %s", (res_item["BOOK_ID"],))
             con.commit()
 
             curr_user = session.get("username", "Admin")

@@ -28,7 +28,7 @@ def create_calendar_ptm_tables():
 
         # 1. School Holidays
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS School_Holidays (
+            CREATE TABLE IF NOT EXISTS school_holidays (
                 ID INT AUTO_INCREMENT PRIMARY KEY,
                 HOLIDAY_NAME VARCHAR(150) NOT NULL,
                 START_DATE DATE NOT NULL,
@@ -140,7 +140,7 @@ def seed_calendar_ptm_data():
         today = datetime.date.today()
 
         # 1. Seed School Holidays
-        cur.execute("SELECT COUNT(*) AS CNT FROM School_Holidays")
+        cur.execute("SELECT COUNT(*) AS CNT FROM school_holidays")
         if cur.fetchone()["CNT"] == 0:
             holidays = [
                 ("Diwali & Festive Break", today + datetime.timedelta(days=6), today + datetime.timedelta(days=10), "Term Break", "Campus closed for Diwali festivities, Dhanteras, and Govardhan Puja celebration.", True),
@@ -150,7 +150,7 @@ def seed_calendar_ptm_data():
                 ("Maha Shivratri", today + datetime.timedelta(days=125), today + datetime.timedelta(days=125), "Gazetted Holiday", "Gazetted religious holiday.", True)
             ]
             cur.executemany("""
-                INSERT INTO School_Holidays (HOLIDAY_NAME, START_DATE, END_DATE, HOLIDAY_TYPE, DESCRIPTION, IS_ACADEMIC_OFF)
+                INSERT INTO school_holidays (HOLIDAY_NAME, START_DATE, END_DATE, HOLIDAY_TYPE, DESCRIPTION, IS_ACADEMIC_OFF)
                 VALUES (%s, %s, %s, %s, %s, %s)
             """, holidays)
             con.commit()
@@ -248,7 +248,7 @@ def view_calendar_events_and_holidays():
     try:
         # Holidays
         print("\n[+] OFFICIAL SCHOOL HOLIDAYS & TERM BREAKS:")
-        cur.execute("SELECT HOLIDAY_NAME, START_DATE, END_DATE, HOLIDAY_TYPE, DATEDIFF(END_DATE, START_DATE) + 1 AS DURATION FROM School_Holidays ORDER BY START_DATE ASC")
+        cur.execute("SELECT HOLIDAY_NAME, START_DATE, END_DATE, HOLIDAY_TYPE, DATEDIFF(END_DATE, START_DATE) + 1 AS DURATION FROM school_holidays ORDER BY START_DATE ASC")
         hols = cur.fetchall()
         if not hols:
             print("No holidays scheduled.")
@@ -329,7 +329,7 @@ def add_school_holiday():
     cur = con.cursor()
     try:
         cur.execute("""
-            INSERT INTO School_Holidays (HOLIDAY_NAME, START_DATE, END_DATE, HOLIDAY_TYPE, DESCRIPTION, IS_ACADEMIC_OFF)
+            INSERT INTO school_holidays (HOLIDAY_NAME, START_DATE, END_DATE, HOLIDAY_TYPE, DESCRIPTION, IS_ACADEMIC_OFF)
             VALUES (%s, %s, %s, %s, %s, TRUE)
         """, (name, start_date, end_date, holiday_type, description))
         con.commit()

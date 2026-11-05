@@ -44,9 +44,9 @@ def create_coursework_tables():
             )
         """)
 
-        # 2. Study_Materials
+        # 2. study_materials
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS Study_Materials (
+            CREATE TABLE IF NOT EXISTS study_materials (
                 ID INT AUTO_INCREMENT PRIMARY KEY,
                 MATERIAL_CODE VARCHAR(30) UNIQUE NOT NULL,
                 TITLE VARCHAR(150) NOT NULL,
@@ -274,7 +274,7 @@ def view_study_materials():
             print("Database connection failed!")
             return
         cur = con.cursor(dictionary=True)
-        cur.execute("SELECT * FROM Study_Materials ORDER BY ID DESC")
+        cur.execute("SELECT * FROM study_materials ORDER BY ID DESC")
         rows = cur.fetchall()
 
         if rows:
@@ -344,12 +344,12 @@ def add_study_material():
         uploader = input("Uploaded By (Teacher Name) : : ").strip() or "Faculty"
 
         today = datetime.date.today()
-        cur.execute("SELECT MAX(ID) FROM Study_Materials")
+        cur.execute("SELECT MAX(ID) FROM study_materials")
         max_id = (cur.fetchone()[0] or 0) + 1
         code = f"MAT-{max_id:03d}"
 
         cur.execute("""
-            INSERT INTO Study_Materials 
+            INSERT INTO study_materials 
             (MATERIAL_CODE, TITLE, SUBJECT, CLASS, TOPIC, RESOURCE_TYPE, RESOURCE_URL, CONTENT_TEXT, UPLOADED_BY, UPLOAD_DATE)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (code, title, subject, cls, topic, res_type, url, notes, uploader, today))

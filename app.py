@@ -2703,7 +2703,7 @@ def coursework_view():
                     assignments.append(a)
 
             # 2. Fetch Study Materials
-            cur.execute("SELECT * FROM Study_Materials ORDER BY ID DESC")
+            cur.execute("SELECT * FROM study_materials ORDER BY ID DESC")
             all_materials = cur.fetchall()
             for m in all_materials:
                 if m.get("SUBJECT"):
@@ -2973,13 +2973,13 @@ def add_material_route():
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("SELECT MAX(ID) AS MAX_ID FROM Study_Materials")
+            cur.execute("SELECT MAX(ID) AS MAX_ID FROM study_materials")
             row = cur.fetchone()
             next_num = (row["MAX_ID"] or 0) + 201
             code = f"MAT-{next_num}"
 
             cur.execute("""
-                INSERT INTO Study_Materials (MATERIAL_CODE, TITLE, SUBJECT, CLASS, TOPIC, RESOURCE_TYPE, RESOURCE_URL, CONTENT_TEXT, UPLOADED_BY, UPLOAD_DATE)
+                INSERT INTO study_materials (MATERIAL_CODE, TITLE, SUBJECT, CLASS, TOPIC, RESOURCE_TYPE, RESOURCE_URL, CONTENT_TEXT, UPLOADED_BY, UPLOAD_DATE)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURDATE())
             """, (code, title, subject, class_name, topic, resource_type, resource_url or None, content_text or None, uploaded_by))
             con.commit()
@@ -3001,7 +3001,7 @@ def delete_material_route(id):
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("DELETE FROM Study_Materials WHERE ID = %s", (id,))
+            cur.execute("DELETE FROM study_materials WHERE ID = %s", (id,))
             con.commit()
             flash("Study material item has been deleted.", "info")
         except Error as e:
@@ -3319,7 +3319,7 @@ def health_discipline_view():
                     health_profiles.append(p)
 
             # 2. Fetch Medical Visits
-            cur.execute("SELECT * FROM Medical_Room_Visits ORDER BY ID DESC")
+            cur.execute("SELECT * FROM medical_room_visits ORDER BY ID DESC")
             all_visits = cur.fetchall()
             for v in all_visits:
                 v_date = v.get("VISIT_DATE")
@@ -3558,7 +3558,7 @@ def add_medical_visit_route():
             name = st["NAME"]
             cls = st["CLASS"]
 
-            cur.execute("SELECT MAX(ID) AS MAX_ID FROM Medical_Room_Visits")
+            cur.execute("SELECT MAX(ID) AS MAX_ID FROM medical_room_visits")
             row = cur.fetchone()
             next_num = (row["MAX_ID"] or 0) + 101
             visit_code = f"MED-{next_num}"
@@ -3566,7 +3566,7 @@ def add_medical_visit_route():
             now_time = datetime.datetime.now().strftime("%H:%M:%S")
 
             cur.execute("""
-                INSERT INTO Medical_Room_Visits
+                INSERT INTO medical_room_visits
                 (VISIT_CODE, ROLL_NUMBER, STUDENT_NAME, CLASS, VISIT_DATE, VISIT_TIME, SYMPTOMS,
                  DIAGNOSIS_OBSERVATION, TREATMENT_GIVEN, ATTENDING_STAFF, PARENT_NOTIFIED, OUTCOME, CONFIDENTIAL_NOTES)
                 VALUES (%s, %s, %s, %s, CURDATE(), %s, %s, %s, %s, %s, %s, %s, %s)
@@ -3590,7 +3590,7 @@ def delete_medical_visit_route(id):
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("DELETE FROM Medical_Room_Visits WHERE ID = %s", (id,))
+            cur.execute("DELETE FROM medical_room_visits WHERE ID = %s", (id,))
             con.commit()
             flash("Medical visit record deleted successfully.", "info")
         except Error as e:
@@ -3887,7 +3887,7 @@ def calendar_ptm_view():
                     events.append(e)
 
             # 2. Fetch School Holidays
-            cur.execute("SELECT *, DATEDIFF(END_DATE, START_DATE) + 1 AS DURATION_DAYS FROM School_Holidays ORDER BY START_DATE ASC")
+            cur.execute("SELECT *, DATEDIFF(END_DATE, START_DATE) + 1 AS DURATION_DAYS FROM school_holidays ORDER BY START_DATE ASC")
             all_holidays = cur.fetchall()
             for h in all_holidays:
                 s_date = h.get("START_DATE")
@@ -4152,7 +4152,7 @@ def add_calendar_holiday_route():
         cur = con.cursor(dictionary=True)
         try:
             cur.execute("""
-                INSERT INTO School_Holidays (HOLIDAY_NAME, START_DATE, END_DATE, HOLIDAY_TYPE, DESCRIPTION, IS_ACADEMIC_OFF)
+                INSERT INTO school_holidays (HOLIDAY_NAME, START_DATE, END_DATE, HOLIDAY_TYPE, DESCRIPTION, IS_ACADEMIC_OFF)
                 VALUES (%s, %s, %s, %s, %s, TRUE)
             """, (holiday_name, start_date, end_date, holiday_type, description))
             con.commit()
@@ -4174,10 +4174,10 @@ def delete_calendar_holiday_route(id):
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("SELECT HOLIDAY_NAME FROM School_Holidays WHERE ID = %s", (id,))
+            cur.execute("SELECT HOLIDAY_NAME FROM school_holidays WHERE ID = %s", (id,))
             row = cur.fetchone()
             if row:
-                cur.execute("DELETE FROM School_Holidays WHERE ID = %s", (id,))
+                cur.execute("DELETE FROM school_holidays WHERE ID = %s", (id,))
                 con.commit()
                 flash(f"Holiday '{row['HOLIDAY_NAME']}' removed from calendar.", "info")
         except Error as e:

@@ -49,7 +49,7 @@ def create_health_discipline_tables():
 
         # 2. Medical Room Visits (Clinic / Infirmary Log)
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS Medical_Room_Visits (
+            CREATE TABLE IF NOT EXISTS medical_room_visits (
                 ID INT AUTO_INCREMENT PRIMARY KEY,
                 VISIT_CODE VARCHAR(30) UNIQUE NOT NULL,
                 ROLL_NUMBER VARCHAR(20) NOT NULL,
@@ -149,7 +149,7 @@ def seed_health_discipline_data():
             print("Seeded Student Health Profiles.")
 
         # 2. Seed Medical Room Visits
-        cur.execute("SELECT COUNT(*) AS CNT FROM Medical_Room_Visits")
+        cur.execute("SELECT COUNT(*) AS CNT FROM medical_room_visits")
         if cur.fetchone()["CNT"] == 0:
             today = datetime.date.today()
             visits = [
@@ -160,7 +160,7 @@ def seed_health_discipline_data():
                 ("MED-105", "108", "Diya Sen", "Grade 11", today, "09:40:00", "Severe throbbing headache with photophobia and mild nausea", "Acute Migraine headache attack", "Rest in dark quiet medical bay for 45 mins; oral hydration; menthol balm applied", "Nurse Anita Roy", "Yes", "Admitted to Medical Bay", "Resting comfortably under observation; mother notified via phone.")
             ]
             cur.executemany("""
-                INSERT INTO Medical_Room_Visits 
+                INSERT INTO medical_room_visits 
                 (VISIT_CODE, ROLL_NUMBER, STUDENT_NAME, CLASS, VISIT_DATE, VISIT_TIME, SYMPTOMS, DIAGNOSIS_OBSERVATION, TREATMENT_GIVEN, ATTENDING_STAFF, PARENT_NOTIFIED, OUTCOME, CONFIDENTIAL_NOTES)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, visits)
@@ -336,7 +336,7 @@ def view_medical_visits():
 
     cur = con.cursor(dictionary=True)
     try:
-        cur.execute("SELECT VISIT_CODE, ROLL_NUMBER, STUDENT_NAME, CLASS, VISIT_DATE, VISIT_TIME, SYMPTOMS, TREATMENT_GIVEN, ATTENDING_STAFF, PARENT_NOTIFIED, OUTCOME FROM Medical_Room_Visits ORDER BY ID DESC")
+        cur.execute("SELECT VISIT_CODE, ROLL_NUMBER, STUDENT_NAME, CLASS, VISIT_DATE, VISIT_TIME, SYMPTOMS, TREATMENT_GIVEN, ATTENDING_STAFF, PARENT_NOTIFIED, OUTCOME FROM medical_room_visits ORDER BY ID DESC")
         rows = cur.fetchall()
         if not rows:
             print("No medical visits recorded.")
@@ -421,7 +421,7 @@ def log_medical_visit():
         conf_notes = input("Confidential Medical Remarks: ").strip()
 
         # Generate visit code
-        cur.execute("SELECT MAX(ID) AS MAX_ID FROM Medical_Room_Visits")
+        cur.execute("SELECT MAX(ID) AS MAX_ID FROM medical_room_visits")
         row = cur.fetchone()
         next_num = (row["MAX_ID"] or 0) + 101
         visit_code = f"MED-{next_num}"
@@ -430,7 +430,7 @@ def log_medical_visit():
         now_time = datetime.datetime.now().strftime("%H:%M:%S")
 
         cur.execute("""
-            INSERT INTO Medical_Room_Visits
+            INSERT INTO medical_room_visits
             (VISIT_CODE, ROLL_NUMBER, STUDENT_NAME, CLASS, VISIT_DATE, VISIT_TIME, SYMPTOMS, DIAGNOSIS_OBSERVATION, TREATMENT_GIVEN, ATTENDING_STAFF, PARENT_NOTIFIED, OUTCOME, CONFIDENTIAL_NOTES)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (visit_code, roll, name, cls, today, now_time, symptoms, diagnosis, treatment, attending, parent_notified, outcome, conf_notes))

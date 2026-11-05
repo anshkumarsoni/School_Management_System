@@ -2777,7 +2777,7 @@ def coursework_view():
             # 5. Fetch Online Quizzes
             cur.execute("""
                 SELECT q.*,
-                       (SELECT COUNT(*) FROM Quiz_Questions qq WHERE qq.QUIZ_CODE = q.QUIZ_CODE) AS QUESTIONS_COUNT,
+                       (SELECT COUNT(*) FROM quiz_questions qq WHERE qq.QUIZ_CODE = q.QUIZ_CODE) AS QUESTIONS_COUNT,
                        (SELECT COUNT(*) FROM Quiz_Attempts qa WHERE qa.QUIZ_CODE = q.QUIZ_CODE) AS ATTEMPTS_COUNT
                 FROM online_quizzes q
                 ORDER BY q.ID ASC
@@ -2788,7 +2788,7 @@ def coursework_view():
                     subjects.add(q["SUBJECT"])
 
             # 6. Fetch Quiz Questions (map by QUIZ_CODE)
-            cur.execute("SELECT * FROM Quiz_Questions ORDER BY QUIZ_CODE ASC, QUESTION_NUMBER ASC")
+            cur.execute("SELECT * FROM quiz_questions ORDER BY QUIZ_CODE ASC, QUESTION_NUMBER ASC")
             all_questions = cur.fetchall()
             for qn in all_questions:
                 quiz_questions_map.setdefault(qn["QUIZ_CODE"], []).append(qn)
@@ -3179,7 +3179,7 @@ def submit_quiz_route():
                 flash(f"Quiz '{quiz_code}' not found.", "warning")
                 return redirect(url_for("coursework_view", tab="quizzes"))
 
-            cur.execute("SELECT * FROM Quiz_Questions WHERE QUIZ_CODE = %s ORDER BY QUESTION_NUMBER ASC", (quiz_code,))
+            cur.execute("SELECT * FROM quiz_questions WHERE QUIZ_CODE = %s ORDER BY QUESTION_NUMBER ASC", (quiz_code,))
             questions = cur.fetchall()
 
             total_questions = len(questions)
@@ -3990,7 +3990,7 @@ def calendar_ptm_view():
                     bookings.append(b)
 
             # 5. Fetch Calendar Reminders
-            cur.execute("SELECT * FROM Calendar_Reminders ORDER BY REMINDER_DATE ASC, ID DESC")
+            cur.execute("SELECT * FROM calendar_reminders ORDER BY REMINDER_DATE ASC, ID DESC")
             all_reminders = cur.fetchall()
             for r in all_reminders:
                 r_date = r.get("REMINDER_DATE")
@@ -4313,13 +4313,13 @@ def book_ptm_slot_route():
             cur.execute("UPDATE ptm_meeting_slots SET STATUS = 'Booked' WHERE SLOT_CODE = %s", (slot_code,))
 
             # Generate automated reminder
-            cur.execute("SELECT MAX(ID) AS MAX_ID FROM Calendar_Reminders")
+            cur.execute("SELECT MAX(ID) AS MAX_ID FROM calendar_reminders")
             row = cur.fetchone()
             next_rem_num = (row["MAX_ID"] or 0) + 401
             rem_code = f"REM-{next_rem_num}"
 
             cur.execute("""
-                INSERT INTO Calendar_Reminders (REMINDER_CODE, TITLE, REMINDER_DATE, TARGET_TYPE, TARGET_ID, RECIPIENT_NAME, MESSAGE, STATUS, DELIVERY_CHANNEL)
+                INSERT INTO calendar_reminders (REMINDER_CODE, TITLE, REMINDER_DATE, TARGET_TYPE, TARGET_ID, RECIPIENT_NAME, MESSAGE, STATUS, DELIVERY_CHANNEL)
                 VALUES (%s, %s, %s, 'Specific Student / Parent', %s, %s, %s, 'Active', 'In-App Notification')
             """, (rem_code, f"PTM Consultation: {slot['TEACHER_NAME']} ({slot['SUBJECT']})", slot["MEETING_DATE"], student_roll, parent_name, f"Confirmed PTM conference with {slot['TEACHER_NAME']} ({slot['SUBJECT']}) on {slot['MEETING_DATE']} ({slot['START_TIME']} - {slot['END_TIME']}) in {slot['ROOM_OR_LINK']}."))
 
@@ -4429,13 +4429,13 @@ def add_calendar_reminder_route():
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("SELECT MAX(ID) AS MAX_ID FROM Calendar_Reminders")
+            cur.execute("SELECT MAX(ID) AS MAX_ID FROM calendar_reminders")
             row = cur.fetchone()
             next_num = (row["MAX_ID"] or 0) + 401
             code = f"REM-{next_num}"
 
             cur.execute("""
-                INSERT INTO Calendar_Reminders (REMINDER_CODE, TITLE, REMINDER_DATE, TARGET_TYPE, TARGET_ID, RECIPIENT_NAME, MESSAGE, STATUS, DELIVERY_CHANNEL)
+                INSERT INTO calendar_reminders (REMINDER_CODE, TITLE, REMINDER_DATE, TARGET_TYPE, TARGET_ID, RECIPIENT_NAME, MESSAGE, STATUS, DELIVERY_CHANNEL)
                 VALUES (%s, %s, %s, %s, 'ALL', %s, %s, 'Active', %s)
             """, (code, title, reminder_date, target_type, recipient_name, message, delivery_channel))
             con.commit()

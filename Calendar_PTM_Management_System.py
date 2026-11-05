@@ -102,7 +102,7 @@ def create_calendar_ptm_tables():
 
         # 5. Calendar Reminders & Alerts
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS Calendar_Reminders (
+            CREATE TABLE IF NOT EXISTS calendar_reminders (
                 ID INT AUTO_INCREMENT PRIMARY KEY,
                 REMINDER_CODE VARCHAR(30) UNIQUE NOT NULL,
                 TITLE VARCHAR(150) NOT NULL,
@@ -209,7 +209,7 @@ def seed_calendar_ptm_data():
             print("Seeded PTM Bookings.")
 
         # 5. Seed Calendar Reminders
-        cur.execute("SELECT COUNT(*) AS CNT FROM Calendar_Reminders")
+        cur.execute("SELECT COUNT(*) AS CNT FROM calendar_reminders")
         if cur.fetchone()["CNT"] == 0:
             reminders = [
                 ("REM-401", "Upcoming PTM Meeting Reminder - Dr. Khanna", today + datetime.timedelta(days=17), "Specific Student / Parent", "101", "Sunil Sharma", "Reminder: You have a scheduled Parent-Teacher Meeting tomorrow at 09:30 AM with Dr. Rajesh Khanna in Room 101.", "Active", "SMS Alert"),
@@ -217,7 +217,7 @@ def seed_calendar_ptm_data():
                 ("REM-403", "Diwali Vacation Campus Closure Notice", today + datetime.timedelta(days=5), "All School", "ALL", "School Community", "The school campus and administrative offices will remain closed from Nov 01 to Nov 05 for Diwali festivities.", "Active", "Email Notice")
             ]
             cur.executemany("""
-                INSERT INTO Calendar_Reminders (REMINDER_CODE, TITLE, REMINDER_DATE, TARGET_TYPE, TARGET_ID, RECIPIENT_NAME, MESSAGE, STATUS, DELIVERY_CHANNEL)
+                INSERT INTO calendar_reminders (REMINDER_CODE, TITLE, REMINDER_DATE, TARGET_TYPE, TARGET_ID, RECIPIENT_NAME, MESSAGE, STATUS, DELIVERY_CHANNEL)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, reminders)
             con.commit()
@@ -643,7 +643,7 @@ def view_and_send_reminders():
 
     cur = con.cursor(dictionary=True)
     try:
-        cur.execute("SELECT REMINDER_CODE, TITLE, REMINDER_DATE, TARGET_TYPE, RECIPIENT_NAME, MESSAGE, DELIVERY_CHANNEL, STATUS FROM Calendar_Reminders ORDER BY ID DESC")
+        cur.execute("SELECT REMINDER_CODE, TITLE, REMINDER_DATE, TARGET_TYPE, RECIPIENT_NAME, MESSAGE, DELIVERY_CHANNEL, STATUS FROM calendar_reminders ORDER BY ID DESC")
         rows = cur.fetchall()
         if not rows:
             print("No reminders active.")
@@ -680,12 +680,12 @@ def view_and_send_reminders():
             r_date = input("Alert Date (YYYY-MM-DD): ").strip()
             msg = input("Reminder Notice Body: ").strip()
             if title and r_date and msg:
-                cur.execute("SELECT MAX(ID) AS MAX_ID FROM Calendar_Reminders")
+                cur.execute("SELECT MAX(ID) AS MAX_ID FROM calendar_reminders")
                 row = cur.fetchone()
                 next_num = (row["MAX_ID"] or 0) + 401
                 rem_code = f"REM-{next_num}"
                 cur.execute("""
-                    INSERT INTO Calendar_Reminders (REMINDER_CODE, TITLE, REMINDER_DATE, TARGET_TYPE, TARGET_ID, RECIPIENT_NAME, MESSAGE, STATUS, DELIVERY_CHANNEL)
+                    INSERT INTO calendar_reminders (REMINDER_CODE, TITLE, REMINDER_DATE, TARGET_TYPE, TARGET_ID, RECIPIENT_NAME, MESSAGE, STATUS, DELIVERY_CHANNEL)
                     VALUES (%s, %s, %s, 'All School', 'ALL', 'School Community', %s, 'Active', 'In-App Notification')
                 """, (rem_code, title, r_date, msg))
                 con.commit()

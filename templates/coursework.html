@@ -1212,7 +1212,7 @@
 
 <!-- Quiz Questions Data payload embedded for client-side runner -->
 <script>
-    const QUIZ_QUESTIONS_MAP = {{ quiz_questions_map | tojson | safe }};
+    const quiz_questions_MAP = {{ quiz_questions_map | tojson | safe }};
     const ALL_QUIZZES = {{ quizzes | tojson | safe }};
     const ALL_STUDENTS = {{ students | tojson | safe }};
 
@@ -1286,7 +1286,7 @@
     // Launch Interactive Quiz Runner
     function launchQuizRunner(quizCode) {
         const quiz = ALL_QUIZZES.find(q => q.QUIZ_CODE === quizCode);
-        const questions = QUIZ_QUESTIONS_MAP[quizCode] || [];
+        const questions = quiz_questions_MAP[quizCode] || [];
 
         document.getElementById('runnerQuizCode').value = quizCode;
         if (quiz) {

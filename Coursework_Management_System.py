@@ -119,9 +119,9 @@ def create_coursework_tables():
             )
         """)
 
-        # 6. Quiz_Questions
+        # 6. quiz_questions
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS Quiz_Questions (
+            CREATE TABLE IF NOT EXISTS quiz_questions (
                 ID INT AUTO_INCREMENT PRIMARY KEY,
                 QUIZ_CODE VARCHAR(30) NOT NULL,
                 QUESTION_NUMBER INT NOT NULL,
@@ -567,7 +567,7 @@ def run_interactive_quiz():
 
         # Fetch questions
         cur.execute("""
-            SELECT * FROM Quiz_Questions 
+            SELECT * FROM quiz_questions 
             WHERE QUIZ_CODE = %s 
             ORDER BY QUESTION_NUMBER ASC
         """, (selected_quiz['QUIZ_CODE'],))

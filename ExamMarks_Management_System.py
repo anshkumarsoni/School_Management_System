@@ -25,7 +25,7 @@ def create_exam_tables():
             return
         cur = con.cursor()
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS Marks_Details (
+            CREATE TABLE IF NOT EXISTS marks_details (
                 ID INT AUTO_INCREMENT PRIMARY KEY,
                 ROLL_NUMBER VARCHAR(20) NOT NULL,
                 EXAM_TYPE VARCHAR(50) NOT NULL,
@@ -133,7 +133,7 @@ def enter_marks():
                 continue
 
             cur.execute("""
-                INSERT INTO Marks_Details (ROLL_NUMBER, EXAM_TYPE, SUBJECT, MARKS_OBTAINED, MAX_MARKS)
+                INSERT INTO marks_details (ROLL_NUMBER, EXAM_TYPE, SUBJECT, MARKS_OBTAINED, MAX_MARKS)
                 VALUES (%s, %s, %s, %s, %s)
                 ON DUPLICATE KEY UPDATE MARKS_OBTAINED=%s, MAX_MARKS=%s
             """, (roll, exam_type, subject, marks_obtained, max_marks, marks_obtained, max_marks))
@@ -170,7 +170,7 @@ def generate_report_card():
 
         cur.execute("""
             SELECT SUBJECT, MARKS_OBTAINED, MAX_MARKS
-            FROM Marks_Details
+            FROM marks_details
             WHERE ROLL_NUMBER=%s AND EXAM_TYPE=%s
             ORDER BY SUBJECT
         """, (roll, exam_type))
@@ -232,7 +232,7 @@ def view_class_merit_list():
                    SUM(m.MARKS_OBTAINED) as TOTAL_OBTAINED, 
                    SUM(m.MAX_MARKS) as TOTAL_MAX
             FROM Students_Details s
-            JOIN Marks_Details m ON s.ROLL_NUMBER = m.ROLL_NUMBER
+            JOIN marks_details m ON s.ROLL_NUMBER = m.ROLL_NUMBER
             WHERE s.CLASS=%s AND m.EXAM_TYPE=%s
             GROUP BY s.ROLL_NUMBER, s.NAME
         """, (class_name, exam_type))
@@ -296,7 +296,7 @@ def update_marks():
 
         cur.execute("""
             SELECT MARKS_OBTAINED, MAX_MARKS 
-            FROM Marks_Details 
+            FROM marks_details 
             WHERE ROLL_NUMBER=%s AND EXAM_TYPE=%s AND SUBJECT=%s
         """, (roll, exam_type, subject))
         record = cur.fetchone()
@@ -316,7 +316,7 @@ def update_marks():
             return
 
         cur.execute("""
-            UPDATE Marks_Details 
+            UPDATE marks_details 
             SET MARKS_OBTAINED=%s 
             WHERE ROLL_NUMBER=%s AND EXAM_TYPE=%s AND SUBJECT=%s
         """, (new_marks, roll, exam_type, subject))
@@ -348,7 +348,7 @@ def delete_marks_record():
             print("Deletion cancelled.")
             return
 
-        cur.execute("DELETE FROM Marks_Details WHERE ROLL_NUMBER=%s AND EXAM_TYPE=%s", (roll, exam_type))
+        cur.execute("DELETE FROM marks_details WHERE ROLL_NUMBER=%s AND EXAM_TYPE=%s", (roll, exam_type))
         con.commit()
         if cur.rowcount > 0:
             print(f"Deleted {cur.rowcount} subject mark entries successfully!")
@@ -385,7 +385,7 @@ def plot_student_subject_marks():
         if not exam_type:
             exam_type = "Final Exam"
 
-        cur.execute("""SELECT SUBJECT, MARKS_OBTAINED, MAX_MARKS FROM Marks_Details WHERE ROLL_NUMBER = %s AND EXAM_TYPE = %s ORDER BY SUBJECT""", (roll, exam_type)) 
+        cur.execute("""SELECT SUBJECT, MARKS_OBTAINED, MAX_MARKS FROM marks_details WHERE ROLL_NUMBER = %s AND EXAM_TYPE = %s ORDER BY SUBJECT""", (roll, exam_type)) 
         rows = cur.fetchall()
         if not rows:
             print(f"No marks records found for {name ({roll})} in '{exam_type}'.")

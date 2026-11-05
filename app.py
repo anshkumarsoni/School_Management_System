@@ -2024,7 +2024,7 @@ def exams_view():
         cur = con.cursor(dictionary=True)
         cur.execute("""
             SELECT m.*, s.NAME, s.CLASS 
-            FROM Marks_Details m
+            FROM marks_details m
             LEFT JOIN students_details s ON m.ROLL_NUMBER = s.ROLL_NUMBER
             ORDER BY m.ID DESC
             LIMIT 100
@@ -2112,7 +2112,7 @@ def add_exam_mark_route():
                 return redirect(url_for("exams_view"))
 
             cur.execute("""
-                INSERT INTO Marks_Details (ROLL_NUMBER, EXAM_TYPE, SUBJECT, MARKS_OBTAINED, MAX_MARKS)
+                INSERT INTO marks_details (ROLL_NUMBER, EXAM_TYPE, SUBJECT, MARKS_OBTAINED, MAX_MARKS)
                 VALUES (%s, %s, %s, %s, %s)
                 ON DUPLICATE KEY UPDATE MARKS_OBTAINED = %s, MAX_MARKS = %s
             """, (roll_number, exam_type, subject, marks_obtained, max_marks, marks_obtained, max_marks))
@@ -4593,7 +4593,7 @@ def student_report_api(roll):
 
         cur.execute("""
             SELECT EXAM_TYPE, SUBJECT, MARKS_OBTAINED, MAX_MARKS
-            FROM Marks_Details
+            FROM marks_details
             WHERE ROLL_NUMBER = %s
             ORDER BY FIELD(EXAM_TYPE, 'Term 1 Exam', 'Mid-Term Examination', 'Term 2 Exam', 'Final Examination'), SUBJECT ASC
         """, (roll,))

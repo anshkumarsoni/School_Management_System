@@ -27,7 +27,7 @@ def init_analytics_tables():
     try:
         # 1. Marks Details Table
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS Marks_Details (
+            CREATE TABLE IF NOT EXISTS marks_details (
                 ID INT AUTO_INCREMENT PRIMARY KEY,
                 ROLL_NUMBER VARCHAR(20) NOT NULL,
                 EXAM_TYPE VARCHAR(50) NOT NULL,
@@ -62,7 +62,7 @@ def init_analytics_tables():
         con.commit()
 
         # 3. Check if marks dataset needs population
-        cur.execute("SELECT COUNT(*) AS cnt FROM Marks_Details")
+        cur.execute("SELECT COUNT(*) AS cnt FROM marks_details")
         if cur.fetchone()["cnt"] < 50:
             _seed_comprehensive_marks(cur, con)
 
@@ -336,7 +336,7 @@ def _seed_comprehensive_marks(cur, con):
 
     for roll, exam, sub, marks, max_m in marks_seed:
         cur.execute("""
-            INSERT INTO Marks_Details (ROLL_NUMBER, EXAM_TYPE, SUBJECT, MARKS_OBTAINED, MAX_MARKS)
+            INSERT INTO marks_details (ROLL_NUMBER, EXAM_TYPE, SUBJECT, MARKS_OBTAINED, MAX_MARKS)
             VALUES (%s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE MARKS_OBTAINED = VALUES(MARKS_OBTAINED), MAX_MARKS = VALUES(MAX_MARKS)
         """, (roll, exam, sub, marks, max_m))
@@ -400,7 +400,7 @@ def get_performance_kpis():
         "total_students": 0
     }
     try:
-        cur.execute("SELECT COUNT(*) AS total_evals, ROUND(AVG(MARKS_OBTAINED), 1) as overall_avg FROM Marks_Details")
+        cur.execute("SELECT COUNT(*) AS total_evals, ROUND(AVG(MARKS_OBTAINED), 1) as overall_avg FROM marks_details")
         row = cur.fetchone()
         if row and row["total_evals"]:
             kpis["total_evaluations"] = row["total_evals"]
@@ -409,7 +409,7 @@ def get_performance_kpis():
         # Top class
         cur.execute("""
             SELECT s.CLASS, ROUND(AVG(m.MARKS_OBTAINED), 1) as class_avg
-            FROM Marks_Details m
+            FROM marks_details m
             JOIN Students_Details s ON m.ROLL_NUMBER = s.ROLL_NUMBER
             GROUP BY s.CLASS
             ORDER BY class_avg DESC LIMIT 1
@@ -423,7 +423,7 @@ def get_performance_kpis():
         cur.execute("""
             SELECT SUBJECT, ROUND(AVG(MARKS_OBTAINED), 1) as sub_avg,
                    ROUND(SUM(CASE WHEN MARKS_OBTAINED < 40 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as fail_pct
-            FROM Marks_Details
+            FROM marks_details
             GROUP BY SUBJECT
             ORDER BY fail_pct DESC, sub_avg ASC LIMIT 1
         """)
@@ -466,7 +466,7 @@ def get_multi_term_trends(class_filter=None):
         # 1. School-wide term averages
         cur.execute("""
             SELECT EXAM_TYPE, ROUND(AVG(MARKS_OBTAINED), 1) as avg_marks
-            FROM Marks_Details
+            FROM marks_details
             GROUP BY EXAM_TYPE
             ORDER BY FIELD(EXAM_TYPE, 'Term 1 Exam', 'Mid-Term Examination', 'Term 2 Exam', 'Final Examination')
         """)
@@ -476,7 +476,7 @@ def get_multi_term_trends(class_filter=None):
         # 2. Class-specific term trends
         cur.execute("""
             SELECT s.CLASS, m.EXAM_TYPE, ROUND(AVG(m.MARKS_OBTAINED), 1) as avg_marks
-            FROM Marks_Details m
+            FROM marks_details m
             JOIN Students_Details s ON m.ROLL_NUMBER = s.ROLL_NUMBER
             GROUP BY s.CLASS, m.EXAM_TYPE
             ORDER BY s.CLASS, FIELD(m.EXAM_TYPE, 'Term 1 Exam', 'Mid-Term Examination', 'Term 2 Exam', 'Final Examination')
@@ -493,7 +493,7 @@ def get_multi_term_trends(class_filter=None):
         cur.execute(f"""
             SELECT s.ROLL_NUMBER, s.NAME, s.CLASS, m.EXAM_TYPE, ROUND(AVG(m.MARKS_OBTAINED), 1) as term_avg
             FROM Students_Details s
-            LEFT JOIN Marks_Details m ON s.ROLL_NUMBER = m.ROLL_NUMBER
+            LEFT JOIN marks_details m ON s.ROLL_NUMBER = m.ROLL_NUMBER
             {where_clause}
             GROUP BY s.ROLL_NUMBER, s.NAME, s.CLASS, m.EXAM_TYPE
             ORDER BY s.ROLL_NUMBER ASC
@@ -633,7 +633,7 @@ def get_subject_struggle_diagnostics(term_filter=None, class_filter=None):
                    ROUND(SUM(CASE WHEN m.MARKS_OBTAINED < 40 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as fail_pct,
                    ROUND(SUM(CASE WHEN m.MARKS_OBTAINED >= 40 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as pass_pct,
                    ROUND(SUM(CASE WHEN m.MARKS_OBTAINED >= 80 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as distinction_pct
-            FROM Marks_Details m
+            FROM marks_details m
             JOIN Students_Details s ON m.ROLL_NUMBER = s.ROLL_NUMBER
             {where_sql}
             GROUP BY m.SUBJECT
@@ -726,7 +726,7 @@ def get_class_comparative_benchmarks(term_filter=None):
                    ROUND(SUM(CASE WHEN m.MARKS_OBTAINED >= 80 THEN 1 ELSE 0 END) * 100.0 / COUNT(m.ID), 1) as distinction_pct,
                    ROUND(SUM(CASE WHEN m.MARKS_OBTAINED < 50 THEN 1 ELSE 0 END) * 100.0 / COUNT(m.ID), 1) as struggle_rate
             FROM Students_Details s
-            LEFT JOIN Marks_Details m ON s.ROLL_NUMBER = m.ROLL_NUMBER
+            LEFT JOIN marks_details m ON s.ROLL_NUMBER = m.ROLL_NUMBER
             {where_clause}
             GROUP BY s.CLASS
             ORDER BY class_avg DESC
@@ -745,7 +745,7 @@ def get_class_comparative_benchmarks(term_filter=None):
 
             cur.execute(f"""
                 SELECT m.SUBJECT, ROUND(AVG(m.MARKS_OBTAINED), 1) as sub_avg
-                FROM Marks_Details m
+                FROM marks_details m
                 JOIN Students_Details s ON m.ROLL_NUMBER = s.ROLL_NUMBER
                 {sub_where}
                 GROUP BY m.SUBJECT
@@ -760,7 +760,7 @@ def get_class_comparative_benchmarks(term_filter=None):
             cur.execute(f"""
                 SELECT s.NAME, ROUND(AVG(m.MARKS_OBTAINED), 1) as student_avg
                 FROM Students_Details s
-                JOIN Marks_Details m ON s.ROLL_NUMBER = m.ROLL_NUMBER
+                JOIN marks_details m ON s.ROLL_NUMBER = m.ROLL_NUMBER
                 {sub_where}
                 GROUP BY s.ROLL_NUMBER, s.NAME
                 ORDER BY student_avg DESC LIMIT 1
@@ -811,7 +811,7 @@ def get_at_risk_students_registry():
                    ai.ASSIGNED_MENTOR,
                    ai.REMEDIAL_STRATEGY
             FROM Students_Details s
-            LEFT JOIN Marks_Details m ON s.ROLL_NUMBER = m.ROLL_NUMBER
+            LEFT JOIN marks_details m ON s.ROLL_NUMBER = m.ROLL_NUMBER
             LEFT JOIN Academic_Interventions ai ON s.ROLL_NUMBER = ai.ROLL_NUMBER AND ai.STATUS != 'Resolved'
             GROUP BY s.ROLL_NUMBER, s.NAME, s.CLASS, s.GENDER, s.PHONE, s.EMAIL, ai.INTERVENTION_CODE, ai.STATUS, ai.ASSIGNED_MENTOR, ai.REMEDIAL_STRATEGY
             ORDER BY overall_avg ASC
@@ -826,7 +826,7 @@ def get_at_risk_students_registry():
             cur.execute("""
                 SELECT SUBJECT, ROUND(AVG(MARKS_OBTAINED), 1) as sub_avg,
                        SUM(CASE WHEN MARKS_OBTAINED < 40 THEN 1 ELSE 0 END) as fails
-                FROM Marks_Details
+                FROM marks_details
                 WHERE ROLL_NUMBER = %s
                 GROUP BY SUBJECT
                 HAVING sub_avg < 52.0 OR fails > 0
@@ -928,7 +928,7 @@ def create_academic_intervention(roll, mentor, strategy, action_plan, risk_level
         # Compute current overall average & struggling subjects
         cur.execute("""
             SELECT ROUND(AVG(MARKS_OBTAINED), 2) as current_avg
-            FROM Marks_Details
+            FROM marks_details
             WHERE ROLL_NUMBER = %s
         """, (roll,))
         avg_row = cur.fetchone()
@@ -936,7 +936,7 @@ def create_academic_intervention(roll, mentor, strategy, action_plan, risk_level
 
         cur.execute("""
             SELECT SUBJECT, ROUND(AVG(MARKS_OBTAINED), 1) as sub_avg
-            FROM Marks_Details
+            FROM marks_details
             WHERE ROLL_NUMBER = %s
             GROUP BY SUBJECT
             HAVING sub_avg < 55.0

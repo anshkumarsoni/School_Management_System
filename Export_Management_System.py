@@ -246,7 +246,7 @@ def export_exam_merit_list():
                    SUM(m.MARKS_OBTAINED) as TOTAL_OBT, 
                    SUM(m.MAX_MARKS) as TOTAL_MAX
             FROM Students_Details s
-            JOIN Marks_Details m ON s.ROLL_NUMBER = m.ROLL_NUMBER
+            JOIN marks_details m ON s.ROLL_NUMBER = m.ROLL_NUMBER
             WHERE s.CLASS=%s AND m.EXAM_TYPE=%s
             GROUP BY s.ROLL_NUMBER, s.NAME
         """, (class_name, exam_type))

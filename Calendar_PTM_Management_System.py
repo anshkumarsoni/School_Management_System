@@ -61,7 +61,7 @@ def create_calendar_ptm_tables():
 
         # 3. PTM Meeting Slots
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS PTM_Meeting_Slots (
+            CREATE TABLE IF NOT EXISTS ptm_meeting_slots (
                 ID INT AUTO_INCREMENT PRIMARY KEY,
                 SLOT_CODE VARCHAR(30) UNIQUE NOT NULL,
                 TEACHER_ID VARCHAR(20) NOT NULL,
@@ -174,7 +174,7 @@ def seed_calendar_ptm_data():
             print("Seeded School Events.")
 
         # 3. Seed PTM Meeting Slots
-        cur.execute("SELECT COUNT(*) AS CNT FROM PTM_Meeting_Slots")
+        cur.execute("SELECT COUNT(*) AS CNT FROM ptm_meeting_slots")
         if cur.fetchone()["CNT"] == 0:
             ptm_date = today + datetime.timedelta(days=18)
             slots = [
@@ -187,7 +187,7 @@ def seed_calendar_ptm_data():
                 ("SLT-207", "T-205", "Mr. Neeraj Joshi", "Computer Science", ptm_date, "11:30:00", "11:50:00", "Virtual (Google Meet / Zoom)", "https://meet.google.com/cs-edupulse-ptm", 1, "Available", "Virtual conference for Python & coding performance.")
             ]
             cur.executemany("""
-                INSERT INTO PTM_Meeting_Slots (SLOT_CODE, TEACHER_ID, TEACHER_NAME, SUBJECT, MEETING_DATE, START_TIME, END_TIME, MEETING_MODE, ROOM_OR_LINK, MAX_CAPACITY, STATUS, NOTES)
+                INSERT INTO ptm_meeting_slots (SLOT_CODE, TEACHER_ID, TEACHER_NAME, SUBJECT, MEETING_DATE, START_TIME, END_TIME, MEETING_MODE, ROOM_OR_LINK, MAX_CAPACITY, STATUS, NOTES)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, slots)
             con.commit()
@@ -412,7 +412,7 @@ def view_meeting_slots():
 
     cur = con.cursor(dictionary=True)
     try:
-        cur.execute("SELECT SLOT_CODE, TEACHER_NAME, SUBJECT, MEETING_DATE, START_TIME, END_TIME, MEETING_MODE, ROOM_OR_LINK, STATUS FROM PTM_Meeting_Slots ORDER BY MEETING_DATE ASC, START_TIME ASC")
+        cur.execute("SELECT SLOT_CODE, TEACHER_NAME, SUBJECT, MEETING_DATE, START_TIME, END_TIME, MEETING_MODE, ROOM_OR_LINK, STATUS FROM ptm_meeting_slots ORDER BY MEETING_DATE ASC, START_TIME ASC")
         slots = cur.fetchall()
         if not slots:
             print("No meeting slots available.")
@@ -486,13 +486,13 @@ def create_meeting_slot():
 
         room_or_link = input("Room or Virtual Meeting Link: ").strip() or "Staff Consultation Room"
 
-        cur.execute("SELECT MAX(ID) AS MAX_ID FROM PTM_Meeting_Slots")
+        cur.execute("SELECT MAX(ID) AS MAX_ID FROM ptm_meeting_slots")
         row = cur.fetchone()
         next_num = (row["MAX_ID"] or 0) + 201
         slot_code = f"SLT-{next_num}"
 
         cur.execute("""
-            INSERT INTO PTM_Meeting_Slots (SLOT_CODE, TEACHER_ID, TEACHER_NAME, SUBJECT, MEETING_DATE, START_TIME, END_TIME, MEETING_MODE, ROOM_OR_LINK, STATUS)
+            INSERT INTO ptm_meeting_slots (SLOT_CODE, TEACHER_ID, TEACHER_NAME, SUBJECT, MEETING_DATE, START_TIME, END_TIME, MEETING_MODE, ROOM_OR_LINK, STATUS)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'Available')
         """, (slot_code, tid, t_name, t_subj, m_date, s_time, e_time, mode, room_or_link))
         con.commit()
@@ -524,7 +524,7 @@ def book_meeting_slot():
 
     cur = con.cursor(dictionary=True)
     try:
-        cur.execute("SELECT * FROM PTM_Meeting_Slots WHERE SLOT_CODE = %s AND STATUS = 'Available'", (slot_code,))
+        cur.execute("SELECT * FROM ptm_meeting_slots WHERE SLOT_CODE = %s AND STATUS = 'Available'", (slot_code,))
         slot = cur.fetchone()
         if not slot:
             print(f"Slot {slot_code} is not available for booking.")
@@ -571,7 +571,7 @@ def book_meeting_slot():
         """, (bkg_code, slot_code, roll, st_name, st_class, p_name, p_phone, p_email, topic))
 
         # Mark slot as booked
-        cur.execute("UPDATE PTM_Meeting_Slots SET STATUS = 'Booked' WHERE SLOT_CODE = %s", (slot_code,))
+        cur.execute("UPDATE ptm_meeting_slots SET STATUS = 'Booked' WHERE SLOT_CODE = %s", (slot_code,))
         con.commit()
         print(f"\n[SUCCESS] Meeting confirmed! Booking Code: {bkg_code}")
         print(f"Appointment with {slot['TEACHER_NAME']} on {slot['MEETING_DATE']} ({slot['START_TIME']} - {slot['END_TIME']}).")
@@ -600,7 +600,7 @@ def view_ptm_bookings():
             SELECT b.BOOKING_CODE, b.SLOT_CODE, b.STUDENT_ROLL, b.STUDENT_NAME, b.PARENT_NAME, b.PARENT_PHONE,
                    s.TEACHER_NAME, s.SUBJECT, s.MEETING_DATE, s.START_TIME, s.MEETING_MODE, b.STATUS, b.REMINDER_SENT
             FROM PTM_Bookings b
-            JOIN PTM_Meeting_Slots s ON b.SLOT_CODE = s.SLOT_CODE
+            JOIN ptm_meeting_slots s ON b.SLOT_CODE = s.SLOT_CODE
             ORDER BY s.MEETING_DATE ASC, s.START_TIME ASC
         """)
         rows = cur.fetchall()

@@ -2768,7 +2768,7 @@ def coursework_view():
                     submissions.append(s)
 
             # 4. Fetch Learning Courses
-            cur.execute("SELECT * FROM Learning_Courses ORDER BY ID ASC")
+            cur.execute("SELECT * FROM learning_courses ORDER BY ID ASC")
             courses = cur.fetchall()
             for c in courses:
                 if c.get("SUBJECT"):
@@ -3137,13 +3137,13 @@ def add_course_route():
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("SELECT MAX(ID) AS MAX_ID FROM Learning_Courses")
+            cur.execute("SELECT MAX(ID) AS MAX_ID FROM learning_courses")
             row = cur.fetchone()
             next_num = (row["MAX_ID"] or 0) + 401
             code = f"CRS-{next_num}"
 
             cur.execute("""
-                INSERT INTO Learning_Courses (COURSE_CODE, TITLE, SUBJECT, INSTRUCTOR, LEVEL, TOTAL_LESSONS, DURATION_WEEKS, DESCRIPTION, SYLLABUS, STATUS)
+                INSERT INTO learning_courses (COURSE_CODE, TITLE, SUBJECT, INSTRUCTOR, LEVEL, TOTAL_LESSONS, DURATION_WEEKS, DESCRIPTION, SYLLABUS, STATUS)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'Active')
             """, (code, title, subject, instructor, level, total_lessons, duration_weeks, description, syllabus))
             con.commit()
@@ -3348,7 +3348,7 @@ def health_discipline_view():
                     medical_visits.append(v)
 
             # 3. Fetch Discipline Incidents
-            cur.execute("SELECT * FROM Discipline_Incidents ORDER BY ID DESC")
+            cur.execute("SELECT * FROM discipline_incidents ORDER BY ID DESC")
             all_incidents = cur.fetchall()
             for inc in all_incidents:
                 i_date = inc.get("INCIDENT_DATE")
@@ -3387,7 +3387,7 @@ def health_discipline_view():
             cur.execute("""
                 SELECT f.*, i.CATEGORY AS INCIDENT_CATEGORY, i.SEVERITY AS INCIDENT_SEVERITY, i.DESCRIPTION AS INCIDENT_DESCRIPTION
                 FROM Discipline_Followups f
-                LEFT JOIN Discipline_Incidents i ON f.INCIDENT_CODE = i.INCIDENT_CODE
+                LEFT JOIN discipline_incidents i ON f.INCIDENT_CODE = i.INCIDENT_CODE
                 ORDER BY f.ID DESC
             """)
             all_followups = cur.fetchall()
@@ -3631,7 +3631,7 @@ def add_discipline_incident_route():
             name = st["NAME"]
             cls = st["CLASS"]
 
-            cur.execute("SELECT MAX(ID) AS MAX_ID FROM Discipline_Incidents")
+            cur.execute("SELECT MAX(ID) AS MAX_ID FROM discipline_incidents")
             row = cur.fetchone()
             next_num = (row["MAX_ID"] or 0) + 201
             inc_code = f"DIS-{next_num}"
@@ -3639,7 +3639,7 @@ def add_discipline_incident_route():
             date_val = incident_date if incident_date else datetime.date.today().strftime("%Y-%m-%d")
 
             cur.execute("""
-                INSERT INTO Discipline_Incidents
+                INSERT INTO discipline_incidents
                 (INCIDENT_CODE, ROLL_NUMBER, STUDENT_NAME, CLASS, INCIDENT_DATE, CATEGORY, SEVERITY, LOCATION, REPORTED_BY, DESCRIPTION, WITNESSES, STATUS)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Reported')
             """, (inc_code, roll_number, name, cls, date_val, category, severity, location, reported_by, description, witnesses))
@@ -3664,7 +3664,7 @@ def update_incident_status_route(id):
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("UPDATE Discipline_Incidents SET STATUS = %s WHERE ID = %s", (new_status, id))
+            cur.execute("UPDATE discipline_incidents SET STATUS = %s WHERE ID = %s", (new_status, id))
             con.commit()
             flash(f"Incident status updated to '{new_status}'.", "success")
         except Error as e:
@@ -3683,12 +3683,12 @@ def delete_discipline_incident_route(id):
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("SELECT INCIDENT_CODE FROM Discipline_Incidents WHERE ID = %s", (id,))
+            cur.execute("SELECT INCIDENT_CODE FROM discipline_incidents WHERE ID = %s", (id,))
             row = cur.fetchone()
             if row:
                 inc_code = row["INCIDENT_CODE"]
                 cur.execute("DELETE FROM Discipline_Followups WHERE INCIDENT_CODE = %s", (inc_code,))
-                cur.execute("DELETE FROM Discipline_Incidents WHERE ID = %s", (id,))
+                cur.execute("DELETE FROM discipline_incidents WHERE ID = %s", (id,))
                 con.commit()
                 flash(f"Discipline incident {inc_code} and associated follow-up actions deleted.", "info")
         except Error as e:
@@ -3717,7 +3717,7 @@ def add_discipline_followup_route():
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("SELECT ROLL_NUMBER, STUDENT_NAME FROM Discipline_Incidents WHERE INCIDENT_CODE = %s", (incident_code,))
+            cur.execute("SELECT ROLL_NUMBER, STUDENT_NAME FROM discipline_incidents WHERE INCIDENT_CODE = %s", (incident_code,))
             inc = cur.fetchone()
             if not inc:
                 flash(f"Incident {incident_code} not found in incident registry.", "warning")
@@ -3738,7 +3738,7 @@ def add_discipline_followup_route():
             """, (fol_code, incident_code, roll, name, action_type, assigned_to, scheduled_date, outcome_notes))
 
             # Update linked incident status to Follow-up Scheduled
-            cur.execute("UPDATE Discipline_Incidents SET STATUS = 'Follow-up Scheduled' WHERE INCIDENT_CODE = %s", (incident_code,))
+            cur.execute("UPDATE discipline_incidents SET STATUS = 'Follow-up Scheduled' WHERE INCIDENT_CODE = %s", (incident_code,))
             con.commit()
 
             log_history(session.get("username", "Staff"), f"Scheduled follow-up {fol_code} ({action_type}) for incident {incident_code}")
@@ -3779,7 +3779,7 @@ def complete_discipline_followup_route(id):
                     WHERE ID = %s
                 """, (status, outcome_notes, parent_acknowledged, id))
                 # Also resolve the linked incident
-                cur.execute("UPDATE Discipline_Incidents SET STATUS = 'Resolved' WHERE INCIDENT_CODE = %s", (fol["INCIDENT_CODE"],))
+                cur.execute("UPDATE discipline_incidents SET STATUS = 'Resolved' WHERE INCIDENT_CODE = %s", (fol["INCIDENT_CODE"],))
             else:
                 cur.execute("""
                     UPDATE Discipline_Followups
@@ -3917,7 +3917,7 @@ def calendar_ptm_view():
             cur.execute("""
                 SELECT s.*,
                        (SELECT COUNT(*) FROM PTM_Bookings b WHERE b.SLOT_CODE = s.SLOT_CODE AND b.STATUS = 'Confirmed') AS BOOKED_COUNT
-                FROM PTM_Meeting_Slots s
+                FROM ptm_meeting_slots s
                 ORDER BY s.MEETING_DATE ASC, s.START_TIME ASC
             """)
             all_slots = cur.fetchall()
@@ -3956,7 +3956,7 @@ def calendar_ptm_view():
                 SELECT b.*,
                        s.TEACHER_ID, s.TEACHER_NAME, s.SUBJECT, s.MEETING_DATE, s.START_TIME, s.END_TIME, s.MEETING_MODE, s.ROOM_OR_LINK
                 FROM PTM_Bookings b
-                JOIN PTM_Meeting_Slots s ON b.SLOT_CODE = s.SLOT_CODE
+                JOIN ptm_meeting_slots s ON b.SLOT_CODE = s.SLOT_CODE
                 ORDER BY s.MEETING_DATE ASC, s.START_TIME ASC
             """)
             all_bookings = cur.fetchall()
@@ -4217,13 +4217,13 @@ def add_ptm_slot_route():
             teacher_name = teacher["NAME"]
             subject = teacher["SUBJECT"]
 
-            cur.execute("SELECT MAX(ID) AS MAX_ID FROM PTM_Meeting_Slots")
+            cur.execute("SELECT MAX(ID) AS MAX_ID FROM ptm_meeting_slots")
             row = cur.fetchone()
             next_num = (row["MAX_ID"] or 0) + 201
             slot_code = f"SLT-{next_num}"
 
             cur.execute("""
-                INSERT INTO PTM_Meeting_Slots (SLOT_CODE, TEACHER_ID, TEACHER_NAME, SUBJECT, MEETING_DATE, START_TIME, END_TIME, MEETING_MODE, ROOM_OR_LINK, STATUS, NOTES)
+                INSERT INTO ptm_meeting_slots (SLOT_CODE, TEACHER_ID, TEACHER_NAME, SUBJECT, MEETING_DATE, START_TIME, END_TIME, MEETING_MODE, ROOM_OR_LINK, STATUS, NOTES)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'Available', %s)
             """, (slot_code, teacher_id, teacher_name, subject, meeting_date, start_time, end_time, meeting_mode, room_or_link, notes))
             con.commit()
@@ -4245,12 +4245,12 @@ def delete_ptm_slot_route(id):
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("SELECT SLOT_CODE FROM PTM_Meeting_Slots WHERE ID = %s", (id,))
+            cur.execute("SELECT SLOT_CODE FROM ptm_meeting_slots WHERE ID = %s", (id,))
             row = cur.fetchone()
             if row:
                 slot_code = row["SLOT_CODE"]
                 cur.execute("DELETE FROM PTM_Bookings WHERE SLOT_CODE = %s", (slot_code,))
-                cur.execute("DELETE FROM PTM_Meeting_Slots WHERE ID = %s", (id,))
+                cur.execute("DELETE FROM ptm_meeting_slots WHERE ID = %s", (id,))
                 con.commit()
                 flash(f"Meeting slot {slot_code} deleted.", "info")
         except Error as e:
@@ -4281,7 +4281,7 @@ def book_ptm_slot_route():
         cur = con.cursor(dictionary=True)
         try:
             # Check slot is available
-            cur.execute("SELECT * FROM PTM_Meeting_Slots WHERE SLOT_CODE = %s", (slot_code,))
+            cur.execute("SELECT * FROM ptm_meeting_slots WHERE SLOT_CODE = %s", (slot_code,))
             slot = cur.fetchone()
             if not slot or slot["STATUS"] != "Available":
                 flash(f"Meeting Slot '{slot_code}' is no longer available for booking.", "warning")
@@ -4310,7 +4310,7 @@ def book_ptm_slot_route():
             """, (booking_code, slot_code, student_roll, student_name, student_class, parent_name, parent_phone, parent_email or None, topic_text))
 
             # Mark slot booked
-            cur.execute("UPDATE PTM_Meeting_Slots SET STATUS = 'Booked' WHERE SLOT_CODE = %s", (slot_code,))
+            cur.execute("UPDATE ptm_meeting_slots SET STATUS = 'Booked' WHERE SLOT_CODE = %s", (slot_code,))
 
             # Generate automated reminder
             cur.execute("SELECT MAX(ID) AS MAX_ID FROM Calendar_Reminders")
@@ -4347,7 +4347,7 @@ def cancel_ptm_booking_route(id):
             if bkg:
                 slot_code = bkg["SLOT_CODE"]
                 cur.execute("UPDATE PTM_Bookings SET STATUS = 'Cancelled' WHERE ID = %s", (id,))
-                cur.execute("UPDATE PTM_Meeting_Slots SET STATUS = 'Available' WHERE SLOT_CODE = %s", (slot_code,))
+                cur.execute("UPDATE ptm_meeting_slots SET STATUS = 'Available' WHERE SLOT_CODE = %s", (slot_code,))
                 con.commit()
                 log_history(session.get("username", "User"), f"Cancelled PTM booking {bkg['BOOKING_CODE']}")
                 flash(f"Meeting booking {bkg['BOOKING_CODE']} cancelled. The slot has been reopened for other parents.", "info")

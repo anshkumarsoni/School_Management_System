@@ -84,9 +84,9 @@ def create_coursework_tables():
             )
         """)
 
-        # 4. Learning_Courses
+        # 4. learning_courses
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS Learning_Courses (
+            CREATE TABLE IF NOT EXISTS learning_courses (
                 ID INT AUTO_INCREMENT PRIMARY KEY,
                 COURSE_CODE VARCHAR(30) UNIQUE NOT NULL,
                 TITLE VARCHAR(150) NOT NULL,
@@ -491,7 +491,7 @@ def view_learning_courses():
             print("Database connection failed!")
             return
         cur = con.cursor(dictionary=True)
-        cur.execute("SELECT * FROM Learning_Courses ORDER BY ID ASC")
+        cur.execute("SELECT * FROM learning_courses ORDER BY ID ASC")
         rows = cur.fetchall()
 
         if rows:

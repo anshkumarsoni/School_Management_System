@@ -70,7 +70,7 @@ def create_health_discipline_tables():
 
         # 3. Behaviour / Discipline Incidents
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS Discipline_Incidents (
+            CREATE TABLE IF NOT EXISTS discipline_incidents (
                 ID INT AUTO_INCREMENT PRIMARY KEY,
                 INCIDENT_CODE VARCHAR(30) UNIQUE NOT NULL,
                 ROLL_NUMBER VARCHAR(20) NOT NULL,
@@ -168,7 +168,7 @@ def seed_health_discipline_data():
             print("Seeded Medical Room Visits.")
 
         # 3. Seed Discipline Incidents
-        cur.execute("SELECT COUNT(*) AS CNT FROM Discipline_Incidents")
+        cur.execute("SELECT COUNT(*) AS CNT FROM discipline_incidents")
         if cur.fetchone()["CNT"] == 0:
             today = datetime.date.today()
             incidents = [
@@ -178,7 +178,7 @@ def seed_health_discipline_data():
                 ("DIS-204", "109", "Kabir Das", "Grade 12", today - datetime.timedelta(days=1), "Academic Dishonesty", "Major", "Chemistry Laboratory", "Dr. Meenakshi Rao", "Caught with unauthorized formula cheat-sheet concealed inside lab workbook during mid-term practical viva.", "Lab Assistant Sharma", "Action Pending")
             ]
             cur.executemany("""
-                INSERT INTO Discipline_Incidents 
+                INSERT INTO discipline_incidents 
                 (INCIDENT_CODE, ROLL_NUMBER, STUDENT_NAME, CLASS, INCIDENT_DATE, CATEGORY, SEVERITY, LOCATION, REPORTED_BY, DESCRIPTION, WITNESSES, STATUS)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, incidents)
@@ -457,7 +457,7 @@ def view_discipline_incidents():
 
     cur = con.cursor(dictionary=True)
     try:
-        cur.execute("SELECT INCIDENT_CODE, ROLL_NUMBER, STUDENT_NAME, CLASS, INCIDENT_DATE, CATEGORY, SEVERITY, LOCATION, REPORTED_BY, STATUS FROM Discipline_Incidents ORDER BY ID DESC")
+        cur.execute("SELECT INCIDENT_CODE, ROLL_NUMBER, STUDENT_NAME, CLASS, INCIDENT_DATE, CATEGORY, SEVERITY, LOCATION, REPORTED_BY, STATUS FROM discipline_incidents ORDER BY ID DESC")
         rows = cur.fetchall()
         if not rows:
             print("No discipline incidents on record.")
@@ -549,7 +549,7 @@ def log_discipline_incident():
         witnesses = input("Witnesses (if any): ").strip() or "None"
 
         # Generate incident code
-        cur.execute("SELECT MAX(ID) AS MAX_ID FROM Discipline_Incidents")
+        cur.execute("SELECT MAX(ID) AS MAX_ID FROM discipline_incidents")
         row = cur.fetchone()
         next_num = (row["MAX_ID"] or 0) + 201
         inc_code = f"DIS-{next_num}"
@@ -557,7 +557,7 @@ def log_discipline_incident():
         today = datetime.date.today()
 
         cur.execute("""
-            INSERT INTO Discipline_Incidents
+            INSERT INTO discipline_incidents
             (INCIDENT_CODE, ROLL_NUMBER, STUDENT_NAME, CLASS, INCIDENT_DATE, CATEGORY, SEVERITY, LOCATION, REPORTED_BY, DESCRIPTION, WITNESSES, STATUS)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Reported')
         """, (inc_code, roll, name, cls, today, category, severity, location, reported_by, description, witnesses))
@@ -631,7 +631,7 @@ def schedule_followup_action():
 
     cur = con.cursor(dictionary=True)
     try:
-        cur.execute("SELECT ROLL_NUMBER, STUDENT_NAME, CLASS FROM Discipline_Incidents WHERE INCIDENT_CODE = %s", (inc_code,))
+        cur.execute("SELECT ROLL_NUMBER, STUDENT_NAME, CLASS FROM discipline_incidents WHERE INCIDENT_CODE = %s", (inc_code,))
         inc = cur.fetchone()
         if not inc:
             print(f"Incident {inc_code} not found.")
@@ -685,7 +685,7 @@ def schedule_followup_action():
         """, (fol_code, inc_code, roll, name, action_type, assigned_to, sched_date, outcome_notes))
 
         # Update Incident status to Follow-up Scheduled
-        cur.execute("UPDATE Discipline_Incidents SET STATUS = 'Follow-up Scheduled' WHERE INCIDENT_CODE = %s", (inc_code,))
+        cur.execute("UPDATE discipline_incidents SET STATUS = 'Follow-up Scheduled' WHERE INCIDENT_CODE = %s", (inc_code,))
         con.commit()
         print(f"\n[SUCCESS] Follow-up action scheduled successfully as {fol_code} for incident {inc_code}!")
     except Error as e:

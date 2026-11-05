@@ -94,7 +94,7 @@ def init_db_schema():
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            for table in ["students_details", "Teachers_Details"]:
+            for table in ["students_details", "teachers_details"]:
                 cur.execute("""
                     SELECT COLUMN_NAME 
                     FROM INFORMATION_SCHEMA.COLUMNS 
@@ -557,7 +557,7 @@ def dashboard():
     cur.execute("SELECT COUNT(*) AS total FROM students_details")
     total_students = cur.fetchone()["total"] or 0
 
-    cur.execute("SELECT COUNT(*) AS total FROM Teachers_Details")
+    cur.execute("SELECT COUNT(*) AS total FROM teachers_details")
     total_teachers = cur.fetchone()["total"] or 0
 
     total_users = 0
@@ -600,7 +600,7 @@ def dashboard():
     # 6. Today's Birthdays (Students + Faculty)
     cur.execute("SELECT NAME, CLASS, 'Student' as role FROM students_details WHERE DOB IS NOT NULL AND MONTH(DOB) = MONTH(CURDATE()) AND DAY(DOB) = DAY(CURDATE())")
     todays_student_bdays = cur.fetchall()
-    cur.execute("SELECT NAME, SUBJECT as CLASS, 'Faculty' as role FROM Teachers_Details WHERE DOB IS NOT NULL AND MONTH(DOB) = MONTH(CURDATE()) AND DAY(DOB) = DAY(CURDATE())")
+    cur.execute("SELECT NAME, SUBJECT as CLASS, 'Faculty' as role FROM teachers_details WHERE DOB IS NOT NULL AND MONTH(DOB) = MONTH(CURDATE()) AND DAY(DOB) = DAY(CURDATE())")
     todays_teacher_bdays = cur.fetchall()
     all_todays_bdays = todays_student_bdays + todays_teacher_bdays
 
@@ -1245,10 +1245,10 @@ def teachers_view():
 
     cur = con.cursor(dictionary=True)
 
-    cur.execute("SELECT DISTINCT SUBJECT FROM Teachers_Details WHERE SUBJECT IS NOT NULL AND SUBJECT != '' ORDER BY SUBJECT")
+    cur.execute("SELECT DISTINCT SUBJECT FROM teachers_details WHERE SUBJECT IS NOT NULL AND SUBJECT != '' ORDER BY SUBJECT")
     available_subjects = [r["SUBJECT"] for r in cur.fetchall()]
 
-    base_query = "FROM Teachers_Details WHERE 1=1"
+    base_query = "FROM teachers_details WHERE 1=1"
     params = []
 
     if search:
@@ -1287,7 +1287,7 @@ def teachers_view():
             t["IS_TODAY_BDAY"] = False
 
     # Fetch all teachers with DOB for the Birthday Section
-    cur.execute("SELECT ID, TEACHER_ID, NAME, SUBJECT, GENDER, DOB FROM Teachers_Details WHERE DOB IS NOT NULL")
+    cur.execute("SELECT ID, TEACHER_ID, NAME, SUBJECT, GENDER, DOB FROM teachers_details WHERE DOB IS NOT NULL")
     all_bday_teachers = cur.fetchall()
     bday_today, bday_upcoming = calculate_birthday_events(all_bday_teachers)
 
@@ -1296,7 +1296,7 @@ def teachers_view():
         SELECT 
             COALESCE(NULLIF(TRIM(GENDER), ''), 'Other') as gender_label,
             COUNT(*) as count
-        FROM Teachers_Details
+        FROM teachers_details
         GROUP BY gender_label
         ORDER BY FIELD(gender_label, 'Male', 'Female', 'Other')
     """)
@@ -1403,13 +1403,13 @@ def add_teacher_route():
 
     cur = con.cursor(dictionary=True)
     try:
-        cur.execute("SELECT 1 FROM Teachers_Details WHERE TEACHER_ID = %s", (teacher_id,))
+        cur.execute("SELECT 1 FROM teachers_details WHERE TEACHER_ID = %s", (teacher_id,))
         if cur.fetchone():
             flash(f"Validation Error: Teacher ID '{teacher_id}' already exists in database.", "danger")
             return redirect(request.referrer or url_for("teachers_view"))
 
         cur.execute("""
-            INSERT INTO Teachers_Details (TEACHER_ID, NAME, SUBJECT, AGE, ADDRESS, PHONE, EMAIL, GENDER, DOB)
+            INSERT INTO teachers_details (TEACHER_ID, NAME, SUBJECT, AGE, ADDRESS, PHONE, EMAIL, GENDER, DOB)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (teacher_id, name, subject, age, address, phone, email, gender, dob))
         con.commit()
@@ -1486,7 +1486,7 @@ def edit_teacher_route(id):
 
     cur = con.cursor(dictionary=True)
     try:
-        cur.execute("SELECT TEACHER_ID FROM Teachers_Details WHERE ID = %s", (id,))
+        cur.execute("SELECT TEACHER_ID FROM teachers_details WHERE ID = %s", (id,))
         row = cur.fetchone()
         if not row:
             flash("Teacher record not found.", "warning")
@@ -1495,7 +1495,7 @@ def edit_teacher_route(id):
         teacher_id = row["TEACHER_ID"]
 
         cur.execute("""
-            UPDATE Teachers_Details
+            UPDATE teachers_details
             SET NAME = %s, SUBJECT = %s, AGE = %s, ADDRESS = %s, PHONE = %s, EMAIL = %s, GENDER = %s, DOB = %s
             WHERE ID = %s
         """, (name, subject, age, address, phone, email, gender, dob, id))
@@ -1520,11 +1520,11 @@ def delete_teacher_route(id):
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("SELECT TEACHER_ID FROM Teachers_Details WHERE ID = %s", (id,))
+            cur.execute("SELECT TEACHER_ID FROM teachers_details WHERE ID = %s", (id,))
             row = cur.fetchone()
             if row:
                 teacher_id = row["TEACHER_ID"]
-                cur.execute("DELETE FROM Teachers_Details WHERE ID = %s", (id,))
+                cur.execute("DELETE FROM teachers_details WHERE ID = %s", (id,))
                 con.commit()
                 username = session.get("username", "Admin")
                 log_history(username, f"Delete teacher ID {teacher_id}")
@@ -1809,7 +1809,7 @@ def library_view():
         cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM students_details ORDER BY ROLL_NUMBER ASC")
         students = cur.fetchall()
 
-        cur.execute("SELECT TEACHER_ID, NAME, SUBJECT FROM Teachers_Details ORDER BY TEACHER_ID ASC")
+        cur.execute("SELECT TEACHER_ID, NAME, SUBJECT FROM teachers_details ORDER BY TEACHER_ID ASC")
         teachers = cur.fetchall()
 
         # Compute Summary Stats
@@ -2810,7 +2810,7 @@ def coursework_view():
             # 8. Fetch Helpers (Students & Teachers)
             cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM students_details ORDER BY ROLL_NUMBER ASC")
             students = cur.fetchall()
-            cur.execute("SELECT TEACHER_ID, NAME, SUBJECT FROM Teachers_Details ORDER BY NAME ASC")
+            cur.execute("SELECT TEACHER_ID, NAME, SUBJECT FROM teachers_details ORDER BY NAME ASC")
             teachers = cur.fetchall()
 
             # Stats calculation
@@ -3420,7 +3420,7 @@ def health_discipline_view():
             # 5. Fetch Helpers
             cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM students_details ORDER BY ROLL_NUMBER ASC")
             students = cur.fetchall()
-            cur.execute("SELECT TEACHER_ID, NAME, SUBJECT FROM Teachers_Details ORDER BY NAME ASC")
+            cur.execute("SELECT TEACHER_ID, NAME, SUBJECT FROM teachers_details ORDER BY NAME ASC")
             teachers = cur.fetchall()
 
             # Stats
@@ -4021,7 +4021,7 @@ def calendar_ptm_view():
             for p in cur.fetchall():
                 parents_map[p["ROLL_NUMBER"]] = p
 
-            cur.execute("SELECT TEACHER_ID, NAME, SUBJECT FROM Teachers_Details ORDER BY NAME ASC")
+            cur.execute("SELECT TEACHER_ID, NAME, SUBJECT FROM teachers_details ORDER BY NAME ASC")
             teachers = cur.fetchall()
 
             # Stats calculation
@@ -4208,7 +4208,7 @@ def add_ptm_slot_route():
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("SELECT NAME, SUBJECT FROM Teachers_Details WHERE TEACHER_ID = %s", (teacher_id,))
+            cur.execute("SELECT NAME, SUBJECT FROM teachers_details WHERE TEACHER_ID = %s", (teacher_id,))
             teacher = cur.fetchone()
             if not teacher:
                 flash(f"Teacher with ID '{teacher_id}' not found.", "warning")
@@ -4486,7 +4486,7 @@ def performance_analytics_view():
         try:
             cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM students_details ORDER BY ROLL_NUMBER ASC")
             students = cur.fetchall()
-            cur.execute("SELECT TEACHER_ID, NAME, SUBJECT FROM Teachers_Details ORDER BY NAME ASC")
+            cur.execute("SELECT TEACHER_ID, NAME, SUBJECT FROM teachers_details ORDER BY NAME ASC")
             teachers = cur.fetchall()
         except Error as e:
             print("Aux data fetch error:", e)

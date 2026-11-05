@@ -572,7 +572,7 @@ def dashboard():
     total_books = int(cur.fetchone()["total"] or 0)
 
     try:
-        cur.execute("SELECT COUNT(*) AS total FROM Assignments")
+        cur.execute("SELECT COUNT(*) AS total FROM assignments")
         total_assignments = int(cur.fetchone()["total"] or 0)
     except Exception:
         total_assignments = 0
@@ -2611,7 +2611,7 @@ def add_fee_route():
 
 
 # -------------------------------------------------------------------------
-# 6B. COURSEWORK, ASSIGNMENTS, STUDY MATERIALS, COURSES & ONLINE QUIZZES
+# 6B. COURSEWORK, assignments, STUDY MATERIALS, COURSES & ONLINE QUIZZES
 # -------------------------------------------------------------------------
 
 @app.route("/coursework")
@@ -2656,11 +2656,11 @@ def coursework_view():
         today = datetime.date.today()
 
         try:
-            # 1. Fetch Assignments
+            # 1. Fetch assignments
             cur.execute("""
                 SELECT a.*,
                        (SELECT COUNT(*) FROM Assignment_Submissions s WHERE s.ASSIGNMENT_CODE = a.ASSIGNMENT_CODE) AS SUBMISSION_COUNT
-                FROM Assignments a
+                FROM assignments a
                 ORDER BY a.ID DESC
             """)
             all_assignments = cur.fetchall()
@@ -2740,7 +2740,7 @@ def coursework_view():
                        a.MAX_MARKS,
                        a.DUE_DATE AS ASSIGNMENT_DUE_DATE
                 FROM Assignment_Submissions s
-                LEFT JOIN Assignments a ON s.ASSIGNMENT_CODE = a.ASSIGNMENT_CODE
+                LEFT JOIN assignments a ON s.ASSIGNMENT_CODE = a.ASSIGNMENT_CODE
                 ORDER BY s.ID DESC
             """)
             all_submissions = cur.fetchall()
@@ -2882,13 +2882,13 @@ def add_assignment_route():
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("SELECT MAX(ID) AS MAX_ID FROM Assignments")
+            cur.execute("SELECT MAX(ID) AS MAX_ID FROM assignments")
             row = cur.fetchone()
             next_num = (row["MAX_ID"] or 0) + 101
             code = f"ASN-{next_num}"
 
             cur.execute("""
-                INSERT INTO Assignments (ASSIGNMENT_CODE, TITLE, SUBJECT, CLASS, TEACHER_NAME, DESCRIPTION, ATTACHMENT_URL, ASSIGNED_DATE, DUE_DATE, MAX_MARKS, STATUS)
+                INSERT INTO assignments (ASSIGNMENT_CODE, TITLE, SUBJECT, CLASS, TEACHER_NAME, DESCRIPTION, ATTACHMENT_URL, ASSIGNED_DATE, DUE_DATE, MAX_MARKS, STATUS)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, CURDATE(), %s, %s, 'Active')
             """, (code, title, subject, class_name, teacher_name or "Faculty", description, attachment_url or None, due_date, max_marks))
             con.commit()
@@ -2910,12 +2910,12 @@ def delete_assignment_route(id):
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("SELECT ASSIGNMENT_CODE, TITLE FROM Assignments WHERE ID = %s", (id,))
+            cur.execute("SELECT ASSIGNMENT_CODE, TITLE FROM assignments WHERE ID = %s", (id,))
             row = cur.fetchone()
             if row:
                 code = row["ASSIGNMENT_CODE"]
                 cur.execute("DELETE FROM Assignment_Submissions WHERE ASSIGNMENT_CODE = %s", (code,))
-                cur.execute("DELETE FROM Assignments WHERE ID = %s", (id,))
+                cur.execute("DELETE FROM assignments WHERE ID = %s", (id,))
                 con.commit()
                 log_history(session.get("username", "Teacher"), f"Deleted assignment {code}")
                 flash(f"Assignment {code} and its submissions have been removed.", "info")
@@ -2937,11 +2937,11 @@ def toggle_assignment_status_route(id):
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("SELECT STATUS, ASSIGNMENT_CODE FROM Assignments WHERE ID = %s", (id,))
+            cur.execute("SELECT STATUS, ASSIGNMENT_CODE FROM assignments WHERE ID = %s", (id,))
             row = cur.fetchone()
             if row:
                 new_status = "Closed" if row["STATUS"] == "Active" else "Active"
-                cur.execute("UPDATE Assignments SET STATUS = %s WHERE ID = %s", (new_status, id))
+                cur.execute("UPDATE assignments SET STATUS = %s WHERE ID = %s", (new_status, id))
                 con.commit()
                 flash(f"Assignment {row['ASSIGNMENT_CODE']} status updated to '{new_status}'.", "success")
         except Error as e:
@@ -3033,7 +3033,7 @@ def submit_coursework_route():
         today = datetime.date.today()
         try:
             # Check assignment due date
-            cur.execute("SELECT DUE_DATE, TITLE FROM Assignments WHERE ASSIGNMENT_CODE = %s", (assignment_code,))
+            cur.execute("SELECT DUE_DATE, TITLE FROM assignments WHERE ASSIGNMENT_CODE = %s", (assignment_code,))
             asn = cur.fetchone()
             if not asn:
                 flash(f"Assignment code '{assignment_code}' not found.", "warning")

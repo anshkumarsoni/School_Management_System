@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------
-# COURSEWORK, ASSIGNMENTS & E-LEARNING MANAGEMENT SYSTEM
+# COURSEWORK, assignments & E-LEARNING MANAGEMENT SYSTEM
 # -------------------------------------------------------------------------
 
 import datetime
@@ -25,9 +25,9 @@ def create_coursework_tables():
             return
         cur = con.cursor()
 
-        # 1. Assignments
+        # 1. assignments
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS Assignments (
+            CREATE TABLE IF NOT EXISTS assignments (
                 ID INT AUTO_INCREMENT PRIMARY KEY,
                 ASSIGNMENT_CODE VARCHAR(30) UNIQUE NOT NULL,
                 TITLE VARCHAR(150) NOT NULL,
@@ -160,7 +160,7 @@ def create_coursework_tables():
             cur.close()
             con.close()
 
-# --------------------------------- 1. ASSIGNMENTS ---------------------------------
+# --------------------------------- 1. assignments ---------------------------------
 
 def view_assignments():
     con = None
@@ -175,7 +175,7 @@ def view_assignments():
             SELECT a.*, 
                    COUNT(s.ID) AS total_submissions,
                    SUM(CASE WHEN s.STATUS = 'Graded' THEN 1 ELSE 0 END) AS graded_count
-            FROM Assignments a
+            FROM assignments a
             LEFT JOIN Assignment_Submissions s ON a.ASSIGNMENT_CODE = s.ASSIGNMENT_CODE
             GROUP BY a.ID
             ORDER BY a.ID DESC
@@ -244,12 +244,12 @@ def add_assignment():
         today = datetime.date.today()
         due_date = today + datetime.timedelta(days=days)
 
-        cur.execute("SELECT MAX(ID) FROM Assignments")
+        cur.execute("SELECT MAX(ID) FROM assignments")
         max_id = (cur.fetchone()[0] or 0) + 1
         code = f"ASN-{max_id:03d}"
 
         cur.execute("""
-            INSERT INTO Assignments 
+            INSERT INTO assignments 
             (ASSIGNMENT_CODE, TITLE, SUBJECT, CLASS, TEACHER_NAME, DESCRIPTION, ATTACHMENT_URL, ASSIGNED_DATE, DUE_DATE, MAX_MARKS, STATUS)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Active')
         """, (code, title, subject, cls, teacher, desc, url, today, due_date, max_marks))
@@ -378,7 +378,7 @@ def view_submissions_and_grade():
         cur.execute("""
             SELECT s.*, a.TITLE AS ASSIGNMENT_TITLE, a.MAX_MARKS
             FROM Assignment_Submissions s
-            JOIN Assignments a ON s.ASSIGNMENT_CODE = a.ASSIGNMENT_CODE
+            JOIN assignments a ON s.ASSIGNMENT_CODE = a.ASSIGNMENT_CODE
             ORDER BY s.ID DESC
         """)
         rows = cur.fetchall()
@@ -414,7 +414,7 @@ def view_submissions_and_grade():
         cur.execute("""
             SELECT s.*, a.TITLE AS ASSIGNMENT_TITLE, a.MAX_MARKS
             FROM Assignment_Submissions s
-            JOIN Assignments a ON s.ASSIGNMENT_CODE = a.ASSIGNMENT_CODE
+            JOIN assignments a ON s.ASSIGNMENT_CODE = a.ASSIGNMENT_CODE
             WHERE s.ID = %s
         """, (sub_id,))
         sub = cur.fetchone()
@@ -654,9 +654,9 @@ def coursework_menu():
     create_coursework_tables()
     while True:
         clear_screen()
-        print("\nACADEMICS, ASSIGNMENTS & E-LEARNING SYSTEM".center(100))
+        print("\nACADEMICS, assignments & E-LEARNING SYSTEM".center(100))
         print("=" * 100)
-        print("1. View Active Assignments".center(100))
+        print("1. View Active assignments".center(100))
         print("2. Publish New Assignment (Teachers)".center(100))
         print("3. View Study Materials & Lecture Notes".center(100))
         print("4. Upload Study Material (Teachers)".center(100))

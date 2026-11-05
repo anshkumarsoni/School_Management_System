@@ -153,7 +153,7 @@
                 <h3 class="kpi-value">{{ "{:,}".format(total_assignments or 0) }}</h3>
             </div>
             <div class="kpi-footer">
-                <span class="kpi-subtext"><i class="fa-solid fa-pen-ruler"></i> Assignments & LMS curriculum</span>
+                <span class="kpi-subtext"><i class="fa-solid fa-pen-ruler"></i> assignments & LMS curriculum</span>
             </div>
         </a>
         {% endif %}
@@ -255,7 +255,7 @@
                     <i class="fa-solid fa-graduation-cap"></i>
                 </div>
                 <span class="action-tile-label">Coursework & LMS</span>
-                <span class="action-tile-desc">Assignments & grading</span>
+                <span class="action-tile-desc">assignments & grading</span>
             </a>
             {% elif current_role == 'viewer' %}
             <a href="{{ url_for('fees_view') }}" class="quick-action-tile">

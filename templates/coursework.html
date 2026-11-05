@@ -34,14 +34,14 @@
 
     <!-- 1. Executive KPI Summary Cards -->
     <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 24px;">
-        <!-- Total Assignments -->
+        <!-- Total assignments -->
         <div class="kpi-card card-blue">
             <div class="kpi-top">
                 <div class="kpi-icon-wrapper" style="background: #eff6ff; color: #2563eb;"><i class="fa-solid fa-list-check"></i></div>
-                <span class="kpi-pill"><i class="fa-solid fa-circle-check"></i> Assignments</span>
+                <span class="kpi-pill"><i class="fa-solid fa-circle-check"></i> assignments</span>
             </div>
             <div class="kpi-body">
-                <span class="kpi-label">Active Assignments</span>
+                <span class="kpi-label">Active assignments</span>
                 <h3 class="kpi-value">{{ stats.active_assignments }} <span style="font-size: 14px; font-weight: 600; color: var(--text-muted);">/ {{ stats.total_assignments }}</span></h3>
             </div>
             <div class="kpi-footer">
@@ -115,7 +115,7 @@
     <!-- 2. Subsystem Navigation Tabs -->
     <div class="library-tabs-nav" style="display: flex; gap: 8px; border-bottom: 2px solid var(--border-color); margin-bottom: 20px; overflow-x: auto; padding-bottom: 2px;">
         <a href="{{ url_for('coursework_view', tab='assignments') }}" class="lib-tab-pill {% if tab == 'assignments' %}active{% endif %}">
-            <i class="fa-solid fa-list-check"></i> Assignments
+            <i class="fa-solid fa-list-check"></i> assignments
             <span class="tab-counter">{{ stats.active_assignments }} active</span>
         </a>
         <a href="{{ url_for('coursework_view', tab='submissions') }}" class="lib-tab-pill {% if tab == 'submissions' %}active{% endif %}">
@@ -141,7 +141,7 @@
     </div>
 
     <!-- ================================================================= -->
-    <!-- TAB 1: ASSIGNMENTS -->
+    <!-- TAB 1: assignments -->
     <!-- ================================================================= -->
     {% if tab == 'assignments' %}
     <div class="data-table-card">
@@ -149,7 +149,7 @@
             <div class="header-left">
                 <div class="card-badge-icon badge-blue"><i class="fa-solid fa-list-check"></i></div>
                 <div>
-                    <h4 class="card-title">Academic Assignments &amp; Homework</h4>
+                    <h4 class="card-title">Academic assignments &amp; Homework</h4>
                     <span class="card-subtitle">Showing {{ assignments | length }} of {{ stats.total_assignments }} assignments</span>
                 </div>
             </div>
@@ -290,7 +290,7 @@
             {% else %}
             <div style="grid-column: 1 / -1; text-align: center; padding: 48px; background: #f8fafc; border-radius: var(--radius-md); border: 1px dashed var(--border-color);">
                 <i class="fa-solid fa-folder-open" style="font-size: 38px; color: #94a3b8; margin-bottom: 12px;"></i>
-                <h4 style="font-size: 16px; font-weight: 800; color: var(--navy-900); margin-bottom: 4px;">No Assignments Found</h4>
+                <h4 style="font-size: 16px; font-weight: 800; color: var(--navy-900); margin-bottom: 4px;">No assignments Found</h4>
                 <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">Try adjusting your search criteria or create a new assignment.</p>
                 {% if current_role in ('super_admin', 'admin') %}
                     <button type="button" class="btn-toolbar-add" data-modal-target="#addAssignmentModal">

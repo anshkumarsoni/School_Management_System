@@ -66,7 +66,7 @@ def main():
         print("8. Import Bulk Data from CSV / Excel".center(100))
         print("9. Student Performance Analytics & Demographics".center(100))
         print("10. Parent & Guardian Details System".center(100))
-        print("11. Coursework, Assignments & Quizzes".center(100))
+        print("11. Coursework, assignments & Quizzes".center(100))
         print("12. Student Health & Discipline Records".center(100))
         print("13. School Calendar & Parent-Teacher Meetings".center(100))
         print("14. Aiven Cloud Database Replication & Sync".center(100))

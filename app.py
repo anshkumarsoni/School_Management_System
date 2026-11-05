@@ -94,7 +94,7 @@ def init_db_schema():
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            for table in ["Students_Details", "Teachers_Details"]:
+            for table in ["students_details", "Teachers_Details"]:
                 cur.execute("""
                     SELECT COLUMN_NAME 
                     FROM INFORMATION_SCHEMA.COLUMNS 
@@ -554,7 +554,7 @@ def dashboard():
     cur = con.cursor(dictionary=True)
 
     # 1. Total counts from real database records
-    cur.execute("SELECT COUNT(*) AS total FROM Students_Details")
+    cur.execute("SELECT COUNT(*) AS total FROM students_details")
     total_students = cur.fetchone()["total"] or 0
 
     cur.execute("SELECT COUNT(*) AS total FROM Teachers_Details")
@@ -582,23 +582,23 @@ def dashboard():
     recent_activity = cur.fetchall()
 
     # 3. Recent Students
-    cur.execute("SELECT ID, ROLL_NUMBER, NAME, CLASS, PHONE, GENDER FROM Students_Details ORDER BY ID DESC LIMIT 5")
+    cur.execute("SELECT ID, ROLL_NUMBER, NAME, CLASS, PHONE, GENDER FROM students_details ORDER BY ID DESC LIMIT 5")
     recent_students = cur.fetchall()
 
     # 4. Chart 1: Enrollment by Class
-    cur.execute("SELECT CLASS, COUNT(*) AS count FROM Students_Details WHERE CLASS IS NOT NULL AND CLASS != '' GROUP BY CLASS ORDER BY CLASS")
+    cur.execute("SELECT CLASS, COUNT(*) AS count FROM students_details WHERE CLASS IS NOT NULL AND CLASS != '' GROUP BY CLASS ORDER BY CLASS")
     class_rows = cur.fetchall()
     class_labels = [r["CLASS"] for r in class_rows]
     class_counts = [int(r["count"]) for r in class_rows]
 
     # 5. Chart 2: Gender Demographics
-    cur.execute("SELECT GENDER, COUNT(*) AS count FROM Students_Details WHERE GENDER IS NOT NULL GROUP BY GENDER")
+    cur.execute("SELECT GENDER, COUNT(*) AS count FROM students_details WHERE GENDER IS NOT NULL GROUP BY GENDER")
     gender_rows = cur.fetchall()
     gender_labels = [r["GENDER"] for r in gender_rows]
     gender_counts = [int(r["count"]) for r in gender_rows]
 
     # 6. Today's Birthdays (Students + Faculty)
-    cur.execute("SELECT NAME, CLASS, 'Student' as role FROM Students_Details WHERE DOB IS NOT NULL AND MONTH(DOB) = MONTH(CURDATE()) AND DAY(DOB) = DAY(CURDATE())")
+    cur.execute("SELECT NAME, CLASS, 'Student' as role FROM students_details WHERE DOB IS NOT NULL AND MONTH(DOB) = MONTH(CURDATE()) AND DAY(DOB) = DAY(CURDATE())")
     todays_student_bdays = cur.fetchall()
     cur.execute("SELECT NAME, SUBJECT as CLASS, 'Faculty' as role FROM Teachers_Details WHERE DOB IS NOT NULL AND MONTH(DOB) = MONTH(CURDATE()) AND DAY(DOB) = DAY(CURDATE())")
     todays_teacher_bdays = cur.fetchall()
@@ -696,11 +696,11 @@ def students_view():
     cur = con.cursor(dictionary=True)
 
     # Fetch available classes for dropdown filter
-    cur.execute("SELECT DISTINCT CLASS FROM Students_Details WHERE CLASS IS NOT NULL AND CLASS != '' ORDER BY CLASS")
+    cur.execute("SELECT DISTINCT CLASS FROM students_details WHERE CLASS IS NOT NULL AND CLASS != '' ORDER BY CLASS")
     available_classes = [r["CLASS"] for r in cur.fetchall()]
 
     # Dynamic Filter Query Construction
-    base_query = "FROM Students_Details WHERE 1=1"
+    base_query = "FROM students_details WHERE 1=1"
     params = []
 
     if search:
@@ -743,7 +743,7 @@ def students_view():
             s["IS_TODAY_BDAY"] = False
 
     # Fetch all students with DOB for the Birthday Section
-    cur.execute("SELECT ID, ROLL_NUMBER, NAME, CLASS, GENDER, DOB FROM Students_Details WHERE DOB IS NOT NULL")
+    cur.execute("SELECT ID, ROLL_NUMBER, NAME, CLASS, GENDER, DOB FROM students_details WHERE DOB IS NOT NULL")
     all_bday_students = cur.fetchall()
     bday_today, bday_upcoming = calculate_birthday_events(all_bday_students)
 
@@ -752,7 +752,7 @@ def students_view():
         SELECT 
             COALESCE(NULLIF(TRIM(GENDER), ''), 'Other') as gender_label,
             COUNT(*) as count
-        FROM Students_Details
+        FROM students_details
         GROUP BY gender_label
         ORDER BY FIELD(gender_label, 'Male', 'Female', 'Other')
     """)
@@ -862,13 +862,13 @@ def add_student_route():
     cur = con.cursor(dictionary=True)
     try:
         # Check uniqueness of Roll Number
-        cur.execute("SELECT 1 FROM Students_Details WHERE ROLL_NUMBER = %s", (roll_number,))
+        cur.execute("SELECT 1 FROM students_details WHERE ROLL_NUMBER = %s", (roll_number,))
         if cur.fetchone():
             flash(f"Validation Error: Roll Number '{roll_number}' already exists in database.", "danger")
             return redirect(request.referrer or url_for("students_view"))
 
         cur.execute("""
-            INSERT INTO Students_Details (ROLL_NUMBER, NAME, CLASS, AGE, ADDRESS, PHONE, EMAIL, GENDER, DOB)
+            INSERT INTO students_details (ROLL_NUMBER, NAME, CLASS, AGE, ADDRESS, PHONE, EMAIL, GENDER, DOB)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (roll_number, name, class_name, age, address, phone, email, gender, dob))
         con.commit()
@@ -942,7 +942,7 @@ def edit_student_route(id):
 
     cur = con.cursor(dictionary=True)
     try:
-        cur.execute("SELECT ROLL_NUMBER FROM Students_Details WHERE ID = %s", (id,))
+        cur.execute("SELECT ROLL_NUMBER FROM students_details WHERE ID = %s", (id,))
         row = cur.fetchone()
         if not row:
             flash("Student record not found.", "warning")
@@ -951,7 +951,7 @@ def edit_student_route(id):
         roll_number = row["ROLL_NUMBER"]
 
         cur.execute("""
-            UPDATE Students_Details
+            UPDATE students_details
             SET NAME = %s, CLASS = %s, AGE = %s, ADDRESS = %s, PHONE = %s, EMAIL = %s, GENDER = %s, DOB = %s
             WHERE ID = %s
         """, (name, class_name, age, address, phone, email, gender, dob, id))
@@ -976,11 +976,11 @@ def delete_student_route(id):
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("SELECT ROLL_NUMBER FROM Students_Details WHERE ID = %s", (id,))
+            cur.execute("SELECT ROLL_NUMBER FROM students_details WHERE ID = %s", (id,))
             row = cur.fetchone()
             if row:
                 roll_number = row["ROLL_NUMBER"]
-                cur.execute("DELETE FROM Students_Details WHERE ID = %s", (id,))
+                cur.execute("DELETE FROM students_details WHERE ID = %s", (id,))
                 con.commit()
                 username = session.get("username", "Admin")
                 log_history(username, f"Delete student Roll {roll_number}")
@@ -1028,9 +1028,9 @@ def parents_view():
                 p.PRIMARY_CONTACT, p.EMAIL,
                 p.RESIDENTIAL_ADDRESS, p.EMERGENCY_CONTACT, p.ANNUAL_INCOME
             FROM Parents_Details p
-            LEFT JOIN Students_Details s ON p.ROLL_NUMBER = s.ROLL_NUMBER
+            LEFT JOIN students_details s ON p.ROLL_NUMBER = s.ROLL_NUMBER
         """
-        count_query = "SELECT COUNT(*) as cnt FROM Parents_Details p LEFT JOIN Students_Details s ON p.ROLL_NUMBER = s.ROLL_NUMBER"
+        count_query = "SELECT COUNT(*) as cnt FROM Parents_Details p LEFT JOIN students_details s ON p.ROLL_NUMBER = s.ROLL_NUMBER"
         params = []
 
         if search:
@@ -1049,7 +1049,7 @@ def parents_view():
         cur.execute(query, query_params)
         parents = cur.fetchall()
 
-        cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM Students_Details ORDER BY ROLL_NUMBER ASC")
+        cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM students_details ORDER BY ROLL_NUMBER ASC")
         students = cur.fetchall()
 
         cur.close()
@@ -1107,7 +1107,7 @@ def add_parent_route():
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("SELECT NAME, CLASS FROM Students_Details WHERE ROLL_NUMBER = %s", (roll_number,))
+            cur.execute("SELECT NAME, CLASS FROM students_details WHERE ROLL_NUMBER = %s", (roll_number,))
             student = cur.fetchone()
             if not student:
                 flash(f"Validation Error: Student with Roll Number '{roll_number}' was not found.", "danger")
@@ -1806,7 +1806,7 @@ def library_view():
                 reservations.append(res_item)
 
         # 4. Fetch Students & Faculty for autocompletion dropdowns
-        cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM Students_Details ORDER BY ROLL_NUMBER ASC")
+        cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM students_details ORDER BY ROLL_NUMBER ASC")
         students = cur.fetchall()
 
         cur.execute("SELECT TEACHER_ID, NAME, SUBJECT FROM Teachers_Details ORDER BY TEACHER_ID ASC")
@@ -1856,13 +1856,13 @@ def attendance_view():
         cur.execute("""
             SELECT a.*, s.NAME, s.CLASS 
             FROM Attendance_Details a
-            LEFT JOIN Students_Details s ON a.ROLL_NUMBER = s.ROLL_NUMBER
+            LEFT JOIN students_details s ON a.ROLL_NUMBER = s.ROLL_NUMBER
             ORDER BY a.ATTENDANCE_DATE DESC, a.ID DESC
             LIMIT 100
         """)
         records = cur.fetchall()
 
-        cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM Students_Details ORDER BY ROLL_NUMBER ASC")
+        cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM students_details ORDER BY ROLL_NUMBER ASC")
         students = cur.fetchall()
 
         cur.execute("""
@@ -1923,7 +1923,7 @@ def add_attendance_route():
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("SELECT NAME, CLASS FROM Students_Details WHERE ROLL_NUMBER = %s", (roll_number,))
+            cur.execute("SELECT NAME, CLASS FROM students_details WHERE ROLL_NUMBER = %s", (roll_number,))
             student = cur.fetchone()
             if not student:
                 flash(f"Validation Error: Student Roll Number '{roll_number}' was not found.", "danger")
@@ -1963,7 +1963,7 @@ def fees_view():
                 cur.execute("""
                     SELECT f.*, s.NAME, s.CLASS 
                     FROM Fee_Transactions f
-                    LEFT JOIN Students_Details s ON f.ROLL_NUMBER = s.ROLL_NUMBER
+                    LEFT JOIN students_details s ON f.ROLL_NUMBER = s.ROLL_NUMBER
                     WHERE f.ROLL_NUMBER = %s OR s.NAME LIKE %s
                     ORDER BY f.PAYMENT_DATE DESC
                 """, (search, f"%{search}%"))
@@ -1971,7 +1971,7 @@ def fees_view():
                 cur.execute("""
                     SELECT f.*, s.NAME, s.CLASS 
                     FROM Fee_Transactions f
-                    LEFT JOIN Students_Details s ON f.ROLL_NUMBER = s.ROLL_NUMBER
+                    LEFT JOIN students_details s ON f.ROLL_NUMBER = s.ROLL_NUMBER
                     ORDER BY f.PAYMENT_DATE DESC
                     LIMIT 25
                 """)
@@ -1983,7 +1983,7 @@ def fees_view():
                 cur.execute("""
                     SELECT f.*, s.NAME, s.CLASS 
                     FROM Fee_Transactions f
-                    LEFT JOIN Students_Details s ON f.ROLL_NUMBER = s.ROLL_NUMBER
+                    LEFT JOIN students_details s ON f.ROLL_NUMBER = s.ROLL_NUMBER
                     WHERE f.ROLL_NUMBER = %s OR s.NAME LIKE %s OR f.REMARKS LIKE %s
                     ORDER BY f.PAYMENT_DATE DESC
                 """, (search, f"%{search}%", f"%{search}%"))
@@ -1991,7 +1991,7 @@ def fees_view():
                 cur.execute("""
                     SELECT f.*, s.NAME, s.CLASS 
                     FROM Fee_Transactions f
-                    LEFT JOIN Students_Details s ON f.ROLL_NUMBER = s.ROLL_NUMBER
+                    LEFT JOIN students_details s ON f.ROLL_NUMBER = s.ROLL_NUMBER
                     ORDER BY f.PAYMENT_DATE DESC
                     LIMIT 50
                 """)
@@ -2025,7 +2025,7 @@ def exams_view():
         cur.execute("""
             SELECT m.*, s.NAME, s.CLASS 
             FROM Marks_Details m
-            LEFT JOIN Students_Details s ON m.ROLL_NUMBER = s.ROLL_NUMBER
+            LEFT JOIN students_details s ON m.ROLL_NUMBER = s.ROLL_NUMBER
             ORDER BY m.ID DESC
             LIMIT 100
         """)
@@ -2049,7 +2049,7 @@ def exams_view():
                 m["grade_class"] = "badge-rose"
             marks.append(m)
 
-        cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM Students_Details ORDER BY ROLL_NUMBER ASC")
+        cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM students_details ORDER BY ROLL_NUMBER ASC")
         students = cur.fetchall()
 
         if marks:
@@ -2105,7 +2105,7 @@ def add_exam_mark_route():
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("SELECT NAME, CLASS FROM Students_Details WHERE ROLL_NUMBER = %s", (roll_number,))
+            cur.execute("SELECT NAME, CLASS FROM students_details WHERE ROLL_NUMBER = %s", (roll_number,))
             student = cur.fetchone()
             if not student:
                 flash(f"Validation Error: Student Roll Number '{roll_number}' was not found.", "danger")
@@ -2587,7 +2587,7 @@ def add_fee_route():
         cur = con.cursor(dictionary=True)
         try:
             # Check student exists
-            cur.execute("SELECT 1 FROM Students_Details WHERE ROLL_NUMBER = %s", (roll_number,))
+            cur.execute("SELECT 1 FROM students_details WHERE ROLL_NUMBER = %s", (roll_number,))
             if not cur.fetchone():
                 flash(f"Validation Warning: Student Roll Number '{roll_number}' not found in registry.", "warning")
 
@@ -2808,7 +2808,7 @@ def coursework_view():
                 qa["attempt_date_fmt"] = qa["ATTEMPT_DATE"].strftime("%b %d, %Y") if qa.get("ATTEMPT_DATE") else "-"
 
             # 8. Fetch Helpers (Students & Teachers)
-            cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM Students_Details ORDER BY ROLL_NUMBER ASC")
+            cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM students_details ORDER BY ROLL_NUMBER ASC")
             students = cur.fetchall()
             cur.execute("SELECT TEACHER_ID, NAME, SUBJECT FROM Teachers_Details ORDER BY NAME ASC")
             teachers = cur.fetchall()
@@ -3418,7 +3418,7 @@ def health_discipline_view():
                     followups.append(fol)
 
             # 5. Fetch Helpers
-            cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM Students_Details ORDER BY ROLL_NUMBER ASC")
+            cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM students_details ORDER BY ROLL_NUMBER ASC")
             students = cur.fetchall()
             cur.execute("SELECT TEACHER_ID, NAME, SUBJECT FROM Teachers_Details ORDER BY NAME ASC")
             teachers = cur.fetchall()
@@ -3490,7 +3490,7 @@ def save_health_profile_route():
         cur = con.cursor(dictionary=True)
         try:
             # Check student exists
-            cur.execute("SELECT NAME, CLASS FROM Students_Details WHERE ROLL_NUMBER = %s", (roll_number,))
+            cur.execute("SELECT NAME, CLASS FROM students_details WHERE ROLL_NUMBER = %s", (roll_number,))
             st = cur.fetchone()
             if not st:
                 flash(f"Student with Roll #{roll_number} not found in school registry.", "warning")
@@ -3549,7 +3549,7 @@ def add_medical_visit_route():
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("SELECT NAME, CLASS FROM Students_Details WHERE ROLL_NUMBER = %s", (roll_number,))
+            cur.execute("SELECT NAME, CLASS FROM students_details WHERE ROLL_NUMBER = %s", (roll_number,))
             st = cur.fetchone()
             if not st:
                 flash(f"Student with Roll #{roll_number} not found.", "warning")
@@ -3622,7 +3622,7 @@ def add_discipline_incident_route():
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("SELECT NAME, CLASS FROM Students_Details WHERE ROLL_NUMBER = %s", (roll_number,))
+            cur.execute("SELECT NAME, CLASS FROM students_details WHERE ROLL_NUMBER = %s", (roll_number,))
             st = cur.fetchone()
             if not st:
                 flash(f"Student with Roll #{roll_number} not found.", "warning")
@@ -4014,7 +4014,7 @@ def calendar_ptm_view():
                     reminders.append(r)
 
             # 6. Fetch Helpers (Students, Parents, Teachers)
-            cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM Students_Details ORDER BY ROLL_NUMBER ASC")
+            cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM students_details ORDER BY ROLL_NUMBER ASC")
             students = cur.fetchall()
 
             cur.execute("SELECT ROLL_NUMBER, FATHER_NAME, PRIMARY_CONTACT, EMAIL FROM Parents_Details")
@@ -4288,7 +4288,7 @@ def book_ptm_slot_route():
                 return redirect(url_for("calendar_ptm_view", tab="slots"))
 
             # Check student
-            cur.execute("SELECT NAME, CLASS FROM Students_Details WHERE ROLL_NUMBER = %s", (student_roll,))
+            cur.execute("SELECT NAME, CLASS FROM students_details WHERE ROLL_NUMBER = %s", (student_roll,))
             st = cur.fetchone()
             if not st:
                 flash(f"Student with Roll Number '{student_roll}' not found in registry.", "warning")
@@ -4484,7 +4484,7 @@ def performance_analytics_view():
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM Students_Details ORDER BY ROLL_NUMBER ASC")
+            cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM students_details ORDER BY ROLL_NUMBER ASC")
             students = cur.fetchall()
             cur.execute("SELECT TEACHER_ID, NAME, SUBJECT FROM Teachers_Details ORDER BY NAME ASC")
             teachers = cur.fetchall()
@@ -4586,7 +4586,7 @@ def student_report_api(roll):
         return jsonify({"error": "Database connection failed"}), 500
     cur = con.cursor(dictionary=True)
     try:
-        cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM Students_Details WHERE ROLL_NUMBER = %s", (roll,))
+        cur.execute("SELECT ROLL_NUMBER, NAME, CLASS FROM students_details WHERE ROLL_NUMBER = %s", (roll,))
         stud = cur.fetchone()
         if not stud:
             return jsonify({"error": "Student not found"}), 404

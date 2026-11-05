@@ -135,9 +135,9 @@ def create_coursework_tables():
             )
         """)
 
-        # 7. Quiz_Attempts
+        # 7. quiz_attempts
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS Quiz_Attempts (
+            CREATE TABLE IF NOT EXISTS quiz_attempts (
                 ID INT AUTO_INCREMENT PRIMARY KEY,
                 ATTEMPT_CODE VARCHAR(30) UNIQUE NOT NULL,
                 QUIZ_CODE VARCHAR(30) NOT NULL,
@@ -612,12 +612,12 @@ def run_interactive_quiz():
 
         # Record attempt in database
         today = datetime.date.today()
-        cur.execute("SELECT MAX(ID) FROM Quiz_Attempts")
+        cur.execute("SELECT MAX(ID) FROM quiz_attempts")
         att_num = (cur.fetchone()['MAX(ID)'] or 0) + 1
         att_code = f"ATT-{today.year}-{att_num:04d}"
 
         cur.execute("""
-            INSERT INTO Quiz_Attempts 
+            INSERT INTO quiz_attempts 
             (ATTEMPT_CODE, QUIZ_CODE, STUDENT_ROLL, STUDENT_NAME, SCORE, TOTAL_QUESTIONS, PERCENTAGE, PASSED, ATTEMPT_DATE)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (att_code, selected_quiz['QUIZ_CODE'], student_roll, student_name, score, total_q, percentage, passed, today))

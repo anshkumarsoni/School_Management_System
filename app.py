@@ -2778,7 +2778,7 @@ def coursework_view():
             cur.execute("""
                 SELECT q.*,
                        (SELECT COUNT(*) FROM quiz_questions qq WHERE qq.QUIZ_CODE = q.QUIZ_CODE) AS QUESTIONS_COUNT,
-                       (SELECT COUNT(*) FROM Quiz_Attempts qa WHERE qa.QUIZ_CODE = q.QUIZ_CODE) AS ATTEMPTS_COUNT
+                       (SELECT COUNT(*) FROM quiz_attempts qa WHERE qa.QUIZ_CODE = q.QUIZ_CODE) AS ATTEMPTS_COUNT
                 FROM online_quizzes q
                 ORDER BY q.ID ASC
             """)
@@ -2799,7 +2799,7 @@ def coursework_view():
                        q.TITLE AS QUIZ_TITLE,
                        q.SUBJECT AS QUIZ_SUBJECT,
                        q.PASS_PERCENTAGE
-                FROM Quiz_Attempts qa
+                FROM quiz_attempts qa
                 LEFT JOIN online_quizzes q ON qa.QUIZ_CODE = q.QUIZ_CODE
                 ORDER BY qa.ID DESC
             """)
@@ -3194,13 +3194,13 @@ def submit_quiz_route():
             pass_mark = quiz.get("PASS_PERCENTAGE") or 60
             passed = bool(percentage >= pass_mark)
 
-            cur.execute("SELECT MAX(ID) AS MAX_ID FROM Quiz_Attempts")
+            cur.execute("SELECT MAX(ID) AS MAX_ID FROM quiz_attempts")
             row = cur.fetchone()
             next_num = (row["MAX_ID"] or 0) + 601
             att_code = f"ATT-{next_num}"
 
             cur.execute("""
-                INSERT INTO Quiz_Attempts (ATTEMPT_CODE, QUIZ_CODE, STUDENT_ROLL, STUDENT_NAME, SCORE, TOTAL_QUESTIONS, PERCENTAGE, PASSED, ATTEMPT_DATE)
+                INSERT INTO quiz_attempts (ATTEMPT_CODE, QUIZ_CODE, STUDENT_ROLL, STUDENT_NAME, SCORE, TOTAL_QUESTIONS, PERCENTAGE, PASSED, ATTEMPT_DATE)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, CURDATE())
             """, (att_code, quiz_code, student_roll, student_name, score, total_questions, percentage, passed))
             con.commit()

@@ -25,7 +25,7 @@ def create_attendance_tables():
             return
         cur = con.cursor()
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS Attendance_Details (
+            CREATE TABLE IF NOT EXISTS attendance_details (
                 ID INT AUTO_INCREMENT PRIMARY KEY,
                 ROLL_NUMBER VARCHAR(20) NOT NULL,
                 ATTENDANCE_DATE DATE NOT NULL,
@@ -102,7 +102,7 @@ def mark_single_attendance():
 
         # Insert or update if already marked on that date
         cur.execute("""
-            INSERT INTO Attendance_Details (ROLL_NUMBER, ATTENDANCE_DATE, STATUS, REMARKS)
+            INSERT INTO attendance_details (ROLL_NUMBER, ATTENDANCE_DATE, STATUS, REMARKS)
             VALUES (%s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE STATUS=%s, REMARKS=%s
         """, (roll, att_date, status, remarks, status, remarks))
@@ -152,7 +152,7 @@ def mark_class_attendance():
                     status = 'Present'
 
             cur.execute("""
-                INSERT INTO Attendance_Details (ROLL_NUMBER, ATTENDANCE_DATE, STATUS)
+                INSERT INTO attendance_details (ROLL_NUMBER, ATTENDANCE_DATE, STATUS)
                 VALUES (%s, %s, %s)
                 ON DUPLICATE KEY UPDATE STATUS=%s
             """, (roll, att_date, status, status))
@@ -182,7 +182,7 @@ def view_attendance_by_date():
 
         cur.execute("""
             SELECT a.ROLL_NUMBER, s.NAME, s.CLASS, a.STATUS, IFNULL(a.REMARKS, '-')
-            FROM Attendance_Details a
+            FROM attendance_details a
             JOIN Students_Details s ON a.ROLL_NUMBER = s.ROLL_NUMBER
             WHERE a.ATTENDANCE_DATE = %s
             ORDER BY s.CLASS, a.ROLL_NUMBER
@@ -224,7 +224,7 @@ def view_student_summary():
 
         name, student_class = student
 
-        cur.execute("SELECT STATUS, COUNT(*) FROM Attendance_Details WHERE ROLL_NUMBER=%s GROUP BY STATUS", (roll,))
+        cur.execute("SELECT STATUS, COUNT(*) FROM attendance_details WHERE ROLL_NUMBER=%s GROUP BY STATUS", (roll,))
         records = dict(cur.fetchall())
 
         present = records.get('Present', 0)
@@ -281,7 +281,7 @@ def update_attendance_record():
         if not att_date:
             return
 
-        cur.execute("SELECT STATUS FROM Attendance_Details WHERE ROLL_NUMBER=%s AND ATTENDANCE_DATE=%s", (roll, att_date))
+        cur.execute("SELECT STATUS FROM attendance_details WHERE ROLL_NUMBER=%s AND ATTENDANCE_DATE=%s", (roll, att_date))
         curr = cur.fetchone()
         if not curr:
             print(f"No attendance record found for Roll {roll} on {att_date}.")
@@ -297,7 +297,7 @@ def update_attendance_record():
         new_remarks = input("New Remarks (optional) : : ").strip()
 
         cur.execute("""
-            UPDATE Attendance_Details 
+            UPDATE attendance_details 
             SET STATUS=%s, REMARKS=%s 
             WHERE ROLL_NUMBER=%s AND ATTENDANCE_DATE=%s
         """, (new_status, new_remarks, roll, att_date))
@@ -332,7 +332,7 @@ def plot_student_attendance():
 
         cur.execute("""
             SELECT STATUS, COUNT(*) 
-            FROM Attendance_Details 
+            FROM attendance_details 
             WHERE ROLL_NUMBER=%s 
             GROUP BY STATUS
         """, (roll,))

@@ -204,7 +204,7 @@ def export_attendance():
 
         cur.execute("""
             SELECT a.ATTENDANCE_DATE, a.ROLL_NUMBER, s.NAME, s.CLASS, a.STATUS, IFNULL(a.REMARKS, '-')
-            FROM Attendance_Details a
+            FROM attendance_details a
             JOIN Students_Details s ON a.ROLL_NUMBER = s.ROLL_NUMBER
             WHERE a.ATTENDANCE_DATE = %s
             ORDER BY s.CLASS, a.ROLL_NUMBER

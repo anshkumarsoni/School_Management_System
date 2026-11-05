@@ -1855,7 +1855,7 @@ def attendance_view():
         cur = con.cursor(dictionary=True)
         cur.execute("""
             SELECT a.*, s.NAME, s.CLASS 
-            FROM Attendance_Details a
+            FROM attendance_details a
             LEFT JOIN students_details s ON a.ROLL_NUMBER = s.ROLL_NUMBER
             ORDER BY a.ATTENDANCE_DATE DESC, a.ID DESC
             LIMIT 100
@@ -1871,7 +1871,7 @@ def attendance_view():
                 SUM(CASE WHEN STATUS = 'Present' THEN 1 ELSE 0 END) as present,
                 SUM(CASE WHEN STATUS = 'Absent' THEN 1 ELSE 0 END) as absent,
                 SUM(CASE WHEN STATUS = 'Leave' THEN 1 ELSE 0 END) as `leave`
-            FROM Attendance_Details
+            FROM attendance_details
         """)
         row = cur.fetchone()
         if row and row["total"]:
@@ -1930,7 +1930,7 @@ def add_attendance_route():
                 return redirect(url_for("attendance_view"))
 
             cur.execute("""
-                INSERT INTO Attendance_Details (ROLL_NUMBER, ATTENDANCE_DATE, STATUS, REMARKS)
+                INSERT INTO attendance_details (ROLL_NUMBER, ATTENDANCE_DATE, STATUS, REMARKS)
                 VALUES (%s, %s, %s, %s)
                 ON DUPLICATE KEY UPDATE STATUS = %s, REMARKS = %s
             """, (roll_number, att_date, status, remarks, status, remarks))

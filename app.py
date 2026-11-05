@@ -613,13 +613,13 @@ def dashboard():
         a["formatted_date"] = p_date.strftime("%b %d, %Y") if p_date else "Recent"
         announcements.append(a)
 
-    # 8. Upcoming Academic Events & Milestones (Synchronized with School_Events)
+    # 8. Upcoming Academic Events & Milestones (Synchronized with school_events)
     today = datetime.date.today()
     try:
-        cur.execute("SELECT ID, TITLE, EVENT_DATE, CATEGORY, LOCATION FROM School_Events WHERE EVENT_DATE >= %s AND STATUS != 'Cancelled' ORDER BY EVENT_DATE ASC LIMIT 4", (today,))
+        cur.execute("SELECT ID, TITLE, EVENT_DATE, CATEGORY, LOCATION FROM school_events WHERE EVENT_DATE >= %s AND STATUS != 'Cancelled' ORDER BY EVENT_DATE ASC LIMIT 4", (today,))
         raw_events = cur.fetchall()
         if not raw_events:
-            cur.execute("SELECT ID, TITLE, EVENT_DATE, CATEGORY, LOCATION FROM School_Events ORDER BY EVENT_DATE ASC LIMIT 4")
+            cur.execute("SELECT ID, TITLE, EVENT_DATE, CATEGORY, LOCATION FROM school_events ORDER BY EVENT_DATE ASC LIMIT 4")
             raw_events = cur.fetchall()
     except Exception:
         cur.execute("SELECT ID, TITLE, EVENT_DATE, CATEGORY, LOCATION FROM academic_events ORDER BY EVENT_DATE ASC LIMIT 4")
@@ -2659,7 +2659,7 @@ def coursework_view():
             # 1. Fetch assignments
             cur.execute("""
                 SELECT a.*,
-                       (SELECT COUNT(*) FROM Assignment_Submissions s WHERE s.ASSIGNMENT_CODE = a.ASSIGNMENT_CODE) AS SUBMISSION_COUNT
+                       (SELECT COUNT(*) FROM assignment_submissions s WHERE s.ASSIGNMENT_CODE = a.ASSIGNMENT_CODE) AS SUBMISSION_COUNT
                 FROM assignments a
                 ORDER BY a.ID DESC
             """)
@@ -2739,7 +2739,7 @@ def coursework_view():
                        a.SUBJECT AS ASSIGNMENT_SUBJECT,
                        a.MAX_MARKS,
                        a.DUE_DATE AS ASSIGNMENT_DUE_DATE
-                FROM Assignment_Submissions s
+                FROM assignment_submissions s
                 LEFT JOIN assignments a ON s.ASSIGNMENT_CODE = a.ASSIGNMENT_CODE
                 ORDER BY s.ID DESC
             """)
@@ -2914,7 +2914,7 @@ def delete_assignment_route(id):
             row = cur.fetchone()
             if row:
                 code = row["ASSIGNMENT_CODE"]
-                cur.execute("DELETE FROM Assignment_Submissions WHERE ASSIGNMENT_CODE = %s", (code,))
+                cur.execute("DELETE FROM assignment_submissions WHERE ASSIGNMENT_CODE = %s", (code,))
                 cur.execute("DELETE FROM assignments WHERE ID = %s", (id,))
                 con.commit()
                 log_history(session.get("username", "Teacher"), f"Deleted assignment {code}")
@@ -3041,13 +3041,13 @@ def submit_coursework_route():
 
             status = "Late Submission" if (today > asn["DUE_DATE"]) else "Submitted"
 
-            cur.execute("SELECT MAX(ID) AS MAX_ID FROM Assignment_Submissions")
+            cur.execute("SELECT MAX(ID) AS MAX_ID FROM assignment_submissions")
             row = cur.fetchone()
             next_num = (row["MAX_ID"] or 0) + 301
             code = f"SUB-{next_num}"
 
             cur.execute("""
-                INSERT INTO Assignment_Submissions (SUBMISSION_CODE, ASSIGNMENT_CODE, STUDENT_ROLL, STUDENT_NAME, STUDENT_CLASS, SUBMISSION_TEXT, FILE_URL, SUBMITTED_DATE, STATUS)
+                INSERT INTO assignment_submissions (SUBMISSION_CODE, ASSIGNMENT_CODE, STUDENT_ROLL, STUDENT_NAME, STUDENT_CLASS, SUBMISSION_TEXT, FILE_URL, SUBMITTED_DATE, STATUS)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (code, assignment_code, student_roll, student_name, student_class or "Grade 10", submission_text, file_url or None, today, status))
             con.commit()
@@ -3083,14 +3083,14 @@ def grade_submission_route(id):
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("SELECT SUBMISSION_CODE, STUDENT_NAME FROM Assignment_Submissions WHERE ID = %s", (id,))
+            cur.execute("SELECT SUBMISSION_CODE, STUDENT_NAME FROM assignment_submissions WHERE ID = %s", (id,))
             sub = cur.fetchone()
             if not sub:
                 flash("Submission not found.", "warning")
                 return redirect(url_for("coursework_view", tab="submissions"))
 
             cur.execute("""
-                UPDATE Assignment_Submissions
+                UPDATE assignment_submissions
                 SET MARKS_OBTAINED = %s,
                     GRADE = %s,
                     TEACHER_FEEDBACK = %s,
@@ -3291,7 +3291,7 @@ def health_discipline_view():
 
         try:
             # 1. Fetch Health Profiles
-            cur.execute("SELECT * FROM Student_Health_Profiles ORDER BY ROLL_NUMBER ASC")
+            cur.execute("SELECT * FROM student_health_profiles ORDER BY ROLL_NUMBER ASC")
             all_profiles = cur.fetchall()
             for p in all_profiles:
                 p["last_updated_fmt"] = p["LAST_UPDATED"].strftime("%b %d, %Y") if p.get("LAST_UPDATED") else "-"
@@ -3500,7 +3500,7 @@ def save_health_profile_route():
             cls = st["CLASS"]
 
             cur.execute("""
-                INSERT INTO Student_Health_Profiles
+                INSERT INTO student_health_profiles
                 (ROLL_NUMBER, STUDENT_NAME, CLASS, BLOOD_GROUP, ALLERGIES, CHRONIC_CONDITIONS, MEDICATIONS,
                  EMERGENCY_DOCTOR_NAME, EMERGENCY_DOCTOR_PHONE, INSURANCE_POLICY_NO, SPECIAL_CARE_INSTRUCTIONS, VACCINATION_STATUS)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -3853,7 +3853,7 @@ def calendar_ptm_view():
 
         try:
             # 1. Fetch School Events
-            cur.execute("SELECT * FROM School_Events ORDER BY EVENT_DATE ASC, START_TIME ASC")
+            cur.execute("SELECT * FROM school_events ORDER BY EVENT_DATE ASC, START_TIME ASC")
             all_events = cur.fetchall()
             for e in all_events:
                 e_date = e.get("EVENT_DATE")
@@ -4091,13 +4091,13 @@ def add_calendar_event_route():
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("SELECT MAX(ID) AS MAX_ID FROM School_Events")
+            cur.execute("SELECT MAX(ID) AS MAX_ID FROM school_events")
             row = cur.fetchone()
             next_num = (row["MAX_ID"] or 0) + 101
             code = f"EVT-{next_num}"
 
             cur.execute("""
-                INSERT INTO School_Events (EVENT_CODE, TITLE, EVENT_DATE, START_TIME, END_TIME, CATEGORY, LOCATION, TARGET_AUDIENCE, ORGANIZER, DESCRIPTION, STATUS)
+                INSERT INTO school_events (EVENT_CODE, TITLE, EVENT_DATE, START_TIME, END_TIME, CATEGORY, LOCATION, TARGET_AUDIENCE, ORGANIZER, DESCRIPTION, STATUS)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Scheduled')
             """, (code, title, event_date, start_time, end_time, category, location, target_audience, organizer, description))
             con.commit()
@@ -4119,10 +4119,10 @@ def delete_calendar_event_route(id):
     if con:
         cur = con.cursor(dictionary=True)
         try:
-            cur.execute("SELECT TITLE, EVENT_CODE FROM School_Events WHERE ID = %s", (id,))
+            cur.execute("SELECT TITLE, EVENT_CODE FROM school_events WHERE ID = %s", (id,))
             row = cur.fetchone()
             if row:
-                cur.execute("DELETE FROM School_Events WHERE ID = %s", (id,))
+                cur.execute("DELETE FROM school_events WHERE ID = %s", (id,))
                 con.commit()
                 flash(f"Event {row['EVENT_CODE']} ({row['TITLE']}) deleted.", "info")
         except Error as e:

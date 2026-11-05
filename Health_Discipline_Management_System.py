@@ -28,7 +28,7 @@ def create_health_discipline_tables():
 
         # 1. Student Health Profiles (Restricted Access)
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS Student_Health_Profiles (
+            CREATE TABLE IF NOT EXISTS student_health_profiles (
                 ID INT AUTO_INCREMENT PRIMARY KEY,
                 ROLL_NUMBER VARCHAR(20) UNIQUE NOT NULL,
                 STUDENT_NAME VARCHAR(100) NOT NULL,
@@ -128,7 +128,7 @@ def seed_health_discipline_data():
         cur = con.cursor(dictionary=True)
 
         # 1. Seed Health Profiles
-        cur.execute("SELECT COUNT(*) AS CNT FROM Student_Health_Profiles")
+        cur.execute("SELECT COUNT(*) AS CNT FROM student_health_profiles")
         if cur.fetchone()["CNT"] == 0:
             profiles = [
                 ("101", "Aarav Sharma", "Grade 10", "B+", "Peanuts, Dust mites", "Mild Asthma", "Salbutamol Inhaler (PRN)", "Dr. S. K. Kapoor", "9876501122", "MAX-HLTH-9921", "Keep inhaler in school bag during sports; avoid strenuous outdoor runs on high pollen days.", "Up to Date"),
@@ -141,7 +141,7 @@ def seed_health_discipline_data():
                 ("108", "Diya Sen", "Grade 11", "AB-", "Dairy / Lactose Intolerance", "Migraines (mild)", "None", "Dr. Shalini Roy", "9876508899", "TATA-AIG-5509", "Allow 15 min quiet rest in medical bay during intense headaches.", "Up to Date")
             ]
             cur.executemany("""
-                INSERT INTO Student_Health_Profiles 
+                INSERT INTO student_health_profiles 
                 (ROLL_NUMBER, STUDENT_NAME, CLASS, BLOOD_GROUP, ALLERGIES, CHRONIC_CONDITIONS, MEDICATIONS, EMERGENCY_DOCTOR_NAME, EMERGENCY_DOCTOR_PHONE, INSURANCE_POLICY_NO, SPECIAL_CARE_INSTRUCTIONS, VACCINATION_STATUS)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, profiles)
@@ -226,7 +226,7 @@ def view_health_profiles():
 
     cur = con.cursor(dictionary=True)
     try:
-        cur.execute("SELECT ROLL_NUMBER, STUDENT_NAME, CLASS, BLOOD_GROUP, ALLERGIES, CHRONIC_CONDITIONS, MEDICATIONS, EMERGENCY_DOCTOR_PHONE FROM Student_Health_Profiles ORDER BY ROLL_NUMBER ASC")
+        cur.execute("SELECT ROLL_NUMBER, STUDENT_NAME, CLASS, BLOOD_GROUP, ALLERGIES, CHRONIC_CONDITIONS, MEDICATIONS, EMERGENCY_DOCTOR_PHONE FROM student_health_profiles ORDER BY ROLL_NUMBER ASC")
         rows = cur.fetchall()
         if not rows:
             print("No health profiles found.")
@@ -285,7 +285,7 @@ def add_or_update_health_profile():
         print(f"Student: {name} ({cls})")
 
         # Check if profile already exists
-        cur.execute("SELECT * FROM Student_Health_Profiles WHERE ROLL_NUMBER = %s", (roll,))
+        cur.execute("SELECT * FROM student_health_profiles WHERE ROLL_NUMBER = %s", (roll,))
         existing = cur.fetchone()
 
         blood_group = input(f"Blood Group [{existing['BLOOD_GROUP'] if existing else 'Unknown'}]: ").strip() or (existing['BLOOD_GROUP'] if existing else "Unknown")
@@ -299,7 +299,7 @@ def add_or_update_health_profile():
 
         if existing:
             cur.execute("""
-                UPDATE Student_Health_Profiles
+                UPDATE student_health_profiles
                 SET BLOOD_GROUP = %s, ALLERGIES = %s, CHRONIC_CONDITIONS = %s, MEDICATIONS = %s,
                     EMERGENCY_DOCTOR_NAME = %s, EMERGENCY_DOCTOR_PHONE = %s, INSURANCE_POLICY_NO = %s,
                     SPECIAL_CARE_INSTRUCTIONS = %s
@@ -308,7 +308,7 @@ def add_or_update_health_profile():
             print(f"\n[SUCCESS] Health profile updated for {name} ({roll})!")
         else:
             cur.execute("""
-                INSERT INTO Student_Health_Profiles
+                INSERT INTO student_health_profiles
                 (ROLL_NUMBER, STUDENT_NAME, CLASS, BLOOD_GROUP, ALLERGIES, CHRONIC_CONDITIONS, MEDICATIONS, EMERGENCY_DOCTOR_NAME, EMERGENCY_DOCTOR_PHONE, INSURANCE_POLICY_NO, SPECIAL_CARE_INSTRUCTIONS)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (roll, name, cls, blood_group, allergies, chronic, medications, doc_name, doc_phone, insurance, special_care))

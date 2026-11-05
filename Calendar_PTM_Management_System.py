@@ -42,7 +42,7 @@ def create_calendar_ptm_tables():
 
         # 2. School Events
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS School_Events (
+            CREATE TABLE IF NOT EXISTS school_events (
                 ID INT AUTO_INCREMENT PRIMARY KEY,
                 EVENT_CODE VARCHAR(30) UNIQUE NOT NULL,
                 TITLE VARCHAR(200) NOT NULL,
@@ -157,7 +157,7 @@ def seed_calendar_ptm_data():
             print("Seeded School Holidays.")
 
         # 2. Seed School Events
-        cur.execute("SELECT COUNT(*) AS CNT FROM School_Events")
+        cur.execute("SELECT COUNT(*) AS CNT FROM school_events")
         if cur.fetchone()["CNT"] == 0:
             events = [
                 ("EVT-101", "Mid-Term Examination Period", today + datetime.timedelta(days=3), "09:00:00", "12:30:00", "Examination", "Main Examination Halls A & B", "All Students", "Exam Controller Dr. Khanna", "Half-yearly summative assessments across all grades.", "Scheduled"),
@@ -167,7 +167,7 @@ def seed_calendar_ptm_data():
                 ("EVT-105", "National Mathematics Olympiad Trials", today + datetime.timedelta(days=32), "11:00:00", "13:00:00", "Academic", "Seminar Hall 2", "High School (Grades 10-12)", "Dr. Rajesh Khanna", "Preliminary screening test for the regional mathematics olympiad.", "Scheduled")
             ]
             cur.executemany("""
-                INSERT INTO School_Events (EVENT_CODE, TITLE, EVENT_DATE, START_TIME, END_TIME, CATEGORY, LOCATION, TARGET_AUDIENCE, ORGANIZER, DESCRIPTION, STATUS)
+                INSERT INTO school_events (EVENT_CODE, TITLE, EVENT_DATE, START_TIME, END_TIME, CATEGORY, LOCATION, TARGET_AUDIENCE, ORGANIZER, DESCRIPTION, STATUS)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, events)
             con.commit()
@@ -266,7 +266,7 @@ def view_calendar_events_and_holidays():
 
         # Events
         print("\n[+] SCHEDULED SCHOOL & ACADEMIC EVENTS:")
-        cur.execute("SELECT EVENT_CODE, TITLE, EVENT_DATE, START_TIME, LOCATION, CATEGORY, TARGET_AUDIENCE, STATUS FROM School_Events ORDER BY EVENT_DATE ASC")
+        cur.execute("SELECT EVENT_CODE, TITLE, EVENT_DATE, START_TIME, LOCATION, CATEGORY, TARGET_AUDIENCE, STATUS FROM school_events ORDER BY EVENT_DATE ASC")
         evts = cur.fetchall()
         if not evts:
             print("No events scheduled.")
@@ -380,13 +380,13 @@ def add_school_event():
 
     cur = con.cursor(dictionary=True)
     try:
-        cur.execute("SELECT MAX(ID) AS MAX_ID FROM School_Events")
+        cur.execute("SELECT MAX(ID) AS MAX_ID FROM school_events")
         row = cur.fetchone()
         next_num = (row["MAX_ID"] or 0) + 101
         event_code = f"EVT-{next_num}"
 
         cur.execute("""
-            INSERT INTO School_Events (EVENT_CODE, TITLE, EVENT_DATE, START_TIME, END_TIME, CATEGORY, LOCATION, TARGET_AUDIENCE, ORGANIZER, DESCRIPTION, STATUS)
+            INSERT INTO school_events (EVENT_CODE, TITLE, EVENT_DATE, START_TIME, END_TIME, CATEGORY, LOCATION, TARGET_AUDIENCE, ORGANIZER, DESCRIPTION, STATUS)
             VALUES (%s, %s, %s, %s, %s, %s, %s, 'All Students', %s, %s, 'Scheduled')
         """, (event_code, title, event_date, start_time, end_time, category, location, organizer, description))
         con.commit()

@@ -62,9 +62,9 @@ def create_coursework_tables():
             )
         """)
 
-        # 3. Assignment_Submissions
+        # 3. assignment_submissions
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS Assignment_Submissions (
+            CREATE TABLE IF NOT EXISTS assignment_submissions (
                 ID INT AUTO_INCREMENT PRIMARY KEY,
                 SUBMISSION_CODE VARCHAR(30) UNIQUE NOT NULL,
                 ASSIGNMENT_CODE VARCHAR(30) NOT NULL,
@@ -176,7 +176,7 @@ def view_assignments():
                    COUNT(s.ID) AS total_submissions,
                    SUM(CASE WHEN s.STATUS = 'Graded' THEN 1 ELSE 0 END) AS graded_count
             FROM assignments a
-            LEFT JOIN Assignment_Submissions s ON a.ASSIGNMENT_CODE = s.ASSIGNMENT_CODE
+            LEFT JOIN assignment_submissions s ON a.ASSIGNMENT_CODE = s.ASSIGNMENT_CODE
             GROUP BY a.ID
             ORDER BY a.ID DESC
         """)
@@ -377,7 +377,7 @@ def view_submissions_and_grade():
 
         cur.execute("""
             SELECT s.*, a.TITLE AS ASSIGNMENT_TITLE, a.MAX_MARKS
-            FROM Assignment_Submissions s
+            FROM assignment_submissions s
             JOIN assignments a ON s.ASSIGNMENT_CODE = a.ASSIGNMENT_CODE
             ORDER BY s.ID DESC
         """)
@@ -413,7 +413,7 @@ def view_submissions_and_grade():
 
         cur.execute("""
             SELECT s.*, a.TITLE AS ASSIGNMENT_TITLE, a.MAX_MARKS
-            FROM Assignment_Submissions s
+            FROM assignment_submissions s
             JOIN assignments a ON s.ASSIGNMENT_CODE = a.ASSIGNMENT_CODE
             WHERE s.ID = %s
         """, (sub_id,))
@@ -461,7 +461,7 @@ def view_submissions_and_grade():
 
         today = datetime.date.today()
         cur.execute("""
-            UPDATE Assignment_Submissions 
+            UPDATE assignment_submissions 
             SET MARKS_OBTAINED = %s,
                 GRADE = %s,
                 TEACHER_FEEDBACK = %s,

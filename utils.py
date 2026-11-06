@@ -12,9 +12,9 @@ load_dotenv()
 
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_USER = os.getenv("DB_USER", "root")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 DB_NAME = os.getenv("DB_NAME", "Student")
-DB_PORT = int(os.getenv("DB_PORT","3306"))
+DB_PORT = int(os.getenv("DB_PORT", "3306"))
 
 # ---------------------------------- SCREEN UTILITIES ---------------------------------
 def clear_screen():
@@ -55,9 +55,20 @@ def create_database():
     con = None
     cur = None
     try:
-        con = ms.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD)
+        conn_kwargs = {
+            "host": DB_HOST,
+            "port": DB_PORT,
+            "user": DB_USER,
+            "password": DB_PASSWORD
+        }
+        ssl_ca = os.getenv("DB_SSL_CA") or "/etc/secrets/ca.pem"
+        if os.path.exists(ssl_ca):
+            conn_kwargs["ssl_ca"] = ssl_ca
+            conn_kwargs["ssl_verify_cert"] = True
+
+        con = ms.connect(**conn_kwargs)
         cur = con.cursor()
-        cur.execute(f"CREATE DATABASE IF NOT EXISTS {DB_NAME}")
+        cur.execute(f"CREATE DATABASE IF NOT EXISTS `{DB_NAME}`")
     except Error as e:
         print("Database Error:", e)
     finally:
@@ -67,15 +78,21 @@ def create_database():
 
 def get_connection():
     try:
-        return ms.connect(
-            host=DB_HOST,
-            port=DB_PORT,
-            user=DB_USER,
-            password=DB_PASSWORD,
-            database=DB_NAME,
-            ssl_ca="/etc/secrets/ca.pem",
-            ssl_verify_cert=True
-        )
+        conn_kwargs = {
+            "host": DB_HOST,
+            "port": DB_PORT,
+            "user": DB_USER,
+            "password": DB_PASSWORD,
+            "database": DB_NAME
+        }
+        ssl_ca = os.getenv("DB_SSL_CA") or "/etc/secrets/ca.pem"
+        if os.path.exists(ssl_ca):
+            conn_kwargs["ssl_ca"] = ssl_ca
+            conn_kwargs["ssl_verify_cert"] = True
+        elif os.getenv("DB_SSL_MODE", "").upper() == "DISABLED":
+            conn_kwargs["ssl_disabled"] = True
+
+        return ms.connect(**conn_kwargs)
     except Error as e:
         print("Connection Error:", e)
-        return None    
+        return None

@@ -76,11 +76,13 @@ def get_role_display(role_code: str) -> str:
 @app.context_processor
 def inject_user_context():
     role = session.get("role")
+    enable_demo = os.getenv("ENABLE_DEMO_LOGINS", "false").lower() in ("true", "1", "yes")
     return {
         "current_user": session.get("username"),
         "current_role": role,
         "current_role_name": get_role_display(role),
-        "ROLE_DISPLAY": ROLE_DISPLAY
+        "ROLE_DISPLAY": ROLE_DISPLAY,
+        "enable_demo_logins": enable_demo
     }
 
 # Jinja2 Template Filter for formatting role badges
@@ -549,7 +551,26 @@ def dashboard():
     con = get_connection()
     if not con:
         flash("Database Connection Failed.", "danger")
-        return render_template("dashboard.html", active_page="dashboard", title="Dashboard")
+        return render_template(
+            "dashboard.html",
+            active_page="dashboard",
+            title="Dashboard",
+            class_labels=[],
+            class_counts=[],
+            gender_labels=[],
+            gender_counts=[],
+            recent_students=[],
+            all_todays_bdays=[],
+            announcements=[],
+            academic_events=[],
+            recent_activity=[],
+            total_students=0,
+            total_teachers=0,
+            total_users=0,
+            total_fees=0,
+            total_books=0,
+            total_assignments=0
+        )
 
     cur = con.cursor(dictionary=True)
 

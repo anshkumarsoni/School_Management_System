@@ -321,16 +321,14 @@
                         </div>
                     </form>
 
-                    <!-- Quick Demo Credentials for Effortless Testing -->
+                    {% if enable_demo_logins %}
+                    <!-- Quick Demo Credentials (Visible only when ENABLE_DEMO_LOGINS=true in dev/staging) -->
                     <div class="quick-login-card">
                         <div class="quick-login-title">
                             <span><i class="fa-solid fa-bolt" style="color: #f59e0b;"></i> Quick Demo Logins</span>
                             <span style="font-weight: 500; font-size: 10px; color: var(--text-muted);">1-Click Auto Fill</span>
                         </div>
                         <div class="quick-pills">
-                            <button type="button" class="quick-pill" onclick="autoFillLogin('ansh#123', 'ansh2005', 'super_admin')">
-                                <i class="fa-solid fa-crown" style="color: #f59e0b;"></i> Principal
-                            </button>
                             <button type="button" class="quick-pill" onclick="autoFillLogin('teacher_rajesh', 'Teacher@123', 'admin')">
                                 <i class="fa-solid fa-chalkboard-user" style="color: #2563eb;"></i> Teacher
                             </button>
@@ -339,6 +337,7 @@
                             </button>
                         </div>
                     </div>
+                    {% endif %}
                 </div>
 
                 <!-- SECTION 2: CREATE ACCOUNT / SIGN UP FORM -->

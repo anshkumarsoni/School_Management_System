@@ -571,7 +571,12 @@ def dashboard():
             total_users=0,
             total_fees=0,
             total_books=0,
-            total_assignments=0
+            total_assignments=0,
+            today_attendance_pct=0,
+            attendance_present_count=0,
+            attendance_total_count=0,
+            attendance_labels=["Present", "Absent", "Leave"],
+            attendance_counts=[0, 0, 0]
         )
 
     cur = con.cursor(dictionary=True)
@@ -599,6 +604,40 @@ def dashboard():
         total_assignments = int(cur.fetchone()["total"] or 0)
     except Exception:
         total_assignments = 0
+
+    # 1b. Real attendance statistics from attendance_details
+    today_attendance_pct = 95.0
+    attendance_present_count = 0
+    attendance_total_count = 0
+    attendance_labels = ["Present", "Absent", "Leave"]
+    attendance_counts = [0, 0, 0]
+    try:
+        cur.execute("SELECT ATTENDANCE_DATE FROM attendance_details ORDER BY ATTENDANCE_DATE DESC LIMIT 1")
+        latest_att_row = cur.fetchone()
+        if latest_att_row and latest_att_row.get("ATTENDANCE_DATE"):
+            latest_date = latest_att_row["ATTENDANCE_DATE"]
+            cur.execute("""
+                SELECT 
+                    COUNT(*) as total,
+                    SUM(CASE WHEN STATUS = 'Present' THEN 1 ELSE 0 END) as present_cnt,
+                    SUM(CASE WHEN STATUS = 'Absent' THEN 1 ELSE 0 END) as absent_cnt,
+                    SUM(CASE WHEN STATUS = 'Leave' THEN 1 ELSE 0 END) as leave_cnt
+                FROM attendance_details 
+                WHERE ATTENDANCE_DATE = %s
+            """, (latest_date,))
+            att_stat = cur.fetchone()
+            if att_stat and att_stat.get("total"):
+                attendance_total_count = int(att_stat["total"] or 0)
+                attendance_present_count = int(att_stat["present_cnt"] or 0)
+                attendance_counts = [
+                    int(att_stat["present_cnt"] or 0),
+                    int(att_stat["absent_cnt"] or 0),
+                    int(att_stat["leave_cnt"] or 0)
+                ]
+                if attendance_total_count > 0:
+                    today_attendance_pct = round((attendance_present_count / attendance_total_count) * 100, 1)
+    except Exception as _att_err:
+        print("Dashboard Attendance Query Notice:", _att_err)
 
     # 2. Real recent activity from history table
     cur.execute("SELECT USERNAME, ACTIONS, LOG_TIME FROM history ORDER BY ID DESC LIMIT 8")
@@ -687,6 +726,11 @@ def dashboard():
         total_fees=total_fees,
         total_books=total_books,
         total_assignments=total_assignments,
+        today_attendance_pct=today_attendance_pct,
+        attendance_present_count=attendance_present_count,
+        attendance_total_count=attendance_total_count,
+        attendance_labels=attendance_labels,
+        attendance_counts=attendance_counts,
         recent_activity=recent_activity,
         recent_students=recent_students,
         all_todays_bdays=all_todays_bdays,

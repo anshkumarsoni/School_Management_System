@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>{{ title or 'Dashboard' }} | EduPulse School Management</title>
     
+    <!-- Instant Theme & Sidebar State Bootstrap (Zero FOUC) -->
+    <script>
+        (function() {
+            var savedTheme = localStorage.getItem('edupulse_theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            var savedSidebar = localStorage.getItem('edupulse_sidebar');
+            if (savedSidebar === 'collapsed' && window.innerWidth > 768) {
+                document.documentElement.classList.add('sidebar-pre-collapsed');
+            }
+        })();
+    </script>
+
     <!-- Google Fonts: Plus Jakarta Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -33,14 +45,17 @@
                     <span class="brand-title">Edu<span>Pulse</span></span>
                     <span class="brand-tag">Academic v2.4</span>
                 </div>
-                <button class="sidebar-close-btn" id="sidebarClose" aria-label="Close Sidebar">&times;</button>
+                <button type="button" class="sidebar-collapse-toggle-btn" id="sidebarCollapseBtn" title="Collapse Sidebar" aria-label="Toggle Sidebar">
+                    <i class="fa-solid fa-angles-left"></i>
+                </button>
+                <button type="button" class="sidebar-close-btn" id="sidebarClose" aria-label="Close Sidebar">&times;</button>
             </div>
 
             <nav class="sidebar-nav">
                 <div class="nav-group-label">Overview</div>
                 <ul class="nav-menu">
                     <li class="nav-item">
-                        <a href="{{ url_for('dashboard') }}" class="nav-link {% if active_page == 'dashboard' %}active{% endif %}">
+                        <a href="{{ url_for('dashboard') }}" class="nav-link {% if active_page == 'dashboard' %}active{% endif %}" data-tooltip="Dashboard">
                             <i class="fa-solid fa-chart-pie"></i>
                             <span class="link-text">Dashboard</span>
                         </a>
@@ -50,7 +65,7 @@
                 <div class="nav-group-label">Academic Management</div>
                 <ul class="nav-menu">
                     <li class="nav-item">
-                        <a href="{{ url_for('students_view') }}" class="nav-link {% if active_page == 'students' %}active{% endif %}">
+                        <a href="{{ url_for('students_view') }}" class="nav-link {% if active_page == 'students' %}active{% endif %}" data-tooltip="Student Details">
                             <i class="fa-solid fa-user-graduate"></i>
                             <span class="link-text">Student Details</span>
                             <span class="nav-badge">Live</span>
@@ -58,40 +73,40 @@
                     </li>
                     {% if session.get('role') in ('super_admin', 'admin') %}
                     <li class="nav-item">
-                        <a href="{{ url_for('parents_view') }}" class="nav-link {% if active_page == 'parents' %}active{% endif %}">
+                        <a href="{{ url_for('parents_view') }}" class="nav-link {% if active_page == 'parents' %}active{% endif %}" data-tooltip="Parent Details">
                             <i class="fa-solid fa-people-roof"></i>
                             <span class="link-text">Parent Details</span>
                         </a>
                     </li>
                     {% endif %}
                     <li class="nav-item">
-                        <a href="{{ url_for('teachers_view') }}" class="nav-link {% if active_page == 'teachers' %}active{% endif %}">
+                        <a href="{{ url_for('teachers_view') }}" class="nav-link {% if active_page == 'teachers' %}active{% endif %}" data-tooltip="Teacher Details">
                             <i class="fa-solid fa-chalkboard-user"></i>
                             <span class="link-text">Teacher Details</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{{ url_for('library_view') }}" class="nav-link {% if active_page == 'library' %}active{% endif %}">
+                        <a href="{{ url_for('library_view') }}" class="nav-link {% if active_page == 'library' %}active{% endif %}" data-tooltip="Library Catalog">
                             <i class="fa-solid fa-book-open-reader"></i>
                             <span class="link-text">Library Catalog</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{{ url_for('attendance_view') }}" class="nav-link {% if active_page == 'attendance' %}active{% endif %}">
+                        <a href="{{ url_for('attendance_view') }}" class="nav-link {% if active_page == 'attendance' %}active{% endif %}" data-tooltip="Attendance">
                             <i class="fa-solid fa-calendar-check"></i>
                             <span class="link-text">Attendance</span>
                         </a>
                     </li>
                     {% if session.get('role') == 'super_admin' %}
                     <li class="nav-item">
-                        <a href="{{ url_for('fees_view') }}" class="nav-link {% if active_page == 'fees' %}active{% endif %}">
+                        <a href="{{ url_for('fees_view') }}" class="nav-link {% if active_page == 'fees' %}active{% endif %}" data-tooltip="Fees & Finance">
                             <i class="fa-solid fa-wallet"></i>
                             <span class="link-text">Fees & Finance</span>
                         </a>
                     </li>
                     {% elif session.get('role') == 'viewer' %}
                     <li class="nav-item">
-                        <a href="{{ url_for('fees_view') }}" class="nav-link {% if active_page == 'fees' %}active{% endif %}">
+                        <a href="{{ url_for('fees_view') }}" class="nav-link {% if active_page == 'fees' %}active{% endif %}" data-tooltip="Fee Receipts & Dues">
                             <i class="fa-solid fa-receipt"></i>
                             <span class="link-text">Fee Receipts & Dues</span>
                             <span class="nav-badge" style="background: rgba(16, 185, 129, 0.12); color: #059669;">Receipts</span>
@@ -99,33 +114,33 @@
                     </li>
                     {% endif %}
                     <li class="nav-item">
-                        <a href="{{ url_for('exams_view') }}" class="nav-link {% if active_page == 'exams' %}active{% endif %}">
+                        <a href="{{ url_for('exams_view') }}" class="nav-link {% if active_page == 'exams' %}active{% endif %}" data-tooltip="Examinations">
                             <i class="fa-solid fa-award"></i>
                             <span class="link-text">Examinations</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{{ url_for('performance_analytics_view') }}" class="nav-link {% if active_page == 'performance_analytics' %}active{% endif %}">
+                        <a href="{{ url_for('performance_analytics_view') }}" class="nav-link {% if active_page == 'performance_analytics' %}active{% endif %}" data-tooltip="Performance Analytics">
                             <i class="fa-solid fa-chart-line"></i>
                             <span class="link-text">Performance Analytics</span>
                             <span class="nav-badge" style="background: rgba(16, 185, 129, 0.12); color: #059669;">Trends</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{{ url_for('coursework_view') }}" class="nav-link {% if active_page == 'coursework' %}active{% endif %}">
+                        <a href="{{ url_for('coursework_view') }}" class="nav-link {% if active_page == 'coursework' %}active{% endif %}" data-tooltip="Coursework & LMS">
                             <i class="fa-solid fa-graduation-cap"></i>
                             <span class="link-text">Coursework & LMS</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{{ url_for('health_discipline_view') }}" class="nav-link {% if active_page == 'health_discipline' %}active{% endif %}">
+                        <a href="{{ url_for('health_discipline_view') }}" class="nav-link {% if active_page == 'health_discipline' %}active{% endif %}" data-tooltip="Health & Discipline">
                             <i class="fa-solid fa-notes-medical"></i>
                             <span class="link-text">Health & Discipline</span>
                             <span class="nav-badge" style="background: rgba(239, 68, 68, 0.12); color: #dc2626;">Welfare</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{{ url_for('calendar_ptm_view') }}" class="nav-link {% if active_page == 'calendar_ptm' %}active{% endif %}">
+                        <a href="{{ url_for('calendar_ptm_view') }}" class="nav-link {% if active_page == 'calendar_ptm' %}active{% endif %}" data-tooltip="Calendar & PTM">
                             <i class="fa-solid fa-calendar-days"></i>
                             <span class="link-text">Calendar & PTM</span>
                             <span class="nav-badge" style="background: rgba(14, 165, 233, 0.12); color: #0284c7;">Events</span>
@@ -133,7 +148,7 @@
                     </li>
                     {% if current_role in ('super_admin', 'admin') %}
                     <li class="nav-item">
-                        <a href="{{ url_for('import_export_view') }}" class="nav-link {% if active_page == 'import_export' %}active{% endif %}">
+                        <a href="{{ url_for('import_export_view') }}" class="nav-link {% if active_page == 'import_export' %}active{% endif %}" data-tooltip="Import & Export">
                             <i class="fa-solid fa-file-import"></i>
                             <span class="link-text">Import &amp; Export</span>
                             <span class="nav-badge" style="background: rgba(16, 185, 129, 0.12); color: #059669;">CSV</span>
@@ -146,14 +161,14 @@
                 <div class="nav-group-label">Principal Office</div>
                 <ul class="nav-menu">
                     <li class="nav-item">
-                        <a href="{{ url_for('users_view') }}" class="nav-link {% if active_page == 'users' %}active{% endif %}">
+                        <a href="{{ url_for('users_view') }}" class="nav-link {% if active_page == 'users' %}active{% endif %}" data-tooltip="User & Role Accounts">
                             <i class="fa-solid fa-users-gear"></i>
                             <span class="link-text">User & Role Accounts</span>
                             <span class="nav-badge-purple">Principal</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{{ url_for('cloud_sync_view') }}" class="nav-link {% if active_page == 'cloud_sync' %}active{% endif %}">
+                        <a href="{{ url_for('cloud_sync_view') }}" class="nav-link {% if active_page == 'cloud_sync' %}active{% endif %}" data-tooltip="Aiven Cloud Sync">
                             <i class="fa-solid fa-cloud-arrow-up"></i>
                             <span class="link-text">Aiven Cloud Sync</span>
                             <span class="nav-badge" style="background: rgba(2, 132, 199, 0.12); color: #0284c7;">Cloud</span>
@@ -165,13 +180,13 @@
                 <div class="nav-group-label">Account</div>
                 <ul class="nav-menu">
                     <li class="nav-item">
-                        <a href="{{ url_for('change_password_route') }}" class="nav-link {% if active_page == 'change_password' %}active{% endif %}">
+                        <a href="{{ url_for('change_password_route') }}" class="nav-link {% if active_page == 'change_password' %}active{% endif %}" data-tooltip="Change Password">
                             <i class="fa-solid fa-key"></i>
                             <span class="link-text">Change Password</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{{ url_for('logout') }}" class="nav-link">
+                        <a href="{{ url_for('logout') }}" class="nav-link" data-tooltip="Sign Out">
                             <i class="fa-solid fa-right-from-bracket" style="color: #ef4444;"></i>
                             <span class="link-text" style="color: #fca5a5;">Sign Out</span>
                         </a>
@@ -201,16 +216,83 @@
                         <i class="fa-solid fa-bars"></i>
                     </button>
                     <div class="page-title-box">
+                        <div class="topbar-breadcrumb">
+                            <a href="{{ url_for('dashboard') }}">EduPulse</a>
+                            <i class="fa-solid fa-chevron-right"></i>
+                            <span>{{ title or 'Overview' }}</span>
+                        </div>
                         <h1 class="page-title">{{ title or 'Overview' }}</h1>
-                        <p class="page-subtitle">School Administration System & Record Portal</p>
+                    </div>
+                </div>
+
+                <!-- Global Search Interface -->
+                <div class="topbar-search-box">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="text" class="topbar-search-input" id="globalSearchInput" placeholder="Quick search (Ctrl+K)..." autocomplete="off">
+                    <div class="search-shortcut-pill">
+                        <kbd>Ctrl</kbd><kbd>K</kbd>
+                    </div>
+                    <div class="global-search-dropdown" id="globalSearchDropdown">
+                        <!-- Populated by JS -->
                     </div>
                 </div>
 
                 <div class="topbar-right">
                     <!-- Live Calendar Date Pill -->
-                    <div class="topbar-date-badge" style="display: flex; align-items: center; gap: 7px; background: #f8fafc; border: 1px solid var(--border-color); padding: 6px 12px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 700; color: var(--text-secondary);">
+                    <div class="topbar-date-badge" style="display: flex; align-items: center; gap: 7px; background: var(--bg-input); border: 1px solid var(--border-color); padding: 6px 12px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 700; color: var(--text-secondary);">
                         <i class="fa-regular fa-calendar-days" style="color: var(--navy-600);"></i>
                         <span id="topbarLiveDate">Academic Session 2025–26</span>
+                    </div>
+
+                    <!-- Theme Toggle Button -->
+                    <button type="button" class="theme-toggle-btn" id="themeToggleBtn" title="Switch Theme (Light / Dark)" aria-label="Toggle Theme">
+                        <i class="fa-solid fa-moon icon-moon"></i>
+                        <i class="fa-solid fa-sun icon-sun"></i>
+                    </button>
+
+                    <!-- Notifications Dropdown -->
+                    <div class="glass-dropdown-wrapper">
+                        <button type="button" class="notification-btn" id="notifDropdownBtn" title="Notifications" aria-label="Notifications">
+                            <i class="fa-regular fa-bell"></i>
+                            <span class="notif-badge-pill">3</span>
+                        </button>
+                        <div class="glass-dropdown-menu" id="notifDropdownMenu">
+                            <div class="dropdown-header">
+                                <span class="dropdown-title"><i class="fa-solid fa-bell" style="color: var(--navy-600);"></i> Notifications</span>
+                                <span style="font-size: 11px; font-weight: 700; color: var(--navy-600);">3 Unread</span>
+                            </div>
+                            <div class="notif-item">
+                                <div class="notif-icon-circle" style="background: rgba(37, 99, 235, 0.15); color: #2563eb;">
+                                    <i class="fa-solid fa-calendar-check"></i>
+                                </div>
+                                <div class="notif-meta-col">
+                                    <span class="notif-title-text">Annual Term Exam Schedules</span>
+                                    <span class="notif-time-text">Academic Board &bull; Today</span>
+                                </div>
+                            </div>
+                            <div class="notif-item">
+                                <div class="notif-icon-circle" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">
+                                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                                </div>
+                                <div class="notif-meta-col">
+                                    <span class="notif-title-text">Aiven Cloud Database Mirror</span>
+                                    <span class="notif-time-text">32 Tables Synchronized &bull; 1 hr ago</span>
+                                </div>
+                            </div>
+                            <div class="notif-item">
+                                <div class="notif-icon-circle" style="background: rgba(245, 158, 11, 0.15); color: #d97706;">
+                                    <i class="fa-solid fa-handshake"></i>
+                                </div>
+                                <div class="notif-meta-col">
+                                    <span class="notif-title-text">PTM Consultation Slots Open</span>
+                                    <span class="notif-time-text">Parent-Teacher Conference &bull; Term 2026</span>
+                                </div>
+                            </div>
+                            <div class="dropdown-divider"></div>
+                            <a href="{{ url_for('calendar_ptm_view') }}" class="dropdown-item" style="justify-content: center; font-size: 12px; color: var(--navy-600); font-weight: 700;">
+                                View Campus Calendar <i class="fa-solid fa-arrow-right" style="font-size: 11px; margin-left: 4px;"></i>
+                            </a>
+                        </div>
                     </div>
 
                     {% if current_role in ('super_admin', 'admin') %}
@@ -219,22 +301,39 @@
                     </button>
                     {% endif %}
 
-                    <!-- User Profile Chip -->
-                    <div class="user-profile-badge">
-                        <div class="avatar-circle" style="position: relative;">
-                            {{ current_user[0] | upper if current_user else 'U' }}
-                            <span style="position: absolute; bottom: -1px; right: -1px; width: 9px; height: 9px; background: #10b981; border: 2px solid #fff; border-radius: 50%;"></span>
+                    <!-- User Profile Dropdown -->
+                    <div class="glass-dropdown-wrapper">
+                        <div class="user-profile-badge" id="userProfileBtn" role="button" tabindex="0">
+                            <div class="avatar-circle" style="position: relative;">
+                                {{ current_user[0] | upper if current_user else 'U' }}
+                                <span style="position: absolute; bottom: -1px; right: -1px; width: 9px; height: 9px; background: #10b981; border: 2px solid #fff; border-radius: 50%;"></span>
+                            </div>
+                            <div class="user-meta">
+                                <span class="user-username">{{ current_user or 'User' }}</span>
+                                <span class="role-pill role-{{ current_role }}">{{ current_role | role_name }}</span>
+                            </div>
+                            <i class="fa-solid fa-chevron-down" style="font-size: 10px; color: var(--text-muted); margin-left: 2px;"></i>
                         </div>
-                        <div class="user-meta">
-                            <span class="user-username">{{ current_user or 'User' }}</span>
-                            <span class="role-pill role-{{ current_role }}">{{ current_role | role_name }}</span>
+                        <div class="glass-dropdown-menu" id="userProfileDropdownMenu" style="width: 250px;">
+                            <div class="dropdown-header">
+                                <div style="display: flex; flex-direction: column;">
+                                    <span class="user-username" style="font-size: 13px;">{{ current_user or 'User' }}</span>
+                                    <span style="font-size: 11px; color: var(--text-muted);">Session: Active</span>
+                                </div>
+                                <span class="role-pill role-{{ current_role }}">{{ current_role | role_name }}</span>
+                            </div>
+                            <a href="{{ url_for('change_password_route') }}" class="dropdown-item">
+                                <i class="fa-solid fa-key"></i> Change Password
+                            </a>
+                            <div class="dropdown-item" id="quickThemeToggleDropdown" style="cursor: pointer;">
+                                <i class="fa-solid fa-circle-half-stroke"></i> Toggle Theme
+                            </div>
+                            <div class="dropdown-divider"></div>
+                            <a href="{{ url_for('logout') }}" class="dropdown-item danger-item">
+                                <i class="fa-solid fa-arrow-right-from-bracket" style="color: #ef4444;"></i> Sign Out
+                            </a>
                         </div>
                     </div>
-
-                    <a href="{{ url_for('logout') }}" class="btn-topbar-logout" title="Sign Out">
-                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
-                        <span>Logout</span>
-                    </a>
                 </div>
             </header>
 
@@ -339,12 +438,32 @@
     <script>
         document.addEventListener("DOMContentLoaded", () => {
             const menuToggle = document.getElementById('menuToggle');
+            const sidebarCollapseBtn = document.getElementById('sidebarCollapseBtn');
             const sidebarClose = document.getElementById('sidebarClose');
             const sidebarBackdrop = document.getElementById('sidebarBackdrop');
             const sidebar = document.getElementById('sidebar');
             const appLayout = document.getElementById('appLayout');
 
             function isMobile() { return window.innerWidth <= 768; }
+
+            // Restore Desktop Sidebar Collapse State
+            const savedSidebarState = localStorage.getItem('edupulse_sidebar');
+            if (!isMobile() && savedSidebarState === 'collapsed') {
+                appLayout.classList.add('sidebar-collapsed');
+                if (sidebarCollapseBtn) {
+                    sidebarCollapseBtn.innerHTML = '<i class="fa-solid fa-angles-right"></i>';
+                    sidebarCollapseBtn.setAttribute('title', 'Expand Sidebar');
+                }
+            }
+
+            function toggleDesktopSidebar() {
+                const isCollapsed = appLayout.classList.toggle('sidebar-collapsed');
+                localStorage.setItem('edupulse_sidebar', isCollapsed ? 'collapsed' : 'expanded');
+                if (sidebarCollapseBtn) {
+                    sidebarCollapseBtn.innerHTML = isCollapsed ? '<i class="fa-solid fa-angles-right"></i>' : '<i class="fa-solid fa-angles-left"></i>';
+                    sidebarCollapseBtn.setAttribute('title', isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar');
+                }
+            }
 
             function openMobileSidebar() {
                 if (sidebar) sidebar.classList.add('open');
@@ -364,13 +483,164 @@
                     if (isMobile()) {
                         sidebar.classList.contains('open') ? closeMobileSidebar() : openMobileSidebar();
                     } else {
-                        appLayout.classList.toggle('sidebar-collapsed');
+                        toggleDesktopSidebar();
                     }
+                });
+            }
+
+            if (sidebarCollapseBtn) {
+                sidebarCollapseBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    toggleDesktopSidebar();
                 });
             }
 
             if (sidebarClose) sidebarClose.addEventListener('click', closeMobileSidebar);
             if (sidebarBackdrop) sidebarBackdrop.addEventListener('click', closeMobileSidebar);
+
+            // ----------------- THEME ENGINE (LIGHT & DARK MODE) -----------------
+            const themeToggleBtn = document.getElementById('themeToggleBtn');
+            const quickThemeToggleDropdown = document.getElementById('quickThemeToggleDropdown');
+
+            function getCurrentTheme() {
+                return document.documentElement.getAttribute('data-theme') || localStorage.getItem('edupulse_theme') || 'light';
+            }
+
+            function applyTheme(theme) {
+                document.documentElement.setAttribute('data-theme', theme);
+                localStorage.setItem('edupulse_theme', theme);
+                window.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme } }));
+            }
+
+            function toggleTheme() {
+                const current = getCurrentTheme();
+                const next = current === 'dark' ? 'light' : 'dark';
+                applyTheme(next);
+            }
+
+            if (themeToggleBtn) {
+                themeToggleBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    toggleTheme();
+                });
+            }
+
+            if (quickThemeToggleDropdown) {
+                quickThemeToggleDropdown.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    toggleTheme();
+                    closeAllDropdowns();
+                });
+            }
+
+            // ----------------- GLASS DROPDOWNS (NOTIFICATIONS & PROFILE) -----------------
+            const notifDropdownBtn = document.getElementById('notifDropdownBtn');
+            const notifDropdownMenu = document.getElementById('notifDropdownMenu');
+            const userProfileBtn = document.getElementById('userProfileBtn');
+            const userProfileDropdownMenu = document.getElementById('userProfileDropdownMenu');
+
+            function closeAllDropdowns() {
+                if (notifDropdownMenu) notifDropdownMenu.classList.remove('active');
+                if (userProfileDropdownMenu) userProfileDropdownMenu.classList.remove('active');
+                const searchDropdown = document.getElementById('globalSearchDropdown');
+                if (searchDropdown) searchDropdown.classList.remove('active');
+            }
+
+            if (notifDropdownBtn && notifDropdownMenu) {
+                notifDropdownBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const isOpen = notifDropdownMenu.classList.contains('active');
+                    closeAllDropdowns();
+                    if (!isOpen) notifDropdownMenu.classList.add('active');
+                });
+            }
+
+            if (userProfileBtn && userProfileDropdownMenu) {
+                userProfileBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const isOpen = userProfileDropdownMenu.classList.contains('active');
+                    closeAllDropdowns();
+                    if (!isOpen) userProfileDropdownMenu.classList.add('active');
+                });
+            }
+
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.glass-dropdown-wrapper') && !e.target.closest('.topbar-search-box')) {
+                    closeAllDropdowns();
+                }
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    closeAllDropdowns();
+                    document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
+                }
+            });
+
+            // ----------------- GLOBAL SEARCH (Ctrl+K) -----------------
+            const globalSearchInput = document.getElementById('globalSearchInput');
+            const globalSearchDropdown = document.getElementById('globalSearchDropdown');
+
+            // Build searchable index from active sidebar links
+            const searchIndex = [];
+            document.querySelectorAll('.sidebar-nav .nav-link').forEach(link => {
+                const title = link.getAttribute('data-tooltip') || link.querySelector('.link-text')?.textContent?.trim();
+                const href = link.getAttribute('href');
+                const iconClass = link.querySelector('i')?.className || 'fa-solid fa-arrow-right';
+                if (title && href && href !== '#') {
+                    searchIndex.push({ title, href, iconClass });
+                }
+            });
+
+            // Global Ctrl+K Shortcut
+            document.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+                    e.preventDefault();
+                    if (globalSearchInput) {
+                        globalSearchInput.focus();
+                        globalSearchInput.select();
+                    }
+                }
+            });
+
+            if (globalSearchInput && globalSearchDropdown) {
+                globalSearchInput.addEventListener('input', (e) => {
+                    const query = e.target.value.toLowerCase().trim();
+                    if (!query) {
+                        globalSearchDropdown.classList.remove('active');
+                        globalSearchDropdown.innerHTML = '';
+                        return;
+                    }
+
+                    const matches = searchIndex.filter(item => item.title.toLowerCase().includes(query));
+                    if (matches.length > 0) {
+                        let html = '<div class="search-result-group-title">Navigation Modules</div>';
+                        matches.slice(0, 7).forEach(m => {
+                            html += `
+                                <a href="${m.href}" class="search-result-item">
+                                    <i class="${m.iconClass}"></i>
+                                    <span>${m.title}</span>
+                                    <span class="item-meta">Jump</span>
+                                </a>
+                            `;
+                        });
+                        globalSearchDropdown.innerHTML = html;
+                        globalSearchDropdown.classList.add('active');
+                    } else {
+                        globalSearchDropdown.innerHTML = '<div class="search-no-results"><i class="fa-solid fa-magnifying-glass" style="margin-right:6px; opacity:0.6;"></i>No matching module found</div>';
+                        globalSearchDropdown.classList.add('active');
+                    }
+                });
+
+                globalSearchInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        const firstItem = globalSearchDropdown.querySelector('.search-result-item');
+                        if (firstItem) {
+                            window.location.href = firstItem.getAttribute('href');
+                        }
+                    }
+                });
+            }
 
             // Modal Interactions
             const openModalBtns = document.querySelectorAll('[data-modal-target]');

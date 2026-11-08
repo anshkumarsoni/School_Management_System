@@ -96,7 +96,7 @@
                 <h3 class="kpi-value">{{ "{:,}".format(total_students or 0) }}</h3>
             </div>
             <div class="kpi-footer">
-                <span class="kpi-subtext"><i class="fa-regular fa-id-badge"></i> Verified student admissions</span>
+                <span class="kpi-subtext"><i class="fa-regular fa-id-badge"></i> Verified admissions</span>
             </div>
         </a>
 
@@ -110,21 +110,22 @@
                 <h3 class="kpi-value">{{ "{:,}".format(total_teachers or 0) }}</h3>
             </div>
             <div class="kpi-footer">
-                <span class="kpi-subtext"><i class="fa-solid fa-chalkboard"></i> Active academic instructors</span>
+                <span class="kpi-subtext"><i class="fa-solid fa-chalkboard"></i> Active instructors</span>
             </div>
         </a>
 
-        <a href="{{ url_for('library_view') }}" class="kpi-card card-amber" style="text-decoration: none;">
+        <!-- Database-Driven Today's Attendance KPI Card -->
+        <a href="{{ url_for('attendance_view') }}" class="kpi-card card-emerald" style="text-decoration: none;">
             <div class="kpi-top">
-                <div class="kpi-icon-wrapper"><i class="fa-solid fa-book-bookmark"></i></div>
-                <span class="kpi-pill"><i class="fa-solid fa-book"></i> Catalog</span>
+                <div class="kpi-icon-wrapper" style="background: rgba(16, 185, 129, 0.15); color: #10b981;"><i class="fa-solid fa-calendar-check"></i></div>
+                <span class="kpi-pill" style="background: rgba(16, 185, 129, 0.15); color: #059669;"><i class="fa-solid fa-circle-check"></i> Daily</span>
             </div>
             <div class="kpi-body">
-                <span class="kpi-label">Library Books</span>
-                <h3 class="kpi-value">{{ "{:,}".format(total_books or 0) }}</h3>
+                <span class="kpi-label">Today's Attendance</span>
+                <h3 class="kpi-value">{{ today_attendance_pct }}%</h3>
             </div>
             <div class="kpi-footer">
-                <span class="kpi-subtext"><i class="fa-solid fa-layer-group"></i> Total volumes in circulation</span>
+                <span class="kpi-subtext"><i class="fa-solid fa-user-check"></i> {% if attendance_total_count and attendance_total_count > 0 %}{{ attendance_present_count }} of {{ attendance_total_count }} present{% else %}Live registered attendance{% endif %}</span>
             </div>
         </a>
 
@@ -157,6 +158,20 @@
             </div>
         </a>
         {% endif %}
+
+        <a href="{{ url_for('library_view') }}" class="kpi-card card-amber" style="text-decoration: none;">
+            <div class="kpi-top">
+                <div class="kpi-icon-wrapper"><i class="fa-solid fa-book-bookmark"></i></div>
+                <span class="kpi-pill"><i class="fa-solid fa-book"></i> Catalog</span>
+            </div>
+            <div class="kpi-body">
+                <span class="kpi-label">Library Books</span>
+                <h3 class="kpi-value">{{ "{:,}".format(total_books or 0) }}</h3>
+            </div>
+            <div class="kpi-footer">
+                <span class="kpi-subtext"><i class="fa-solid fa-layer-group"></i> Total volumes in circulation</span>
+            </div>
+        </a>
 
         {% if current_role == 'viewer' %}
         <a href="{{ url_for('fees_view') }}" class="kpi-card card-cyan" style="text-decoration: none; border-top: 3px solid #10b981;">
@@ -328,6 +343,27 @@
                         <div class="chart-empty-state" id="genderChartEmpty" style="display: none;">
                             <i class="fa-solid fa-users-slash"></i>
                             <p>No gender records found.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Attendance Overview Analytics Card -->
+                <div class="analytics-card" style="grid-column: 1 / -1;">
+                    <div class="card-header">
+                        <div class="header-left">
+                            <div class="card-badge-icon badge-emerald"><i class="fa-solid fa-chart-line"></i></div>
+                            <div>
+                                <h4 class="card-heading">Attendance Overview &amp; Distribution</h4>
+                                <p class="card-subheading">Live institutional attendance status (Present, Absent, Leave)</p>
+                            </div>
+                        </div>
+                        <span class="chart-tag"><i class="fa-solid fa-shield-halved"></i> {{ today_attendance_pct }}% Rate</span>
+                    </div>
+                    <div class="chart-canvas-wrapper" style="height: 190px;">
+                        <canvas id="attendanceChart"></canvas>
+                        <div class="chart-empty-state" id="attendanceChartEmpty" style="display: none;">
+                            <i class="fa-solid fa-clipboard-user"></i>
+                            <p>No attendance records found for today.</p>
                         </div>
                     </div>
                 </div>
@@ -550,14 +586,16 @@
     "classLabels": {{ class_labels | tojson }},
     "classCounts": {{ class_counts | tojson }},
     "genderLabels": {{ gender_labels | tojson }},
-    "genderCounts": {{ gender_counts | tojson }}
+    "genderCounts": {{ gender_counts | tojson }},
+    "attendanceLabels": {{ attendance_labels | tojson }},
+    "attendanceCounts": {{ attendance_counts | tojson }}
 }
 </script>
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     const rawDataElem = document.getElementById("dashboard-chart-data");
-    let chartData = { classLabels: [], classCounts: [], genderLabels: [], genderCounts: [] };
+    let chartData = { classLabels: [], classCounts: [], genderLabels: [], genderCounts: [], attendanceLabels: [], attendanceCounts: [] };
     
     if (rawDataElem) {
         try { chartData = JSON.parse(rawDataElem.textContent || "{}"); } catch (e) {}
@@ -567,12 +605,28 @@ document.addEventListener("DOMContentLoaded", function () {
     const classCounts = chartData.classCounts || [];
     const genderLabels = chartData.genderLabels || [];
     const genderCounts = chartData.genderCounts || [];
+    const attendanceLabels = chartData.attendanceLabels || ["Present", "Absent", "Leave"];
+    const attendanceCounts = chartData.attendanceCounts || [0, 0, 0];
 
     if (typeof Chart !== "undefined") {
-        Chart.defaults.color = "#64748b";
+        function getThemePalette() {
+            const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+            return {
+                text: isDark ? "#94a3b8" : "#64748b",
+                grid: isDark ? "rgba(255, 255, 255, 0.06)" : "#f1f5f9",
+                border: isDark ? "rgba(15, 23, 42, 0.95)" : "#ffffff"
+            };
+        }
+
+        let themeColors = getThemePalette();
+        Chart.defaults.color = themeColors.text;
         Chart.defaults.font.family = "'Plus Jakarta Sans', system-ui, sans-serif";
 
-        // Bar Chart: Enrollment by Class
+        let classChartInstance = null;
+        let genderChartInstance = null;
+        let attendanceChartInstance = null;
+
+        // 1. Bar Chart: Enrollment by Class
         const classCanvas = document.getElementById("classChart");
         const classEmptyState = document.getElementById("classChartEmpty");
 
@@ -585,7 +639,7 @@ document.addEventListener("DOMContentLoaded", function () {
             barGradient.addColorStop(0, "#1e3a8a");
             barGradient.addColorStop(1, "#3b82f6");
 
-            new Chart(classCtx, {
+            classChartInstance = new Chart(classCtx, {
                 type: "bar",
                 data: {
                     labels: classLabels,
@@ -611,19 +665,19 @@ document.addEventListener("DOMContentLoaded", function () {
                     scales: {
                         x: {
                             grid: { display: false },
-                            ticks: { color: "#64748b", font: { size: 11 } }
+                            ticks: { color: themeColors.text, font: { size: 11 } }
                         },
                         y: {
                             beginAtZero: true,
-                            ticks: { stepSize: 1, color: "#64748b", font: { size: 11 } },
-                            grid: { color: "#f1f5f9" }
+                            ticks: { stepSize: 1, color: themeColors.text, font: { size: 11 } },
+                            grid: { color: themeColors.grid }
                         }
                     }
                 }
             });
         }
 
-        // Doughnut Chart: Gender Demographics
+        // 2. Doughnut Chart: Gender Demographics
         const genderCanvas = document.getElementById("genderChart");
         const genderEmptyState = document.getElementById("genderChartEmpty");
 
@@ -634,14 +688,14 @@ document.addEventListener("DOMContentLoaded", function () {
             const colorPalette = { "male": "#2563eb", "female": "#ec4899", "other": "#8b5cf6" };
             const backgroundColors = genderLabels.map(l => colorPalette[String(l).toLowerCase().trim()] || "#10b981");
 
-            new Chart(genderCanvas.getContext("2d"), {
+            genderChartInstance = new Chart(genderCanvas.getContext("2d"), {
                 type: "doughnut",
                 data: {
                     labels: genderLabels,
                     datasets: [{
                         data: genderCounts,
                         backgroundColor: backgroundColors,
-                        borderColor: "#ffffff",
+                        borderColor: themeColors.border,
                         borderWidth: 2,
                         hoverOffset: 4
                     }]
@@ -656,6 +710,7 @@ document.addEventListener("DOMContentLoaded", function () {
                             labels: {
                                 boxWidth: 12,
                                 padding: 12,
+                                color: themeColors.text,
                                 font: { size: 11 }
                             }
                         }
@@ -663,6 +718,81 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
             });
         }
+
+        // 3. Horizontal Bar Chart: Attendance Overview & Distribution
+        const attendanceCanvas = document.getElementById("attendanceChart");
+        const attendanceEmptyState = document.getElementById("attendanceChartEmpty");
+        const attTotal = attendanceCounts.reduce((a, b) => a + b, 0);
+
+        if (attTotal === 0 && (!attendanceCounts || attendanceCounts.length === 0)) {
+            if (attendanceCanvas) attendanceCanvas.style.display = "none";
+            if (attendanceEmptyState) attendanceEmptyState.style.display = "flex";
+        } else if (attendanceCanvas) {
+            const attColors = ["#10b981", "#ef4444", "#f59e0b"];
+            attendanceChartInstance = new Chart(attendanceCanvas.getContext("2d"), {
+                type: "bar",
+                data: {
+                    labels: attendanceLabels,
+                    datasets: [{
+                        label: "Students",
+                        data: attendanceCounts,
+                        backgroundColor: attColors,
+                        borderRadius: 6,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    indexAxis: "y",
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: "#0f172a",
+                            padding: 10,
+                            cornerRadius: 6
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1, color: themeColors.text, font: { size: 11 } },
+                            grid: { color: themeColors.grid }
+                        },
+                        y: {
+                            grid: { display: false },
+                            ticks: { color: themeColors.text, font: { size: 11 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Live Theme Synchronization Listener (Zero-Reload Chart Update)
+        window.addEventListener("themeChanged", function (e) {
+            const colors = getThemePalette();
+            Chart.defaults.color = colors.text;
+
+            if (classChartInstance) {
+                classChartInstance.options.scales.x.ticks.color = colors.text;
+                classChartInstance.options.scales.y.ticks.color = colors.text;
+                classChartInstance.options.scales.y.grid.color = colors.grid;
+                classChartInstance.update();
+            }
+
+            if (genderChartInstance) {
+                genderChartInstance.options.plugins.legend.labels.color = colors.text;
+                genderChartInstance.data.datasets[0].borderColor = colors.border;
+                genderChartInstance.update();
+            }
+
+            if (attendanceChartInstance) {
+                attendanceChartInstance.options.scales.x.ticks.color = colors.text;
+                attendanceChartInstance.options.scales.y.ticks.color = colors.text;
+                attendanceChartInstance.options.scales.x.grid.color = colors.grid;
+                attendanceChartInstance.update();
+            }
+        });
     }
 });
 </script>

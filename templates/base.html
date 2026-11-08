@@ -131,6 +131,15 @@
                             <span class="nav-badge" style="background: rgba(14, 165, 233, 0.12); color: #0284c7;">Events</span>
                         </a>
                     </li>
+                    {% if current_role in ('super_admin', 'admin') %}
+                    <li class="nav-item">
+                        <a href="{{ url_for('import_export_view') }}" class="nav-link {% if active_page == 'import_export' %}active{% endif %}">
+                            <i class="fa-solid fa-file-import"></i>
+                            <span class="link-text">Import &amp; Export</span>
+                            <span class="nav-badge" style="background: rgba(16, 185, 129, 0.12); color: #059669;">CSV</span>
+                        </a>
+                    </li>
+                    {% endif %}
                 </ul>
 
                 {% if current_role == 'super_admin' %}

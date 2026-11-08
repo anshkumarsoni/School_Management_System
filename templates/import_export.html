@@ -1,0 +1,708 @@
+{% extends "base.html" %}
+
+{% block title %}Data Import & Export Hub &mdash; EduPulse{% endblock %}
+
+{% block content %}
+<div class="import-export-container" style="max-width: 1400px; margin: 0 auto; padding-bottom: 40px;">
+    
+    <!-- 1. Header & Navigation Breadcrumb -->
+    <div class="page-header" style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+        <div>
+            <div class="breadcrumb" style="font-size: 13px; color: var(--text-muted); margin-bottom: 4px;">
+                <span>EduPulse</span> <i class="fa-solid fa-angle-right" style="font-size: 11px; margin: 0 6px;"></i>
+                <span style="color: var(--navy-800); font-weight: 600;">Data Import &amp; Export</span>
+            </div>
+            <h1 style="font-size: 24px; font-weight: 800; color: var(--navy-900); margin: 0; display: flex; align-items: center; gap: 10px;">
+                <i class="fa-solid fa-file-import" style="color: var(--navy-600);"></i> Data Import &amp; Export Hub
+            </h1>
+            <p style="font-size: 13px; color: var(--text-muted); margin: 4px 0 0 0;">
+                Export verified institutional spreadsheets or bulk-onboard students, faculty, and academic records via CSV/Excel.
+            </p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <a href="{{ url_for('import_export_view', tab='templates') }}" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; text-decoration: none; border: 1px solid var(--border-color); background: white; color: var(--navy-800);">
+                <i class="fa-solid fa-download"></i> Get Starter Templates
+            </a>
+        </div>
+    </div>
+
+    <!-- 2. Metric KPI Cards -->
+    <div class="kpi-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
+        <!-- Total Students -->
+        <div class="kpi-card card-blue" style="background: white; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px 20px; box-shadow: var(--shadow-sm);">
+            <div class="kpi-top" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div class="kpi-icon-wrapper" style="width: 40px; height: 40px; border-radius: 10px; background: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 18px;">
+                    <i class="fa-solid fa-user-graduate"></i>
+                </div>
+                <span style="font-size: 11px; font-weight: 700; background: #dbeafe; color: #1e40af; padding: 3px 8px; border-radius: 999px;">
+                    <i class="fa-solid fa-users"></i> Enrolled
+                </span>
+            </div>
+            <div class="kpi-body">
+                <span style="font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Student Records</span>
+                <h3 style="font-size: 26px; font-weight: 800; color: var(--navy-900); margin: 4px 0 0 0;">{{ stats.total_students }}</h3>
+            </div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">
+                <span>Active demographic &amp; academic entries</span>
+            </div>
+        </div>
+
+        <!-- Total Faculty -->
+        <div class="kpi-card card-emerald" style="background: white; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px 20px; box-shadow: var(--shadow-sm);">
+            <div class="kpi-top" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div class="kpi-icon-wrapper" style="width: 40px; height: 40px; border-radius: 10px; background: #ecfdf5; color: #059669; display: flex; align-items: center; justify-content: center; font-size: 18px;">
+                    <i class="fa-solid fa-chalkboard-user"></i>
+                </div>
+                <span style="font-size: 11px; font-weight: 700; background: #d1fae5; color: #065f46; padding: 3px 8px; border-radius: 999px;">
+                    <i class="fa-solid fa-graduation-cap"></i> Faculty
+                </span>
+            </div>
+            <div class="kpi-body">
+                <span style="font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Teacher Records</span>
+                <h3 style="font-size: 26px; font-weight: 800; color: var(--navy-900); margin: 4px 0 0 0;">{{ stats.total_teachers }}</h3>
+            </div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">
+                <span>Teaching faculty &amp; department heads</span>
+            </div>
+        </div>
+
+        <!-- Library Catalog -->
+        <div class="kpi-card card-amber" style="background: white; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px 20px; box-shadow: var(--shadow-sm);">
+            <div class="kpi-top" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div class="kpi-icon-wrapper" style="width: 40px; height: 40px; border-radius: 10px; background: #fef3c7; color: #d97706; display: flex; align-items: center; justify-content: center; font-size: 18px;">
+                    <i class="fa-solid fa-book-open"></i>
+                </div>
+                <span style="font-size: 11px; font-weight: 700; background: #fde68a; color: #92400e; padding: 3px 8px; border-radius: 999px;">
+                    <i class="fa-solid fa-layer-group"></i> Catalog
+                </span>
+            </div>
+            <div class="kpi-body">
+                <span style="font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Library Titles</span>
+                <h3 style="font-size: 26px; font-weight: 800; color: var(--navy-900); margin: 4px 0 0 0;">{{ stats.total_books }}</h3>
+            </div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">
+                <span>Catalogued books &amp; circulation copies</span>
+            </div>
+        </div>
+
+        <!-- Ready Templates -->
+        <div class="kpi-card card-purple" style="background: white; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px 20px; box-shadow: var(--shadow-sm);">
+            <div class="kpi-top" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div class="kpi-icon-wrapper" style="width: 40px; height: 40px; border-radius: 10px; background: #f3e8ff; color: #9333ea; display: flex; align-items: center; justify-content: center; font-size: 18px;">
+                    <i class="fa-solid fa-file-csv"></i>
+                </div>
+                <span style="font-size: 11px; font-weight: 700; background: #e9d5ff; color: #6b21a8; padding: 3px 8px; border-radius: 999px;">
+                    <i class="fa-solid fa-circle-check"></i> Standard
+                </span>
+            </div>
+            <div class="kpi-body">
+                <span style="font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">CSV Templates</span>
+                <h3 style="font-size: 26px; font-weight: 800; color: var(--navy-900); margin: 4px 0 0 0;">3</h3>
+            </div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">
+                <span>Pre-formatted for Microsoft Excel import</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Navigation Tabs -->
+    <div class="tab-nav-wrapper" style="display: flex; gap: 8px; border-bottom: 2px solid var(--border-color); margin-bottom: 24px; overflow-x: auto; padding-bottom: 2px;">
+        <a href="{{ url_for('import_export_view', tab='export') }}" class="ie-tab-pill {% if tab == 'export' %}active{% endif %}">
+            <i class="fa-solid fa-file-export"></i> <span>Export Reports &amp; Datasets</span>
+        </a>
+        <a href="{{ url_for('import_export_view', tab='import') }}" class="ie-tab-pill {% if tab == 'import' %}active{% endif %}">
+            <i class="fa-solid fa-file-import"></i> <span>Bulk Data Import (CSV)</span>
+        </a>
+        <a href="{{ url_for('import_export_view', tab='templates') }}" class="ie-tab-pill {% if tab == 'templates' %}active{% endif %}">
+            <i class="fa-solid fa-table-list"></i> <span>Starter Excel/CSV Templates</span>
+        </a>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 1: EXPORT DATASETS & REPORTS -->
+    <!-- ========================================================================= -->
+    {% if tab == 'export' %}
+    <div class="export-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 20px;">
+        
+        <!-- CARD 1: STUDENTS DIRECTORY -->
+        <div class="data-transfer-card">
+            <div class="transfer-card-header">
+                <div class="transfer-icon blue"><i class="fa-solid fa-user-graduate"></i></div>
+                <div>
+                    <h3 class="transfer-title">Student Records Directory</h3>
+                    <p class="transfer-desc">Export demographic, contact, and enrollment data.</p>
+                </div>
+            </div>
+            <form action="{{ url_for('export_students_route') }}" method="GET" class="transfer-card-body">
+                <div class="form-group" style="margin-bottom: 14px;">
+                    <label style="font-size: 12px; font-weight: 600; color: var(--navy-800); display: block; margin-bottom: 6px;">Filter by Class</label>
+                    <select name="class" class="transfer-select">
+                        <option value="">All Classes (School-wide)</option>
+                        {% for c in classes %}
+                            <option value="{{ c }}">{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn-transfer-action blue">
+                    <i class="fa-solid fa-file-arrow-down"></i> Download Students CSV
+                </button>
+            </form>
+        </div>
+
+        <!-- CARD 2: FACULTY DIRECTORY -->
+        <div class="data-transfer-card">
+            <div class="transfer-card-header">
+                <div class="transfer-icon emerald"><i class="fa-solid fa-chalkboard-user"></i></div>
+                <div>
+                    <h3 class="transfer-title">Faculty &amp; Teacher Roster</h3>
+                    <p class="transfer-desc">Export faculty IDs, subject assignments, and contact details.</p>
+                </div>
+            </div>
+            <div class="transfer-card-body">
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 18px; line-height: 1.5;">
+                    Includes all active teaching staff, qualifications, subject specialties, and registered institutional phone &amp; email addresses.
+                </p>
+                <a href="{{ url_for('export_teachers_route') }}" class="btn-transfer-action emerald">
+                    <i class="fa-solid fa-file-arrow-down"></i> Download Faculty CSV
+                </a>
+            </div>
+        </div>
+
+        <!-- CARD 3: LIBRARY INVENTORY -->
+        <div class="data-transfer-card">
+            <div class="transfer-card-header">
+                <div class="transfer-icon amber"><i class="fa-solid fa-book-bookmark"></i></div>
+                <div>
+                    <h3 class="transfer-title">Library Inventory &amp; Catalog</h3>
+                    <p class="transfer-desc">Export book catalogue, ISBNs, genre categories, and stock.</p>
+                </div>
+            </div>
+            <div class="transfer-card-body">
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 18px; line-height: 1.5;">
+                    Comprehensive catalog report detailing total acquisitions, currently available shelf copies, and borrowed circulation counts.
+                </p>
+                <a href="{{ url_for('export_library_route') }}" class="btn-transfer-action amber">
+                    <i class="fa-solid fa-file-arrow-down"></i> Download Library Catalog CSV
+                </a>
+            </div>
+        </div>
+
+        <!-- CARD 4: DAILY ATTENDANCE -->
+        <div class="data-transfer-card">
+            <div class="transfer-card-header">
+                <div class="transfer-icon purple"><i class="fa-solid fa-calendar-check"></i></div>
+                <div>
+                    <h3 class="transfer-title">Daily Attendance Register</h3>
+                    <p class="transfer-desc">Export classroom presence records by date.</p>
+                </div>
+            </div>
+            <form action="{{ url_for('export_attendance_route') }}" method="GET" class="transfer-card-body">
+                <div class="form-group" style="margin-bottom: 14px;">
+                    <label style="font-size: 12px; font-weight: 600; color: var(--navy-800); display: block; margin-bottom: 6px;">Select Attendance Date</label>
+                    <input type="date" name="date" value="{{ today_date }}" class="transfer-select" required>
+                </div>
+                <button type="submit" class="btn-transfer-action purple">
+                    <i class="fa-solid fa-file-arrow-down"></i> Download Attendance CSV
+                </button>
+            </form>
+        </div>
+
+        <!-- CARD 5: EXAM MERIT LIST -->
+        <div class="data-transfer-card">
+            <div class="transfer-card-header">
+                <div class="transfer-icon cyan"><i class="fa-solid fa-award"></i></div>
+                <div>
+                    <h3 class="transfer-title">Class Exam Merit List</h3>
+                    <p class="transfer-desc">Export sorted rank lists, percentages, and letter grades.</p>
+                </div>
+            </div>
+            <form action="{{ url_for('export_merit_list_route') }}" method="GET" class="transfer-card-body">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
+                    <div class="form-group">
+                        <label style="font-size: 12px; font-weight: 600; color: var(--navy-800); display: block; margin-bottom: 6px;">Class</label>
+                        <select name="class" class="transfer-select" required>
+                            {% for c in classes %}
+                                <option value="{{ c }}">{{ c }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size: 12px; font-weight: 600; color: var(--navy-800); display: block; margin-bottom: 6px;">Exam</label>
+                        <select name="exam_type" class="transfer-select">
+                            {% for e in exam_types %}
+                                <option value="{{ e }}">{{ e }}</option>
+                            {% else %}
+                                <option value="Final Exam">Final Exam</option>
+                                <option value="Mid-Term Exam">Mid-Term Exam</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn-transfer-action cyan">
+                    <i class="fa-solid fa-file-arrow-down"></i> Download Merit List CSV
+                </button>
+            </form>
+        </div>
+
+        {% if current_role == 'super_admin' %}
+        <!-- CARD 6: FEE DEFAULTERS & DUES (PRINCIPAL ONLY) -->
+        <div class="data-transfer-card" style="border-top: 3px solid #dc2626;">
+            <div class="transfer-card-header">
+                <div class="transfer-icon red"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+                <div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <h3 class="transfer-title">Fee Defaulters &amp; Dues Ledger</h3>
+                        <span style="font-size: 10px; font-weight: 700; background: #fee2e2; color: #dc2626; padding: 2px 6px; border-radius: 4px;">Principal</span>
+                    </div>
+                    <p class="transfer-desc">Export students with outstanding fee balances.</p>
+                </div>
+            </div>
+            <div class="transfer-card-body">
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 18px; line-height: 1.5;">
+                    Generates financial collections audit with student roll numbers, classes, total annual fees, amounts paid, outstanding balance dues, and emergency contact numbers.
+                </p>
+                <a href="{{ url_for('export_fees_route') }}" class="btn-transfer-action red">
+                    <i class="fa-solid fa-file-arrow-down"></i> Download Fee Defaulters CSV
+                </a>
+            </div>
+        </div>
+
+        <!-- CARD 7: COMPREHENSIVE SCHOOL BACKUP (PRINCIPAL ONLY) -->
+        <div class="data-transfer-card" style="border-top: 3px solid var(--navy-700);">
+            <div class="transfer-card-header">
+                <div class="transfer-icon navy"><i class="fa-solid fa-box-archive"></i></div>
+                <div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <h3 class="transfer-title">Full School Database Export</h3>
+                        <span style="font-size: 10px; font-weight: 700; background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 4px;">Principal</span>
+                    </div>
+                    <p class="transfer-desc">Consolidated multi-dataset archive for offline record-keeping.</p>
+                </div>
+            </div>
+            <div class="transfer-card-body">
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 18px; line-height: 1.5;">
+                    Triggers a complete institutional backup saving verified CSV spreadsheets for all core tables into the local <code>exports/</code> archive folder.
+                </p>
+                <a href="{{ url_for('export_all_tables_route') }}" class="btn-transfer-action navy">
+                    <i class="fa-solid fa-database"></i> Trigger Full Offline Backup
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+    {% endif %}
+
+    <!-- ========================================================================= -->
+    <!-- TAB 2: BULK IMPORT FROM CSV -->
+    <!-- ========================================================================= -->
+    {% if tab == 'import' %}
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+        
+        <!-- Guidelines Alert Card -->
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: var(--radius-md); padding: 18px 22px; display: flex; gap: 16px; align-items: flex-start;">
+            <div style="width: 36px; height: 36px; border-radius: 8px; background: #dcfce7; color: #16a34a; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; margin-top: 2px;">
+                <i class="fa-solid fa-circle-info"></i>
+            </div>
+            <div>
+                <h4 style="font-size: 14px; font-weight: 700; color: #15803d; margin: 0 0 6px 0;">CSV / Excel Bulk Import Guidelines</h4>
+                <ul style="font-size: 13px; color: #166534; margin: 0; padding-left: 18px; line-height: 1.6;">
+                    <li>Files must be formatted as standard comma-separated values (<code>.csv</code>) encoded in <strong>UTF-8</strong>.</li>
+                    <li>Column names are flexible and case-insensitive (e.g. <code>ROLL_NUMBER</code>, <code>Roll Number</code>, or <code>roll_number</code> are accepted).</li>
+                    <li><strong>Duplicate Key Safety:</strong> If a record with the same Roll Number or Teacher ID already exists, its data will be updated automatically via <code>ON DUPLICATE KEY UPDATE</code>.</li>
+                    <li>For best results, download our ready-made starter templates from the <strong>Starter Templates</strong> tab.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 24px;">
+            
+            <!-- IMPORT 1: STUDENTS -->
+            <div class="import-card">
+                <div class="import-card-header">
+                    <div class="transfer-icon blue"><i class="fa-solid fa-user-graduate"></i></div>
+                    <div>
+                        <h3 style="font-size: 16px; font-weight: 700; color: var(--navy-900); margin: 0;">Import Students from CSV</h3>
+                        <p style="font-size: 12px; color: var(--text-muted); margin: 2px 0 0 0;">Upload student demographic &amp; contact roster</p>
+                    </div>
+                </div>
+
+                <div class="import-card-body">
+                    <div style="background: #f8fafc; border: 1px dashed var(--border-color); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 16px;">
+                        <span style="font-size: 11px; font-weight: 700; color: var(--navy-800); text-transform: uppercase;">Required Headers:</span>
+                        <p style="font-family: monospace; font-size: 11px; color: var(--text-secondary); margin: 4px 0 0 0; word-break: break-all;">
+                            ROLL_NUMBER, NAME, CLASS, AGE, ADDRESS, PHONE, EMAIL, GENDER
+                        </p>
+                    </div>
+
+                    <form action="{{ url_for('import_students_route') }}" method="POST" enctype="multipart/form-data">
+                        <div class="file-drop-zone" onclick="this.querySelector('input[type=file]').click();">
+                            <i class="fa-solid fa-cloud-arrow-up" style="font-size: 28px; color: #2563eb; margin-bottom: 8px;"></i>
+                            <span class="file-name-display" style="font-size: 13px; font-weight: 600; color: var(--navy-800);">Choose or Drag &amp; Drop CSV File</span>
+                            <span style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Supported format: .csv</span>
+                            <input type="file" name="file" accept=".csv" required style="display: none;" onchange="updateFileName(this)">
+                        </div>
+
+                        <button type="submit" class="btn-transfer-action blue" style="margin-top: 16px;">
+                            <i class="fa-solid fa-upload"></i> Process &amp; Import Students
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            {% if current_role == 'super_admin' %}
+            <!-- IMPORT 2: TEACHERS (PRINCIPAL ONLY) -->
+            <div class="import-card">
+                <div class="import-card-header">
+                    <div class="transfer-icon emerald"><i class="fa-solid fa-chalkboard-user"></i></div>
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <h3 style="font-size: 16px; font-weight: 700; color: var(--navy-900); margin: 0;">Import Teachers from CSV</h3>
+                            <span style="font-size: 10px; font-weight: 700; background: #fee2e2; color: #dc2626; padding: 2px 6px; border-radius: 4px;">Principal</span>
+                        </div>
+                        <p style="font-size: 12px; color: var(--text-muted); margin: 2px 0 0 0;">Upload faculty directory &amp; subject assignments</p>
+                    </div>
+                </div>
+
+                <div class="import-card-body">
+                    <div style="background: #f8fafc; border: 1px dashed var(--border-color); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 16px;">
+                        <span style="font-size: 11px; font-weight: 700; color: var(--navy-800); text-transform: uppercase;">Required Headers:</span>
+                        <p style="font-family: monospace; font-size: 11px; color: var(--text-secondary); margin: 4px 0 0 0; word-break: break-all;">
+                            TEACHER_ID, NAME, SUBJECT, AGE, ADDRESS, PHONE, EMAIL, GENDER
+                        </p>
+                    </div>
+
+                    <form action="{{ url_for('import_teachers_route') }}" method="POST" enctype="multipart/form-data">
+                        <div class="file-drop-zone" onclick="this.querySelector('input[type=file]').click();">
+                            <i class="fa-solid fa-cloud-arrow-up" style="font-size: 28px; color: #059669; margin-bottom: 8px;"></i>
+                            <span class="file-name-display" style="font-size: 13px; font-weight: 600; color: var(--navy-800);">Choose or Drag &amp; Drop CSV File</span>
+                            <span style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Supported format: .csv</span>
+                            <input type="file" name="file" accept=".csv" required style="display: none;" onchange="updateFileName(this)">
+                        </div>
+
+                        <button type="submit" class="btn-transfer-action emerald" style="margin-top: 16px;">
+                            <i class="fa-solid fa-upload"></i> Process &amp; Import Teachers
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- IMPORT 3: LIBRARY BOOKS -->
+            <div class="import-card">
+                <div class="import-card-header">
+                    <div class="transfer-icon amber"><i class="fa-solid fa-book-bookmark"></i></div>
+                    <div>
+                        <h3 style="font-size: 16px; font-weight: 700; color: var(--navy-900); margin: 0;">Import Books from CSV</h3>
+                        <p style="font-size: 12px; color: var(--text-muted); margin: 2px 0 0 0;">Upload catalogue titles, authors &amp; inventory copies</p>
+                    </div>
+                </div>
+
+                <div class="import-card-body">
+                    <div style="background: #f8fafc; border: 1px dashed var(--border-color); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 16px;">
+                        <span style="font-size: 11px; font-weight: 700; color: var(--navy-800); text-transform: uppercase;">Required Headers:</span>
+                        <p style="font-family: monospace; font-size: 11px; color: var(--text-secondary); margin: 4px 0 0 0; word-break: break-all;">
+                            BOOK_ID, TITLE, AUTHOR, GENRE, TOTAL_COPIES
+                        </p>
+                    </div>
+
+                    <form action="{{ url_for('import_books_route') }}" method="POST" enctype="multipart/form-data">
+                        <div class="file-drop-zone" onclick="this.querySelector('input[type=file]').click();">
+                            <i class="fa-solid fa-cloud-arrow-up" style="font-size: 28px; color: #d97706; margin-bottom: 8px;"></i>
+                            <span class="file-name-display" style="font-size: 13px; font-weight: 600; color: var(--navy-800);">Choose or Drag &amp; Drop CSV File</span>
+                            <span style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Supported format: .csv</span>
+                            <input type="file" name="file" accept=".csv" required style="display: none;" onchange="updateFileName(this)">
+                        </div>
+
+                        <button type="submit" class="btn-transfer-action amber" style="margin-top: 16px;">
+                            <i class="fa-solid fa-upload"></i> Process &amp; Import Library Books
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ========================================================================= -->
+    <!-- TAB 3: STARTER EXCEL/CSV TEMPLATES -->
+    <!-- ========================================================================= -->
+    {% if tab == 'templates' %}
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+        <div style="background: white; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 22px 24px; box-shadow: var(--shadow-sm);">
+            <h3 style="font-size: 16px; font-weight: 700; color: var(--navy-900); margin: 0 0 8px 0;">
+                <i class="fa-solid fa-file-excel" style="color: #107c41; margin-right: 6px;"></i> Ready-to-Use Excel Data Entry Templates
+            </h3>
+            <p style="font-size: 13px; color: var(--text-muted); margin: 0; line-height: 1.6;">
+                Download pre-formatted template spreadsheets with pre-configured header rows. You can open these files directly in <strong>Microsoft Excel</strong>, <strong>Apple Numbers</strong>, or <strong>Google Sheets</strong>, enter your institution's records, save as <code>.csv</code>, and upload in the <strong>Bulk Data Import</strong> tab.
+            </p>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 20px;">
+            
+            <!-- TEMPLATE 1: STUDENTS -->
+            <div class="template-card">
+                <div class="template-card-header">
+                    <div class="transfer-icon blue"><i class="fa-solid fa-user-graduate"></i></div>
+                    <div>
+                        <h4 style="font-size: 15px; font-weight: 700; color: var(--navy-900); margin: 0;">Students Template</h4>
+                        <span style="font-size: 11px; color: var(--text-muted);">template_students.csv</span>
+                    </div>
+                </div>
+                <div class="template-card-body">
+                    <div class="template-columns-preview">
+                        <span class="col-pill">ROLL_NUMBER</span>
+                        <span class="col-pill">NAME</span>
+                        <span class="col-pill">CLASS</span>
+                        <span class="col-pill">AGE</span>
+                        <span class="col-pill">ADDRESS</span>
+                        <span class="col-pill">PHONE</span>
+                        <span class="col-pill">EMAIL</span>
+                        <span class="col-pill">GENDER</span>
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">
+                        Includes sample student entries showing standard class notation, phone formatting, and demographic data.
+                    </div>
+                    <a href="{{ url_for('download_csv_template', template_name='students') }}" class="btn-transfer-action blue">
+                        <i class="fa-solid fa-download"></i> Download Students Template (.csv)
+                    </a>
+                </div>
+            </div>
+
+            <!-- TEMPLATE 2: TEACHERS -->
+            <div class="template-card">
+                <div class="template-card-header">
+                    <div class="transfer-icon emerald"><i class="fa-solid fa-chalkboard-user"></i></div>
+                    <div>
+                        <h4 style="font-size: 15px; font-weight: 700; color: var(--navy-900); margin: 0;">Teachers &amp; Faculty Template</h4>
+                        <span style="font-size: 11px; color: var(--text-muted);">template_teachers.csv</span>
+                    </div>
+                </div>
+                <div class="template-card-body">
+                    <div class="template-columns-preview">
+                        <span class="col-pill">TEACHER_ID</span>
+                        <span class="col-pill">NAME</span>
+                        <span class="col-pill">SUBJECT</span>
+                        <span class="col-pill">AGE</span>
+                        <span class="col-pill">ADDRESS</span>
+                        <span class="col-pill">PHONE</span>
+                        <span class="col-pill">EMAIL</span>
+                        <span class="col-pill">GENDER</span>
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">
+                        Includes sample faculty rows with unique Teacher IDs (e.g. <code>T101</code>), department subjects, and credentials.
+                    </div>
+                    <a href="{{ url_for('download_csv_template', template_name='teachers') }}" class="btn-transfer-action emerald">
+                        <i class="fa-solid fa-download"></i> Download Teachers Template (.csv)
+                    </a>
+                </div>
+            </div>
+
+            <!-- TEMPLATE 3: BOOKS -->
+            <div class="template-card">
+                <div class="template-card-header">
+                    <div class="transfer-icon amber"><i class="fa-solid fa-book"></i></div>
+                    <div>
+                        <h4 style="font-size: 15px; font-weight: 700; color: var(--navy-900); margin: 0;">Library Catalog Template</h4>
+                        <span style="font-size: 11px; color: var(--text-muted);">template_books.csv</span>
+                    </div>
+                </div>
+                <div class="template-card-body">
+                    <div class="template-columns-preview">
+                        <span class="col-pill">BOOK_ID</span>
+                        <span class="col-pill">TITLE</span>
+                        <span class="col-pill">AUTHOR</span>
+                        <span class="col-pill">GENRE</span>
+                        <span class="col-pill">TOTAL_COPIES</span>
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">
+                        Includes sample catalog titles with genre classifications, author metadata, and initial inventory quantities.
+                    </div>
+                    <a href="{{ url_for('download_csv_template', template_name='books') }}" class="btn-transfer-action amber">
+                        <i class="fa-solid fa-download"></i> Download Library Template (.csv)
+                    </a>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<!-- STYLES -->
+<style>
+.ie-tab-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+.ie-tab-pill:hover {
+    color: var(--navy-800);
+    background: #f1f5f9;
+}
+.ie-tab-pill.active {
+    color: var(--navy-900);
+    background: #e2e8f0;
+    box-shadow: inset 0 -2px 0 var(--navy-700);
+}
+
+.data-transfer-card, .import-card, .template-card {
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.data-transfer-card:hover, .import-card:hover, .template-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.transfer-card-header, .import-card-header, .template-card-header {
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.transfer-card-body, .import-card-body, .template-card-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    justify-content: space-between;
+}
+
+.transfer-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+.transfer-icon.blue { background: #eff6ff; color: #2563eb; }
+.transfer-icon.emerald { background: #ecfdf5; color: #059669; }
+.transfer-icon.amber { background: #fef3c7; color: #d97706; }
+.transfer-icon.purple { background: #f3e8ff; color: #9333ea; }
+.transfer-icon.cyan { background: #ecfeff; color: #0891b2; }
+.transfer-icon.red { background: #fee2e2; color: #dc2626; }
+.transfer-icon.navy { background: #e0e7ff; color: #3730a3; }
+
+.transfer-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--navy-900);
+    margin: 0;
+}
+.transfer-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: 2px 0 0 0;
+}
+
+.transfer-select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    color: var(--navy-900);
+    background: #f8fafc;
+    outline: none;
+    transition: border-color 0.2s;
+}
+.transfer-select:focus {
+    border-color: var(--navy-600);
+    background: white;
+}
+
+.btn-transfer-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.2s ease, transform 0.1s ease;
+}
+.btn-transfer-action:hover {
+    opacity: 0.92;
+    transform: translateY(-1px);
+}
+.btn-transfer-action.blue { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; }
+.btn-transfer-action.emerald { background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white; }
+.btn-transfer-action.amber { background: linear-gradient(135deg, #d97706 0%, #b45309 100%); color: white; }
+.btn-transfer-action.purple { background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%); color: white; }
+.btn-transfer-action.cyan { background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%); color: white; }
+.btn-transfer-action.red { background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); color: white; }
+.btn-transfer-action.navy { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; }
+
+.file-drop-zone {
+    border: 2px dashed #93c5fd;
+    background: #f8fafc;
+    border-radius: var(--radius-md);
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.file-drop-zone:hover {
+    background: #eff6ff;
+    border-color: #2563eb;
+}
+
+.template-columns-preview {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 14px;
+}
+.col-pill {
+    font-size: 10px;
+    font-weight: 700;
+    font-family: monospace;
+    background: #f1f5f9;
+    color: var(--navy-800);
+    padding: 3px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+}
+</style>
+
+<script>
+function updateFileName(input) {
+    const dropZone = input.closest('.file-drop-zone');
+    const display = dropZone.querySelector('.file-name-display');
+    if (input.files && input.files[0]) {
+        display.innerHTML = `<i class="fa-solid fa-file-csv" style="color: #059669; margin-right: 4px;"></i> ${input.files[0].name}`;
+        dropZone.style.background = "#ecfdf5";
+        dropZone.style.borderColor = "#10b981";
+    }
+}
+</script>
+{% endblock %}

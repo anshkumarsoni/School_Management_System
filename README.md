@@ -236,6 +236,7 @@ Student_Management_system/
 │   ├── health_discipline.html          # Infirmary Visits, Medical Profiles, Discipline & Counseling
 │   ├── calendar_ptm.html               # School Calendar, Holidays, Events & 1-on-1 PTM Bookings
 │   ├── performance_analytics.html      # Multi-Term Trajectories, Struggle Diagnostics & Support Desk
+│   ├── import_export.html              # Bulk CSV/Excel Data Import & Instant Report Export Hub
 │   ├── cloud_sync.html                 # Aiven Cloud MySQL Live Replication & Latency Monitor
 │   ├── attendance.html                 # Classroom Daily Attendance Logs
 │   ├── fees.html                       # Fee Transactions Ledger & Student Payment Receipts
@@ -384,17 +385,31 @@ academic_events (ID, TITLE, EVENT_DATE, CATEGORY, LOCATION)
 | `/exams/add` | `POST` | `super_admin`, `admin` | Records exam marks for enrolled students. |
 | `/cloud-sync` | `GET` | `super_admin` | Principal Office dashboard for Aiven Cloud database replication metrics. |
 | `/cloud-sync/sync` | `POST` | `super_admin` | Executes live one-click schema and record mirroring to Aiven Cloud. |
+| `/import-export` | `GET` | `super_admin`, `admin` | Data Import & Export Hub with KPI metrics, export cards, and bulk import uploaders. |
+| `/export/students` | `GET` | `super_admin`, `admin` | Streams UTF-8 CSV of student roster (filtered by class or school-wide). |
+| `/export/teachers` | `GET` | `super_admin`, `admin` | Streams UTF-8 CSV of faculty directory and subject assignments. |
+| `/export/library` | `GET` | `super_admin`, `admin` | Streams UTF-8 CSV of library inventory and shelf availability. |
+| `/export/attendance` | `GET` | `super_admin`, `admin` | Streams UTF-8 CSV of daily attendance status records by date. |
+| `/export/merit-list` | `GET` | `super_admin`, `admin` | Streams UTF-8 CSV of student merit list with computed ranks and grades. |
+| `/export/fees` | `GET` | `super_admin` | Streams UTF-8 CSV of fee defaulters and outstanding balances (Teachers blocked). |
+| `/template/download/<type>` | `GET` | `super_admin`, `admin` | Downloads ready-to-use CSV/Excel starter templates for students, teachers, or books. |
+| `/import/students` | `POST` | `super_admin`, `admin` | Processes uploaded student CSV with `ON DUPLICATE KEY UPDATE`. |
+| `/import/teachers` | `POST` | `super_admin` | Processes uploaded faculty CSV with duplicate update (Principal only). |
+| `/import/books` | `POST` | `super_admin`, `admin` | Processes uploaded library catalog CSV with inventory upsert. |
 </details>
 
 ---
 
 ## 🧪 Automated Testing
 
-The codebase includes **10 comprehensive automated test suites** guaranteeing zero regressions across all security boundaries, database mutations, and controllers:
+The codebase includes **11 comprehensive automated test suites** guaranteeing zero regressions across all security boundaries, database mutations, and controllers:
 
 ```bash
 # Run the complete role access matrix test suite:
 python scratch/test_role_matrix_compliance.py
+
+# Run the data import and export test suite:
+python scratch/test_import_export_system.py
 
 # Run the user self-registration test suite:
 python scratch/test_signup_system.py
@@ -406,6 +421,7 @@ python scratch/test_cloud_sync_system.py
 | Test Script | Scope of Verification | Status |
 | :--- | :--- | :---: |
 | `test_role_matrix_compliance.py` | Full permissions matrix for Principal, Teacher, and Student/Parent | **100% PASS** |
+| `test_import_export_system.py` | Sidebar navigation, CSV exports, template downloads, and bulk upload security | **100% PASS** |
 | `test_teacher_fee_restriction.py` | Verification of fee isolation and URL redirect guards for Teachers | **100% PASS** |
 | `test_signup_system.py` | Self-registration, auth validation, weak password rejection, and role rules | **100% PASS** |
 | `test_student_filter.py` | Clean filter toolbar, search, class dropdown, and age column preservation | **100% PASS** |

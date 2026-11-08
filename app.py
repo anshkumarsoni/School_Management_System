@@ -4,7 +4,9 @@ import datetime
 import mysql.connector as ms
 from mysql.connector import Error
 from dotenv import load_dotenv
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+import io
+import csv
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, Response
 
 from utils import (
     get_connection,
@@ -4673,6 +4675,523 @@ def trigger_cloud_sync_route():
     else:
         flash(f"Aiven Cloud Sync Failed: {result}", "danger")
     return redirect(url_for("cloud_sync_view"))
+
+
+# =========================================================================
+# 8. DATA IMPORT & EXPORT MANAGEMENT SYSTEM
+# =========================================================================
+
+def generate_csv_response(filename, headers, rows):
+    """Generates an HTTP response streaming a CSV file with UTF-8 BOM for Excel compatibility."""
+    si = io.StringIO()
+    si.write('\ufeff')  # UTF-8 BOM for seamless Microsoft Excel opening
+    writer = csv.writer(si)
+    writer.writerow(headers)
+    writer.writerows(rows)
+    output = si.getvalue()
+    return Response(
+        output,
+        mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+
+def normalize_csv_keys(row):
+    """Normalizes header keys to lowercase with underscores."""
+    return {k.strip().lower().replace(" ", "_"): v.strip() for k, v in row.items() if k}
+
+@app.route("/import-export")
+@role_required(["super_admin", "admin"])
+def import_export_view():
+    tab = request.args.get("tab", "export").lower()
+    con = get_connection()
+    stats = {
+        "total_students": 0,
+        "total_teachers": 0,
+        "total_books": 0
+    }
+    classes = []
+    exam_types = []
+    today_date = datetime.date.today().strftime("%Y-%m-%d")
+
+    if con:
+        try:
+            cur = con.cursor(dictionary=True)
+            cur.execute("SELECT COUNT(*) as cnt FROM Students_Details")
+            stats["total_students"] = cur.fetchone()["cnt"]
+
+            cur.execute("SELECT COUNT(*) as cnt FROM Teachers_Details")
+            stats["total_teachers"] = cur.fetchone()["cnt"]
+
+            cur.execute("SELECT COUNT(*) as cnt FROM Books_Details")
+            stats["total_books"] = cur.fetchone()["cnt"]
+
+            cur.execute("SELECT DISTINCT CLASS FROM Students_Details ORDER BY CLASS")
+            classes = [r["CLASS"] for r in cur.fetchall() if r.get("CLASS")]
+
+            cur.execute("SELECT DISTINCT EXAM_TYPE FROM marks_details ORDER BY EXAM_TYPE")
+            exam_types = [r["EXAM_TYPE"] for r in cur.fetchall() if r.get("EXAM_TYPE")]
+            cur.close()
+        except Exception as e:
+            print("Import/Export Stats Error:", e)
+        finally:
+            con.close()
+
+    return render_template(
+        "import_export.html",
+        active_page="import_export",
+        title="Data Import & Export Hub",
+        tab=tab,
+        stats=stats,
+        classes=classes,
+        exam_types=exam_types,
+        today_date=today_date
+    )
+
+@app.route("/export/students")
+@role_required(["super_admin", "admin"])
+def export_students_route():
+    class_filter = request.args.get("class", "").strip()
+    con = get_connection()
+    if not con:
+        flash("Database connection failed. Unable to export.", "danger")
+        return redirect(url_for("import_export_view", tab="export"))
+    try:
+        cur = con.cursor()
+        if class_filter:
+            cur.execute("""
+                SELECT ID, ROLL_NUMBER, NAME, CLASS, AGE, ADDRESS, PHONE, EMAIL, GENDER 
+                FROM Students_Details WHERE CLASS=%s ORDER BY ROLL_NUMBER
+            """, (class_filter,))
+            filename = f"students_class_{class_filter}_{datetime.date.today().strftime('%Y%m%d')}.csv"
+        else:
+            cur.execute("""
+                SELECT ID, ROLL_NUMBER, NAME, CLASS, AGE, ADDRESS, PHONE, EMAIL, GENDER 
+                FROM Students_Details ORDER BY CLASS, ROLL_NUMBER
+            """)
+            filename = f"students_all_{datetime.date.today().strftime('%Y%m%d')}.csv"
+        rows = cur.fetchall()
+        headers = ["ID", "Roll Number", "Name", "Class", "Age", "Address", "Phone", "Email", "Gender"]
+        log_history(session.get("username", "Staff"), f"Exported student records CSV (Filter: {class_filter or 'All'})")
+        return generate_csv_response(filename, headers, rows)
+    except Exception as e:
+        flash(f"Error exporting students: {e}", "danger")
+        return redirect(url_for("import_export_view", tab="export"))
+    finally:
+        con.close()
+
+@app.route("/export/teachers")
+@role_required(["super_admin", "admin"])
+def export_teachers_route():
+    con = get_connection()
+    if not con:
+        flash("Database connection failed. Unable to export.", "danger")
+        return redirect(url_for("import_export_view", tab="export"))
+    try:
+        cur = con.cursor()
+        cur.execute("""
+            SELECT ID, TEACHER_ID, NAME, SUBJECT, AGE, ADDRESS, PHONE, EMAIL, GENDER 
+            FROM Teachers_Details ORDER BY NAME
+        """)
+        rows = cur.fetchall()
+        headers = ["ID", "Teacher ID", "Name", "Subject", "Age", "Address", "Phone", "Email", "Gender"]
+        filename = f"teachers_directory_{datetime.date.today().strftime('%Y%m%d')}.csv"
+        log_history(session.get("username", "Staff"), "Exported faculty directory CSV")
+        return generate_csv_response(filename, headers, rows)
+    except Exception as e:
+        flash(f"Error exporting teachers: {e}", "danger")
+        return redirect(url_for("import_export_view", tab="export"))
+    finally:
+        con.close()
+
+@app.route("/export/library")
+@role_required(["super_admin", "admin"])
+def export_library_route():
+    con = get_connection()
+    if not con:
+        flash("Database connection failed. Unable to export.", "danger")
+        return redirect(url_for("import_export_view", tab="export"))
+    try:
+        cur = con.cursor()
+        cur.execute("""
+            SELECT ID, BOOK_ID, TITLE, AUTHOR, GENRE, TOTAL_COPIES, AVAILABLE_COPIES 
+            FROM Books_Details ORDER BY BOOK_ID
+        """)
+        rows = cur.fetchall()
+        headers = ["ID", "Book ID", "Title", "Author", "Genre", "Total Copies", "Available Copies"]
+        filename = f"library_inventory_{datetime.date.today().strftime('%Y%m%d')}.csv"
+        log_history(session.get("username", "Staff"), "Exported library inventory CSV")
+        return generate_csv_response(filename, headers, rows)
+    except Exception as e:
+        flash(f"Error exporting library catalog: {e}", "danger")
+        return redirect(url_for("import_export_view", tab="export"))
+    finally:
+        con.close()
+
+@app.route("/export/attendance")
+@role_required(["super_admin", "admin"])
+def export_attendance_route():
+    att_date = request.args.get("date", "").strip() or datetime.date.today().strftime("%Y-%m-%d")
+    con = get_connection()
+    if not con:
+        flash("Database connection failed. Unable to export.", "danger")
+        return redirect(url_for("import_export_view", tab="export"))
+    try:
+        cur = con.cursor()
+        cur.execute("""
+            SELECT a.ATTENDANCE_DATE, a.ROLL_NUMBER, s.NAME, s.CLASS, a.STATUS, IFNULL(a.REMARKS, '-')
+            FROM attendance_details a
+            JOIN Students_Details s ON a.ROLL_NUMBER = s.ROLL_NUMBER
+            WHERE a.ATTENDANCE_DATE = %s
+            ORDER BY s.CLASS, a.ROLL_NUMBER
+        """, (att_date,))
+        rows = cur.fetchall()
+        headers = ["Date", "Roll Number", "Student Name", "Class", "Status", "Remarks"]
+        filename = f"attendance_{att_date}.csv"
+        log_history(session.get("username", "Staff"), f"Exported attendance CSV for {att_date}")
+        return generate_csv_response(filename, headers, rows)
+    except Exception as e:
+        flash(f"Error exporting attendance: {e}", "danger")
+        return redirect(url_for("import_export_view", tab="export"))
+    finally:
+        con.close()
+
+@app.route("/export/merit-list")
+@role_required(["super_admin", "admin"])
+def export_merit_list_route():
+    class_name = request.args.get("class", "").strip()
+    exam_type = request.args.get("exam_type", "Final Exam").strip() or "Final Exam"
+    if not class_name:
+        flash("Please select a class for the exam merit list.", "warning")
+        return redirect(url_for("import_export_view", tab="export"))
+
+    con = get_connection()
+    if not con:
+        flash("Database connection failed. Unable to export.", "danger")
+        return redirect(url_for("import_export_view", tab="export"))
+    try:
+        cur = con.cursor()
+        cur.execute("""
+            SELECT s.ROLL_NUMBER, s.NAME, 
+                   SUM(m.MARKS_OBTAINED) as TOTAL_OBT, 
+                   SUM(m.MAX_MARKS) as TOTAL_MAX
+            FROM Students_Details s
+            JOIN marks_details m ON s.ROLL_NUMBER = m.ROLL_NUMBER
+            WHERE s.CLASS=%s AND m.EXAM_TYPE=%s
+            GROUP BY s.ROLL_NUMBER, s.NAME
+        """, (class_name, exam_type))
+        rows = cur.fetchall()
+
+        merit_data = []
+        for roll, name, obt, max_m in rows:
+            obt_f = float(obt or 0)
+            max_f = float(max_m or 0)
+            pct = (obt_f / max_f) * 100 if max_f > 0 else 0.0
+            grade = "A+" if pct >= 90 else ("A" if pct >= 80 else ("B+" if pct >= 70 else ("B" if pct >= 60 else ("C" if pct >= 50 else ("D" if pct >= 40 else "F")))))
+            merit_data.append({
+                "roll": roll,
+                "name": name,
+                "obtained": obt_f,
+                "max": max_f,
+                "pct": round(pct, 2),
+                "grade": grade
+            })
+
+        merit_data.sort(key=lambda x: x["pct"], reverse=True)
+
+        export_rows = []
+        for rank, item in enumerate(merit_data, start=1):
+            export_rows.append([
+                rank,
+                item["roll"],
+                item["name"],
+                class_name,
+                exam_type,
+                f"{item['obtained']:.1f}",
+                f"{item['max']:.1f}",
+                f"{item['pct']:.2f}%",
+                item["grade"]
+            ])
+
+        headers = ["Rank", "Roll Number", "Student Name", "Class", "Exam Type", "Marks Obtained", "Maximum Marks", "Percentage", "Grade"]
+        filename = f"merit_list_{class_name}_{exam_type.replace(' ', '_')}_{datetime.date.today().strftime('%Y%m%d')}.csv"
+        log_history(session.get("username", "Staff"), f"Exported merit list CSV for {class_name} ({exam_type})")
+        return generate_csv_response(filename, headers, export_rows)
+    except Exception as e:
+        flash(f"Error exporting merit list: {e}", "danger")
+        return redirect(url_for("import_export_view", tab="export"))
+    finally:
+        con.close()
+
+@app.route("/export/fees")
+@role_required(["super_admin"])
+def export_fees_route():
+    con = get_connection()
+    if not con:
+        flash("Database connection failed. Unable to export.", "danger")
+        return redirect(url_for("import_export_view", tab="export"))
+    try:
+        cur = con.cursor()
+        cur.execute("SELECT ROLL_NUMBER, NAME, CLASS, PHONE, EMAIL FROM Students_Details ORDER BY CLASS, ROLL_NUMBER")
+        students = cur.fetchall()
+
+        defaulter_rows = []
+        for roll, name, s_class, phone, email in students:
+            cur.execute("SELECT ANNUAL_FEE FROM Fee_Structure WHERE CLASS=%s", (s_class,))
+            fee_res = cur.fetchone()
+            total_fee = float(fee_res[0]) if fee_res else 45000.0
+
+            cur.execute("SELECT IFNULL(SUM(AMOUNT_PAID), 0) FROM Fee_Transactions WHERE ROLL_NUMBER=%s", (roll,))
+            paid_fee = float(cur.fetchone()[0])
+            balance_due = max(0.0, total_fee - paid_fee)
+
+            if balance_due > 0:
+                defaulter_rows.append([roll, name, s_class, f"{total_fee:.2f}", f"{paid_fee:.2f}", f"{balance_due:.2f}", phone or "-", email or "-"])
+
+        headers = ["Roll Number", "Student Name", "Class", "Total Annual Fee (INR)", "Amount Paid (INR)", "Pending Due (INR)", "Phone", "Email"]
+        filename = f"fee_defaulters_ledger_{datetime.date.today().strftime('%Y%m%d')}.csv"
+        log_history(session.get("username", "Principal"), "Exported fee defaulters ledger CSV")
+        return generate_csv_response(filename, headers, defaulter_rows)
+    except Exception as e:
+        flash(f"Error exporting fee defaulters: {e}", "danger")
+        return redirect(url_for("import_export_view", tab="export"))
+    finally:
+        con.close()
+
+@app.route("/export/all-tables")
+@role_required(["super_admin"])
+def export_all_tables_route():
+    try:
+        from Export_Management_System import export_all_tables
+        export_all_tables()
+        flash("Full School Database Export completed! Verified CSV spreadsheets saved to the local 'exports/' folder.", "success")
+        log_history(session.get("username", "Principal"), "Triggered full school database export to exports/ folder")
+    except Exception as e:
+        flash(f"Error running offline export: {e}", "danger")
+    return redirect(url_for("import_export_view", tab="export"))
+
+@app.route("/template/download/<template_name>")
+@role_required(["super_admin", "admin"])
+def download_csv_template(template_name):
+    templates = {
+        "students": (
+            "template_students.csv",
+            ["ROLL_NUMBER", "NAME", "CLASS", "AGE", "ADDRESS", "PHONE", "EMAIL", "GENDER"],
+            [
+                ["1001", "Aarav Sharma", "Grade 10", "15", "12 Park Street, Delhi", "9876543210", "aarav@example.com", "Male"],
+                ["1002", "Diya Patel", "Grade 10", "15", "45 Green Road, Mumbai", "9876543211", "diya@example.com", "Female"]
+            ]
+        ),
+        "teachers": (
+            "template_teachers.csv",
+            ["TEACHER_ID", "NAME", "SUBJECT", "AGE", "ADDRESS", "PHONE", "EMAIL", "GENDER"],
+            [
+                ["T101", "Dr. Rajesh Verma", "Mathematics", "42", "7 Civil Lines, Jaipur", "9812345678", "rajesh@school.com", "Male"],
+                ["T102", "Anita Roy", "English", "35", "18 Lake Road, Kolkata", "9812345679", "anita@school.com", "Female"]
+            ]
+        ),
+        "books": (
+            "template_books.csv",
+            ["BOOK_ID", "TITLE", "AUTHOR", "GENRE", "TOTAL_COPIES"],
+            [
+                ["B101", "Concepts of Physics", "H.C. Verma", "Science", "25"],
+                ["B102", "To Kill a Mockingbird", "Harper Lee", "Fiction", "15"]
+            ]
+        )
+    }
+
+    if template_name not in templates:
+        flash(f"Unknown template: {template_name}", "warning")
+        return redirect(url_for("import_export_view", tab="templates"))
+
+    filename, headers, sample_rows = templates[template_name]
+    return generate_csv_response(filename, headers, sample_rows)
+
+@app.route("/import/students", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def import_students_route():
+    file = request.files.get("file")
+    if not file or not file.filename:
+        flash("Please select a CSV file to upload.", "warning")
+        return redirect(url_for("import_export_view", tab="import"))
+
+    if not file.filename.lower().endswith(".csv"):
+        flash("Invalid file format. Please upload a standard comma-separated .csv file.", "danger")
+        return redirect(url_for("import_export_view", tab="import"))
+
+    con = get_connection()
+    if not con:
+        flash("Database connection failed. Unable to import.", "danger")
+        return redirect(url_for("import_export_view", tab="import"))
+
+    try:
+        stream = io.TextIOWrapper(file.stream, encoding="utf-8-sig")
+        reader = csv.DictReader(stream)
+        cur = con.cursor()
+        imported = 0
+        skipped = 0
+
+        for row_idx, raw_row in enumerate(reader, start=2):
+            row = normalize_csv_keys(raw_row)
+            roll = row.get("roll_number") or row.get("roll")
+            name = row.get("name")
+            s_class = row.get("class", "Grade 10")
+            age_val = row.get("age", "15")
+            address = row.get("address", "")
+            phone = row.get("phone", "")
+            email = row.get("email", "")
+            gender = row.get("gender", "Other")
+
+            if not roll or not name:
+                skipped += 1
+                continue
+
+            try:
+                age = int(age_val) if age_val.isdigit() else 15
+            except ValueError:
+                age = 15
+
+            cur.execute("""
+                INSERT INTO Students_Details 
+                (ROLL_NUMBER, NAME, CLASS, AGE, ADDRESS, PHONE, EMAIL, GENDER)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE 
+                    NAME=VALUES(NAME), CLASS=VALUES(CLASS), AGE=VALUES(AGE),
+                    ADDRESS=VALUES(ADDRESS), PHONE=VALUES(PHONE), EMAIL=VALUES(EMAIL), GENDER=VALUES(GENDER)
+            """, (roll, name, s_class, age, address, phone, email, gender))
+            imported += 1
+
+        con.commit()
+        flash(f"Student CSV Import Completed! Successfully processed {imported} records ({skipped} skipped).", "success")
+        log_history(session.get("username", "Staff"), f"Imported student CSV: {imported} processed, {skipped} skipped")
+    except Exception as e:
+        flash(f"Error processing student CSV: {e}", "danger")
+    finally:
+        con.close()
+
+    return redirect(url_for("import_export_view", tab="import"))
+
+@app.route("/import/teachers", methods=["POST"])
+@role_required(["super_admin"])
+def import_teachers_route():
+    file = request.files.get("file")
+    if not file or not file.filename:
+        flash("Please select a CSV file to upload.", "warning")
+        return redirect(url_for("import_export_view", tab="import"))
+
+    if not file.filename.lower().endswith(".csv"):
+        flash("Invalid file format. Please upload a standard comma-separated .csv file.", "danger")
+        return redirect(url_for("import_export_view", tab="import"))
+
+    con = get_connection()
+    if not con:
+        flash("Database connection failed. Unable to import.", "danger")
+        return redirect(url_for("import_export_view", tab="import"))
+
+    try:
+        stream = io.TextIOWrapper(file.stream, encoding="utf-8-sig")
+        reader = csv.DictReader(stream)
+        cur = con.cursor()
+        imported = 0
+        skipped = 0
+
+        for row_idx, raw_row in enumerate(reader, start=2):
+            row = normalize_csv_keys(raw_row)
+            teacher_id = row.get("teacher_id") or row.get("id")
+            name = row.get("name")
+            subject = row.get("subject", "General")
+            age_val = row.get("age", "30")
+            address = row.get("address", "")
+            phone = row.get("phone", "")
+            email = row.get("email", "")
+            gender = row.get("gender", "Other")
+
+            if not teacher_id or not name:
+                skipped += 1
+                continue
+
+            try:
+                age = int(age_val) if age_val.isdigit() else 30
+            except ValueError:
+                age = 30
+
+            cur.execute("""
+                INSERT INTO Teachers_Details 
+                (TEACHER_ID, NAME, SUBJECT, AGE, ADDRESS, PHONE, EMAIL, GENDER)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE 
+                    NAME=VALUES(NAME), SUBJECT=VALUES(SUBJECT), AGE=VALUES(AGE),
+                    ADDRESS=VALUES(ADDRESS), PHONE=VALUES(PHONE), EMAIL=VALUES(EMAIL), GENDER=VALUES(GENDER)
+            """, (teacher_id, name, subject, age, address, phone, email, gender))
+            imported += 1
+
+        con.commit()
+        flash(f"Teacher CSV Import Completed! Successfully processed {imported} records ({skipped} skipped).", "success")
+        log_history(session.get("username", "Principal"), f"Imported faculty CSV: {imported} processed, {skipped} skipped")
+    except Exception as e:
+        flash(f"Error processing faculty CSV: {e}", "danger")
+    finally:
+        con.close()
+
+@app.route("/import/books", methods=["POST"])
+@role_required(["super_admin", "admin"])
+def import_books_route():
+    file = request.files.get("file")
+    if not file or not file.filename:
+        flash("Please select a CSV file to upload.", "warning")
+        return redirect(url_for("import_export_view", tab="import"))
+
+    if not file.filename.lower().endswith(".csv"):
+        flash("Invalid file format. Please upload a standard comma-separated .csv file.", "danger")
+        return redirect(url_for("import_export_view", tab="import"))
+
+    con = get_connection()
+    if not con:
+        flash("Database connection failed. Unable to import.", "danger")
+        return redirect(url_for("import_export_view", tab="import"))
+
+    try:
+        stream = io.TextIOWrapper(file.stream, encoding="utf-8-sig")
+        reader = csv.DictReader(stream)
+        cur = con.cursor()
+        imported = 0
+        skipped = 0
+
+        for row_idx, raw_row in enumerate(reader, start=2):
+            row = normalize_csv_keys(raw_row)
+            book_id = row.get("book_id") or row.get("isbn")
+            title = row.get("title")
+            author = row.get("author", "Unknown")
+            genre = row.get("genre", "General")
+            copies_val = row.get("total_copies") or row.get("copies", "1")
+
+            if not book_id or not title:
+                skipped += 1
+                continue
+
+            try:
+                copies = int(copies_val) if copies_val.isdigit() else 1
+            except ValueError:
+                copies = 1
+
+            cur.execute("""
+                INSERT INTO Books_Details 
+                (BOOK_ID, TITLE, AUTHOR, GENRE, TOTAL_COPIES, AVAILABLE_COPIES)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE 
+                    TITLE=VALUES(TITLE), AUTHOR=VALUES(AUTHOR), GENRE=VALUES(GENRE),
+                    TOTAL_COPIES=VALUES(TOTAL_COPIES), AVAILABLE_COPIES=VALUES(AVAILABLE_COPIES)
+            """, (book_id, title, author, genre, copies, copies))
+            imported += 1
+
+        con.commit()
+        flash(f"Library Books CSV Import Completed! Successfully processed {imported} records ({skipped} skipped).", "success")
+        log_history(session.get("username", "Staff"), f"Imported books CSV: {imported} processed, {skipped} skipped")
+    except Exception as e:
+        flash(f"Error processing library books CSV: {e}", "danger")
+    finally:
+        con.close()
+
+    return redirect(url_for("import_export_view", tab="import"))
 
 
 # 7. BACKWARD COMPATIBILITY / TEMPLATE URL ALIASES

@@ -40,9 +40,13 @@ def get_aiven_connection():
     password = os.getenv("AIVEN_DB_PASSWORD")
     database = os.getenv("AIVEN_DB_NAME", "defaultdb")
 
-    if not host or not password:
+    if not host or not user or not password:
+        print("AIVEN CONFIG ERROR: Missing required environment variables.")
+        print(f"Host configured: {bool(host)}")
+        print(f"User configured: {bool(user)}")
+        print(f"Password configured: {bool(password)}")
         return None
-
+    
     try:
         con = ms.connect(
             host=host,

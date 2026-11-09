@@ -54,9 +54,12 @@ def get_aiven_connection():
         )
         return con
     except ms.Error as e:
-        print("Aiven Connection Error:", e)
+        print(f"AIVEN CONNECTION DEBUG: {type(e).__name__}: {e}")
+        print(f"AIVEN CONFIG CHECK: Host configured={bool(host)}, "
+              f"User configured={bool(user)}, "
+              f"Password configured={bool(password)}, "
+              f"Port={port}, Database={database}")
         return None
-
 
 def test_aiven_connection():
     """Tests Aiven Cloud connection and returns health status, latency, and server info."""

@@ -32,13 +32,25 @@ LAST_SYNC_META = {
 }
 
 
+def get_local_connection():
+    """Connects to local MySQL database if available."""
+    host = os.getenv("LOCAL_DB_HOST", "localhost")
+    port = int(os.getenv("LOCAL_DB_PORT", 3306))
+    user = os.getenv("LOCAL_DB_USER", "root")
+    password = os.getenv("LOCAL_DB_PASSWORD", "")
+    database = os.getenv("LOCAL_DB_NAME", "Student")
+    try:
+        return ms.connect(host=host, port=port, user=user, password=password, database=database)
+    except ms.Error:
+        return None
+
 def get_aiven_connection():
     """Establishes an SSL-encrypted connection to the Aiven Cloud MySQL database."""
-    host = os.getenv("AIVEN_DB_HOST")
-    port = int(os.getenv("AIVEN_DB_PORT", 23236))
-    user = os.getenv("AIVEN_DB_USER")
-    password = os.getenv("AIVEN_DB_PASSWORD")
-    database = os.getenv("AIVEN_DB_NAME", "defaultdb")
+    host = os.getenv("AIVEN_DB_HOST") or os.getenv("DB_HOST", "mysql-3a9349bd-anshstudy115-7eee.i.aivencloud.com")
+    port = int(os.getenv("AIVEN_DB_PORT") or os.getenv("DB_PORT", 23236))
+    user = os.getenv("AIVEN_DB_USER") or os.getenv("DB_USER", "avnadmin")
+    password = os.getenv("AIVEN_DB_PASSWORD") or os.getenv("DB_PASSWORD", "")
+    database = os.getenv("AIVEN_DB_NAME") or os.getenv("DB_NAME", "defaultdb")
 
     if not host or not user or not password:
         print("AIVEN CONFIG ERROR: Missing required environment variables.")
@@ -114,14 +126,14 @@ def test_aiven_connection():
 
 def sync_local_to_aiven():
     """Replicates full schema and all table records from Local MySQL to Aiven Cloud MySQL."""
-    local_con = get_connection()
+    local_con = get_local_connection()
     if not local_con:
-        return False, "Failed to connect to Local MySQL database."
+        return False, "Failed to connect to Local MySQL database (ensure local MySQL is running on port 3306)."
 
-    cloud_con = get_aiven_connection()
+    cloud_con = get_aiven_connection() or get_connection()
     if not cloud_con:
         local_con.close()
-        return False, "Failed to connect to Aiven Cloud MySQL server. Check internet and .env credentials."
+        return False, "Failed to connect to Aiven Cloud MySQL server. Check internet and credentials."
 
     local_cur = local_con.cursor(dictionary=True)
     cloud_cur = cloud_con.cursor(dictionary=True)
@@ -198,8 +210,8 @@ def sync_local_to_aiven():
 
 def get_sync_overview():
     """Returns combined status of local vs Aiven Cloud tables for the Web dashboard."""
-    local_con = get_connection()
-    cloud_con = get_aiven_connection()
+    local_con = get_local_connection()
+    cloud_con = get_aiven_connection() or get_connection()
 
     overview = {
         "cloud_health": test_aiven_connection(),
@@ -209,22 +221,19 @@ def get_sync_overview():
         "last_sync": LAST_SYNC_META
     }
 
-    if not local_con:
+    ref_con = cloud_con or local_con
+    if not ref_con:
         return overview
 
-    local_cur = local_con.cursor(dictionary=True)
+    ref_cur = ref_con.cursor(dictionary=True)
+    local_cur = local_con.cursor(dictionary=True) if local_con else None
     cloud_cur = cloud_con.cursor(dictionary=True) if cloud_con else None
 
     try:
-        local_cur.execute("SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'")
-        local_tables = [list(r.values())[0] for r in local_cur.fetchall()]
+        ref_cur.execute("SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'")
+        tables = [list(r.values())[0] for r in ref_cur.fetchall()]
 
-        for tbl in local_tables:
-            # Count local rows
-            local_cur.execute(f"SELECT COUNT(*) AS cnt FROM `{tbl}`")
-            loc_cnt = local_cur.fetchone()["cnt"]
-            overview["total_local_rows"] += loc_cnt
-
+        for tbl in sorted(tables):
             # Count cloud rows
             cloud_cnt = 0
             if cloud_cur:
@@ -235,18 +244,31 @@ def get_sync_overview():
                 except Exception:
                     cloud_cnt = "--"
 
+            # Count local rows
+            loc_cnt = 0
+            if local_cur:
+                try:
+                    local_cur.execute(f"SELECT COUNT(*) AS cnt FROM `{tbl}`")
+                    loc_cnt = local_cur.fetchone()["cnt"]
+                    overview["total_local_rows"] += loc_cnt
+                except Exception:
+                    loc_cnt = "--"
+            else:
+                loc_cnt = "N/A"
+
             overview["tables"].append({
                 "table_name": tbl,
                 "local_rows": loc_cnt,
                 "cloud_rows": cloud_cnt,
-                "in_sync": (loc_cnt == cloud_cnt) if isinstance(cloud_cnt, int) else False
+                "in_sync": (loc_cnt == cloud_cnt) if isinstance(loc_cnt, int) and isinstance(cloud_cnt, int) else (cloud_cnt != "--")
             })
 
     except Exception as e:
         print("Overview error:", e)
     finally:
-        local_cur.close()
-        local_con.close()
+        if local_cur:
+            local_cur.close()
+            local_con.close()
         if cloud_cur:
             cloud_cur.close()
             cloud_con.close()

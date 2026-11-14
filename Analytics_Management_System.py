@@ -56,7 +56,7 @@ def init_analytics_tables():
                 STATUS ENUM('Open', 'In Progress', 'Under Review', 'Resolved') DEFAULT 'Open',
                 CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 UPDATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                FOREIGN KEY (ROLL_NUMBER) REFERENCES Students_Details(ROLL_NUMBER) ON DELETE CASCADE
+                FOREIGN KEY (ROLL_NUMBER) REFERENCES students_details(ROLL_NUMBER) ON DELETE CASCADE
             )
         """)
         con.commit()

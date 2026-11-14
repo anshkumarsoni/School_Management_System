@@ -4711,13 +4711,18 @@ def cloud_sync_view():
 @app.route("/cloud-sync/sync", methods=["POST"])
 @role_required(["super_admin"])
 def trigger_cloud_sync_route():
-    from Cloud_Backup_Sync_System import sync_local_to_aiven
-    success, result = sync_local_to_aiven()
+    from Cloud_Backup_Sync_System import sync_aiven_to_local, get_local_connection
+    local_con = get_local_connection()
+    if not local_con:
+        flash("Offline Backup Notice: Local MySQL is not running on this host (port 3306). Offline backups can only be saved when running EduPulse on your local computer.", "info")
+        return redirect(url_for("cloud_sync_view"))
+
+    success, result = sync_aiven_to_local()
     if success:
-        flash(f"Aiven Cloud Sync Completed! {result['synced_tables']} tables and {result['total_rows']} records mirrored to Aiven Cloud successfully.", "success")
-        log_history(session.get("username", "Principal"), f"Triggered Aiven Cloud Sync: {result['synced_tables']} tables, {result['total_rows']} rows copied")
+        flash(f"Offline Backup Completed! {result['synced_tables']} tables and {result['total_rows']} records backed up from Aiven Cloud to Local MySQL.", "success")
+        log_history(session.get("username", "Principal"), f"Downloaded Offline Backup from Cloud: {result['synced_tables']} tables, {result['total_rows']} rows copied")
     else:
-        flash(f"Aiven Cloud Sync Failed: {result}", "danger")
+        flash(f"Offline Backup Failed: {result}", "danger")
     return redirect(url_for("cloud_sync_view"))
 
 

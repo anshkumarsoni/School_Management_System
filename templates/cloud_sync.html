@@ -7,17 +7,17 @@
     <div class="page-toolbar">
         <div class="toolbar-left">
             <h3 style="font-size: 20px; font-weight: 700; color: var(--text-main); margin-bottom: 4px;">
-                <i class="fa-solid fa-cloud-arrow-up" style="color: var(--primary); margin-right: 6px;"></i>
-                Aiven Cloud MySQL Synchronization & Replication
+                <i class="fa-solid fa-cloud-arrow-down" style="color: var(--primary); margin-right: 6px;"></i>
+                Aiven Cloud MySQL &amp; Offline Backup
             </h3>
             <p style="font-size: 13px; color: var(--text-muted); margin: 0;">
-                Live database mirroring, schema replication & continuous cloud backup between Local MySQL and Aiven Cloud
+                Primary Aiven Cloud database health, real-time metrics &amp; 1-click offline backup to Local MySQL
             </p>
         </div>
         <div class="toolbar-right" style="display: flex; gap: 10px; align-items: center;">
             <form method="POST" action="{{ url_for('trigger_cloud_sync_route') }}" style="margin: 0;">
-                <button type="submit" class="btn-toolbar-add" style="background: linear-gradient(135deg, #0284c7, #0369a1); font-weight: 700;">
-                    <i class="fa-solid fa-rotate"></i> Sync All Data to Aiven Now
+                <button type="submit" class="btn-toolbar-add" style="background: linear-gradient(135deg, #0284c7, #0369a1); font-weight: 700;" title="Download full backup from Aiven Cloud into Local MySQL">
+                    <i class="fa-solid fa-cloud-arrow-down"></i> Backup Cloud to Local MySQL
                 </button>
             </form>
             <a href="{{ url_for('dashboard') }}" class="btn-toolbar-filter" style="text-decoration: none;">
@@ -139,8 +139,8 @@
                     <tr>
                         <th>#</th>
                         <th>Table Name</th>
-                        <th style="text-align: center;">Local MySQL Rows</th>
-                        <th style="text-align: center;">Aiven Cloud Rows</th>
+                        <th style="text-align: center;">Aiven Cloud Rows (Primary)</th>
+                        <th style="text-align: center;">Local Backup Rows</th>
                         <th style="text-align: center;">Replication Status</th>
                     </tr>
                 </thead>
@@ -152,10 +152,10 @@
                             <strong style="color: var(--text-main); font-family: monospace; font-size: 13px;">{{ t.table_name }}</strong>
                         </td>
                         <td style="text-align: center;">
-                            <span style="font-weight: 600; color: var(--text-main);">{{ t.local_rows }}</span>
+                            <span style="font-weight: 700; color: var(--primary);">{{ t.cloud_rows }}</span>
                         </td>
                         <td style="text-align: center;">
-                            <span style="font-weight: 700; color: var(--primary);">{{ t.cloud_rows }}</span>
+                            <span style="font-weight: 600; color: var(--text-main);">{{ t.local_rows }}</span>
                         </td>
                         <td style="text-align: center;">
                             {% if t.in_sync %}

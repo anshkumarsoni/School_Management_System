@@ -124,6 +124,91 @@ def test_aiven_connection():
         }
 
 
+def sync_aiven_to_local():
+    """Downloads a complete offline backup from primary Aiven Cloud MySQL to Local MySQL."""
+    local_con = get_local_connection()
+    if not local_con:
+        return False, "Local MySQL database is not reachable on this machine (port 3306). Offline backups can only be saved when running EduPulse on your local computer."
+
+    cloud_con = get_aiven_connection() or get_connection()
+    if not cloud_con:
+        local_con.close()
+        return False, "Failed to connect to primary Aiven Cloud MySQL server. Check internet connection."
+
+    cloud_cur = cloud_con.cursor(dictionary=True)
+    local_cur = local_con.cursor(dictionary=True)
+
+    try:
+        # Disable foreign key checks and set ANSI_QUOTES compatibility on Local MySQL during restoration
+        local_cur.execute("SET FOREIGN_KEY_CHECKS = 0")
+        local_cur.execute("SET SESSION sql_mode = 'ANSI_QUOTES'")
+
+        # Discover all base tables in Aiven Cloud database
+        cloud_cur.execute("SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'")
+        tables = [list(r.values())[0] for r in cloud_cur.fetchall()]
+
+        synced_tables = 0
+        total_rows_copied = 0
+        table_summary = []
+
+        for table in tables:
+            # 1. Fetch CREATE TABLE DDL from Cloud
+            cloud_cur.execute(f'SHOW CREATE TABLE "{table}"')
+            create_res = cloud_cur.fetchone()
+            create_stmt = list(create_res.values())[1]
+
+            # 2. Re-create table on Local MySQL
+            local_cur.execute(f'DROP TABLE IF EXISTS "{table}"')
+            local_cur.execute(create_stmt)
+
+            # 3. Read data from Cloud
+            cloud_cur.execute(f'SELECT * FROM "{table}"')
+            rows = cloud_cur.fetchall()
+
+            if rows:
+                columns = list(rows[0].keys())
+                placeholders = ", ".join(["%s"] * len(columns))
+                cols_joined = ", ".join([f'"{c}"' for c in columns])
+                insert_stmt = f'INSERT INTO "{table}" ({cols_joined}) VALUES ({placeholders})'
+
+                data_tuples = [tuple(r[c] for c in columns) for r in rows]
+                local_cur.executemany(insert_stmt, data_tuples)
+                total_rows_copied += len(data_tuples)
+                table_summary.append({"table": table, "rows": len(data_tuples), "status": "Backed Up"})
+            else:
+                table_summary.append({"table": table, "rows": 0, "status": "Schema Created"})
+
+            synced_tables += 1
+
+        # Re-enable foreign key checks and commit on Local
+        local_cur.execute("SET FOREIGN_KEY_CHECKS = 1")
+        local_con.commit()
+
+        sync_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        LAST_SYNC_META["last_sync_time"] = sync_timestamp
+        LAST_SYNC_META["last_synced_tables"] = synced_tables
+        LAST_SYNC_META["last_synced_rows"] = total_rows_copied
+        LAST_SYNC_META["last_status"] = "Success (Cloud -> Local Backup)"
+
+        msg = f"Backed up {synced_tables} tables and {total_rows_copied} records from Aiven Cloud to Local MySQL at {sync_timestamp}."
+        return True, {
+            "message": msg,
+            "synced_tables": synced_tables,
+            "total_rows": total_rows_copied,
+            "timestamp": sync_timestamp,
+            "table_summary": table_summary
+        }
+
+    except ms.Error as e:
+        LAST_SYNC_META["last_status"] = f"Backup Failed: {e}"
+        return False, f"Backup Error: {e}"
+    finally:
+        cloud_cur.close()
+        cloud_con.close()
+        local_cur.close()
+        local_con.close()
+
+
 def sync_local_to_aiven():
     """Replicates full schema and all table records from Local MySQL to Aiven Cloud MySQL."""
     local_con = get_local_connection()

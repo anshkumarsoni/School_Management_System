@@ -1511,6 +1511,68 @@ body::after {
     gap: 6px;
 }
 
+/* White Box with Black Text for Faculty & Fee KPI Cards */
+.kpi-card.kpi-card-white {
+    background: #ffffff !important;
+    border: 1px solid rgba(203, 213, 225, 0.9) !important;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08) !important;
+}
+
+.kpi-card.kpi-card-white::before {
+    background: #0f172a !important;
+}
+
+.kpi-card.kpi-card-white:hover {
+    background: #ffffff !important;
+    transform: translateY(-4px);
+    box-shadow: 0 8px 26px rgba(0, 0, 0, 0.14) !important;
+    border-color: #94a3b8 !important;
+}
+
+.kpi-card.kpi-card-white .kpi-label {
+    color: #1e293b !important;
+    font-weight: 700 !important;
+}
+
+.kpi-card.kpi-card-white .kpi-value {
+    color: #000000 !important;
+    font-weight: 800 !important;
+}
+
+.kpi-card.kpi-card-white .kpi-footer {
+    border-top: 1px solid #e2e8f0 !important;
+}
+
+.kpi-card.kpi-card-white .kpi-footer .kpi-subtext {
+    color: #334155 !important;
+    font-weight: 600 !important;
+}
+
+.kpi-card.kpi-card-white .kpi-footer .kpi-subtext i {
+    color: #0f172a !important;
+}
+
+.kpi-card.kpi-card-white .kpi-icon-wrapper {
+    background: #f1f5f9 !important;
+    color: #000000 !important;
+    border: 1px solid #e2e8f0 !important;
+}
+
+.kpi-card.kpi-card-white .kpi-icon-wrapper i {
+    color: #000000 !important;
+}
+
+.kpi-card.kpi-card-white .kpi-pill {
+    background: #f8fafc !important;
+    color: #000000 !important;
+    border: 1px solid #cbd5e1 !important;
+    font-weight: 700 !important;
+}
+
+.kpi-card.kpi-card-white .kpi-pill i {
+    color: #000000 !important;
+}
+
 /* ----------------- 10. CHARTS SECTION ----------------- */
 .charts-section-grid {
     display: grid;
@@ -2739,6 +2801,39 @@ select.filter-input {
     font-size: 11px;
     color: var(--text-muted);
     line-height: 1.2;
+}
+
+/* Quick Action Tiles - White Box with Black Text */
+.quick-action-tile.tile-white-card {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08) !important;
+}
+
+.quick-action-tile.tile-white-card:hover {
+    background: #ffffff !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14) !important;
+    border-color: #94a3b8 !important;
+}
+
+.quick-action-tile.tile-white-card .action-tile-icon {
+    background: #f1f5f9 !important;
+    color: #000000 !important;
+    border: 1px solid #e2e8f0 !important;
+}
+
+.quick-action-tile.tile-white-card .action-tile-icon i {
+    color: #000000 !important;
+}
+
+.quick-action-tile.tile-white-card .action-tile-label {
+    color: #000000 !important;
+    font-weight: 700 !important;
+}
+
+.quick-action-tile.tile-white-card .action-tile-desc {
+    color: #334155 !important;
+    font-weight: 600 !important;
 }
 
 /* Campus Notice Board */

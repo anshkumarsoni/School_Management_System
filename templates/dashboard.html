@@ -100,7 +100,7 @@
             </div>
         </a>
 
-        <a href="{{ url_for('teachers_view') }}" class="kpi-card card-purple" style="text-decoration: none;">
+        <a href="{{ url_for('teachers_view') }}" class="kpi-card card-purple kpi-card-white" style="text-decoration: none;">
             <div class="kpi-top">
                 <div class="kpi-icon-wrapper"><i class="fa-solid fa-chalkboard-user"></i></div>
                 <span class="kpi-pill"><i class="fa-solid fa-check"></i> Faculty</span>
@@ -130,7 +130,7 @@
         </a>
 
         {% if current_role == 'super_admin' %}
-        <a href="{{ url_for('fees_view') }}" class="kpi-card card-emerald" style="text-decoration: none;">
+        <a href="{{ url_for('fees_view') }}" class="kpi-card card-emerald kpi-card-white" style="text-decoration: none;">
             <div class="kpi-top">
                 <div class="kpi-icon-wrapper"><i class="fa-solid fa-indian-rupee-sign"></i></div>
                 <span class="kpi-pill pill-emerald"><i class="fa-solid fa-shield-check"></i> Revenue</span>
@@ -174,9 +174,9 @@
         </a>
 
         {% if current_role == 'viewer' %}
-        <a href="{{ url_for('fees_view') }}" class="kpi-card card-cyan" style="text-decoration: none; border-top: 3px solid #10b981;">
+        <a href="{{ url_for('fees_view') }}" class="kpi-card card-cyan kpi-card-white" style="text-decoration: none;">
             <div class="kpi-top">
-                <div class="kpi-icon-wrapper" style="color: #059669; background: #ecfdf5;"><i class="fa-solid fa-receipt"></i></div>
+                <div class="kpi-icon-wrapper"><i class="fa-solid fa-receipt"></i></div>
                 <span class="kpi-pill pill-emerald"><i class="fa-solid fa-circle-check"></i> Status</span>
             </div>
             <div class="kpi-body">
@@ -224,7 +224,7 @@
                 <span class="action-tile-label">Enroll Student</span>
                 <span class="action-tile-desc">New admission</span>
             </button>
-            <a href="{{ url_for('teachers_view') }}" class="quick-action-tile">
+            <a href="{{ url_for('teachers_view') }}" class="quick-action-tile tile-white-card">
                 <div class="action-tile-icon tile-purple">
                     <i class="fa-solid fa-chalkboard-user"></i>
                 </div>
@@ -257,7 +257,7 @@
             </a>
 
             {% if current_role == 'super_admin' %}
-            <a href="{{ url_for('fees_view') }}" class="quick-action-tile">
+            <a href="{{ url_for('fees_view') }}" class="quick-action-tile tile-white-card">
                 <div class="action-tile-icon tile-emerald">
                     <i class="fa-solid fa-hand-holding-dollar"></i>
                 </div>
@@ -273,7 +273,7 @@
                 <span class="action-tile-desc">assignments & grading</span>
             </a>
             {% elif current_role == 'viewer' %}
-            <a href="{{ url_for('fees_view') }}" class="quick-action-tile">
+            <a href="{{ url_for('fees_view') }}" class="quick-action-tile tile-white-card">
                 <div class="action-tile-icon tile-emerald">
                     <i class="fa-solid fa-receipt"></i>
                 </div>

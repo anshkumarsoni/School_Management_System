@@ -4,17 +4,19 @@ import mysql.connector as ms
 from mysql.connector import Error
 from dotenv import load_dotenv
 
+
 # ---------------------------------- DATABASE CONFIG ----------------------------------
-# Load .env file reliably from project directory
+
 env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
 load_dotenv(env_path)
 load_dotenv()
 
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_USER = os.getenv("DB_USER", "root")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "")
-DB_NAME = os.getenv("DB_NAME", "Student")
-DB_PORT = int(os.getenv("DB_PORT", "3306"))
+# Local DB variables first; Aiven variables as fallback
+DB_HOST = os.getenv("DB_HOST") or os.getenv("AIVEN_DB_HOST")
+DB_USER = os.getenv("DB_USER") or os.getenv("AIVEN_DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD") or os.getenv("AIVEN_DB_PASSWORD")
+DB_NAME = os.getenv("DB_NAME") or os.getenv("AIVEN_DB_NAME")
+DB_PORT = int(os.getenv("DB_PORT") or os.getenv("AIVEN_DB_PORT") or "3306")
 
 # ---------------------------------- SCREEN UTILITIES ---------------------------------
 def clear_screen():
@@ -76,8 +78,17 @@ def create_database():
             cur.close()
             con.close()
 
+
 def get_connection():
     try:
+        if not all([DB_HOST, DB_USER, DB_PASSWORD, DB_NAME]):
+            print("DATABASE CONFIG ERROR: Missing database environment variables.")
+            print(f"Host configured: {bool(DB_HOST)}")
+            print(f"User configured: {bool(DB_USER)}")
+            print(f"Password configured: {bool(DB_PASSWORD)}")
+            print(f"Database configured: {bool(DB_NAME)}")
+            return None
+
         conn_kwargs = {
             "host": DB_HOST,
             "port": DB_PORT,
@@ -85,14 +96,17 @@ def get_connection():
             "password": DB_PASSWORD,
             "database": DB_NAME
         }
+
         ssl_ca = os.getenv("DB_SSL_CA") or "/etc/secrets/ca.pem"
+
         if os.path.exists(ssl_ca):
             conn_kwargs["ssl_ca"] = ssl_ca
             conn_kwargs["ssl_verify_cert"] = True
-        elif os.getenv("DB_SSL_MODE", "").upper() == "DISABLED":
-            conn_kwargs["ssl_disabled"] = True
+        else:
+            conn_kwargs["ssl_disabled"] = False
 
         return ms.connect(**conn_kwargs)
+
     except Error as e:
         print("Connection Error:", e)
         return None

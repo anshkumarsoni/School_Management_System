@@ -33,11 +33,11 @@
                 <button type="button" class="action-pill primary-pill" data-modal-target="#addStudentModal">
                     <i class="fa-solid fa-user-plus"></i> Quick Enroll
                 </button>
-                <a href="{{ url_for('teachers_view') }}" class="action-pill secondary-pill">
+                <a href="{{ url_for('teachers_view') }}" class="action-pill white-pill">
                     <i class="fa-solid fa-chalkboard-user"></i> Faculty
                 </a>
                 {% if current_role == 'super_admin' %}
-                <a href="{{ url_for('fees_view') }}" class="action-pill secondary-pill">
+                <a href="{{ url_for('fees_view') }}" class="action-pill white-pill">
                     <i class="fa-solid fa-receipt"></i> Fees
                 </a>
                 {% elif current_role == 'admin' %}
@@ -55,7 +55,7 @@
                 <a href="{{ url_for('calendar_ptm_view', tab='slots') }}" class="action-pill secondary-pill">
                     <i class="fa-solid fa-calendar-check"></i> Book PTM
                 </a>
-                <a href="{{ url_for('fees_view') }}" class="action-pill secondary-pill">
+                <a href="{{ url_for('fees_view') }}" class="action-pill white-pill">
                     <i class="fa-solid fa-receipt"></i> Fee Receipts
                 </a>
             {% endif %}

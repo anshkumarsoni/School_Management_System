@@ -12,7 +12,7 @@ from utils import (
     pause_and_clear
 )
 
-EXPORT_DIR = "exports"
+EXPORT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "exports")
 
 # --------------------------------- HELPER FUNCTIONS ---------------------------------
 

@@ -11,7 +11,7 @@ from utils import (
     pause_and_clear
 )
 
-TEMPLATES_DIR = "import_templates"
+TEMPLATES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "import_templates")
 
 # --------------------------------- HELPER FUNCTIONS ---------------------------------
 
